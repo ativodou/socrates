@@ -1711,9 +1711,11 @@ export default function App() {
                         <option value="Prescolaire">Préscolaire</option>
                         <option value="Primaire">Primaire</option>
                         <option value="Secondaire">Secondaire</option>
+                        <option value="Universitaire">Universitaire</option>
                         <option value="Prescolaire-Primaire">Préscolaire & Primaire</option>
                         <option value="Primaire-Secondaire">Primaire & Secondaire</option>
                         <option value="Complete">École Complète (Préscolaire-Secondaire)</option>
+                        <option value="Technique">Technique / Professionnel</option>
                       </select>
                     </div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Annee de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={formData.foundedYear??school?.foundedYear??''} onChange={e=>setFormData({...formData,foundedYear:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="1985"/></div>
