@@ -1192,7 +1192,7 @@ export default function App() {
 
   // AUTH SCREEN
   if (!user) return (
-    <div className="min-h-screen bg-gradient-to-br from-socrates-navy via-socrates-blue to-socrates-light flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-socrates-navy via-socrates-blue to-socrates-light flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8">
         <div className="text-center mb-6">
           <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br from-socrates-navy to-socrates-blue flex items-center justify-center text-white text-3xl font-bold">S</div>
