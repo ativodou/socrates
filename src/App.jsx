@@ -1232,6 +1232,13 @@ export default function App() {
           <button type="submit" className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Acceder au portail</button>
         </form>)}
       </div>
+      
+      {/* Footer */}
+      <div className="mt-8 text-center text-white/70 text-sm">
+        <p>SOCRATES - Systeme de Gestion Scolaire</p>
+        <p className="mt-1">Contact: anbyanssa@gmail.com | +1 305-504-0143</p>
+        <p className="mt-2 text-xs text-white/50">© {new Date().getFullYear()} Tous droits reserves</p>
+      </div>
     </div>
   );
 
