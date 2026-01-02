@@ -1195,7 +1195,37 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-socrates-navy via-socrates-blue to-socrates-light flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8">
         <div className="text-center mb-6">
-          <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br from-socrates-navy to-socrates-blue flex items-center justify-center text-white text-3xl font-bold">S</div>
+          <div className="w-24 h-24 mx-auto mb-3">
+            <svg viewBox="0 0 100 100" className="w-full h-full">
+              <defs>
+                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#1e3a5f"/>
+                  <stop offset="100%" stopColor="#3b82f6"/>
+                </linearGradient>
+              </defs>
+              <circle cx="50" cy="50" r="48" fill="url(#logoGradient)"/>
+              {/* Owl body */}
+              <ellipse cx="50" cy="58" rx="25" ry="28" fill="#f8fafc"/>
+              {/* Owl head */}
+              <circle cx="50" cy="38" r="22" fill="#f8fafc"/>
+              {/* Ear tufts */}
+              <path d="M32 22 L38 35 L28 35 Z" fill="#f8fafc"/>
+              <path d="M68 22 L72 35 L62 35 Z" fill="#f8fafc"/>
+              {/* Eyes */}
+              <circle cx="40" cy="38" r="10" fill="#1e3a5f"/>
+              <circle cx="60" cy="38" r="10" fill="#1e3a5f"/>
+              <circle cx="40" cy="38" r="6" fill="#fbbf24"/>
+              <circle cx="60" cy="38" r="6" fill="#fbbf24"/>
+              <circle cx="42" cy="36" r="2" fill="#fff"/>
+              <circle cx="62" cy="36" r="2" fill="#fff"/>
+              {/* Beak */}
+              <path d="M50 45 L46 52 L50 50 L54 52 Z" fill="#f59e0b"/>
+              {/* Graduation cap */}
+              <path d="M25 25 L50 15 L75 25 L50 32 Z" fill="#1e3a5f"/>
+              <rect x="48" y="15" width="4" height="8" fill="#1e3a5f"/>
+              <circle cx="50" cy="13" r="3" fill="#fbbf24"/>
+            </svg>
+          </div>
           <h1 className="font-display text-2xl sm:text-3xl text-socrates-navy">SOCRATES</h1>
           <p className="text-gray-500 italic text-sm">Vers la lumiere</p>
         </div>
