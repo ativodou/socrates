@@ -1081,8 +1081,12 @@ export default function App() {
         <header className="bg-gradient-to-r from-socrates-navy to-socrates-blue text-white p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">S</div>
-              <div><h1 className="font-bold text-lg">SOCRATES</h1><p className="text-xs text-blue-200">Portail Parent</p></div>
+              {school?.logo ? (
+                <img src={school.logo} alt="Logo" className="w-10 h-10 rounded-full object-contain bg-white"/>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">S</div>
+              )}
+              <div><h1 className="font-bold text-lg">{school?.name || 'SOCRATES'}</h1><p className="text-xs text-blue-200">Portail Parent</p></div>
             </div>
             <button onClick={()=>{setParentAccess(false);setParentStudent(null);setParentChildren([]);}} className="bg-white/20 hover:bg-white/30 p-3 rounded-full"><LogOut size={20}/></button>
           </div>
@@ -1117,6 +1121,45 @@ export default function App() {
               <button onClick={()=>generateContract(parentStudent)} className="bg-purple-100 text-purple-700 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><FileText size={20}/>Contrat</button>
               <button onClick={()=>generateReportCard(parentStudent)} className="bg-socrates-blue text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><Download size={20}/>Bulletin</button>
             </div>
+          </div>
+
+          {/* School Profile */}
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <div className="flex items-center gap-4 mb-4">
+              {school?.logo ? (
+                <img src={school.logo} alt="Logo" className="w-16 h-16 rounded-xl object-contain"/>
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-socrates-navy to-socrates-blue text-white flex items-center justify-center text-2xl font-bold">{school?.name?.[0] || 'S'}</div>
+              )}
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-800">{school?.name || 'École'}</h3>
+                {school?.slogan && <p className="text-sm text-gray-500 italic">"{school.slogan}"</p>}
+                {school?.schoolType && <span className="inline-block mt-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">{school.schoolType}</span>}
+              </div>
+            </div>
+            
+            {school?.mission && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">Notre Mission</p>
+                <p className="text-sm text-gray-600">{school.mission}</p>
+              </div>
+            )}
+            
+            <div className="space-y-2 text-sm">
+              {school?.address && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">📍</span>{school.address}</p>}
+              {school?.phone && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">📞</span>{school.phone}</p>}
+              {school?.email && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">✉️</span>{school.email}</p>}
+              {school?.foundedYear && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">📅</span>Fondée en {school.foundedYear}</p>}
+              {school?.directorName && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">👤</span>{school.directorTitle || 'Directeur'}: {school.directorName}</p>}
+            </div>
+            
+            {(school?.website || school?.facebook || school?.instagram) && (
+              <div className="flex gap-3 mt-4 pt-4 border-t">
+                {school?.website && <a href={school.website} target="_blank" rel="noopener noreferrer" className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium text-center">🌐 Site Web</a>}
+                {school?.facebook && <a href={`https://facebook.com/${school.facebook.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg text-sm font-medium text-center">Facebook</a>}
+                {school?.instagram && <a href={`https://instagram.com/${school.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-pink-100 text-pink-700 py-2 rounded-lg text-sm font-medium text-center">Instagram</a>}
+              </div>
+            )}
           </div>
 
           {/* Notes from School */}
@@ -1597,10 +1640,23 @@ export default function App() {
                         <input type="file" accept="image/*" className="hidden" onChange={async(e)=>{
                           const file = e.target.files[0];
                           if(file){
+                            // Check file size (max 500KB)
+                            if(file.size > 500 * 1024){
+                              alert('Image trop grande. Maximum 500KB.');
+                              return;
+                            }
                             const reader = new FileReader();
                             reader.onloadend = async() => {
-                              await updateDoc(doc(db,'schools',school.id),{logo:reader.result});
-                              setSchool({...school,logo:reader.result});
+                              try {
+                                await updateDoc(doc(db,'schools',school.id),{logo:reader.result});
+                                setSchool({...school,logo:reader.result});
+                                alert('Logo sauvegarde!');
+                              } catch(err) {
+                                alert('Erreur: ' + err.message);
+                              }
+                            };
+                            reader.onerror = () => {
+                              alert('Erreur de lecture du fichier');
                             };
                             reader.readAsDataURL(file);
                           }
@@ -1645,6 +1701,33 @@ export default function App() {
                 </label>
               </div>
 
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Profil Etendu (visible aux parents)</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'ecole</label>
+                      <select value={formData.schoolType??school?.schoolType??''} onChange={e=>setFormData({...formData,schoolType:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
+                        <option value="">Selectionner</option>
+                        <option value="Prescolaire">Préscolaire</option>
+                        <option value="Primaire">Primaire</option>
+                        <option value="Secondaire">Secondaire</option>
+                        <option value="Prescolaire-Primaire">Préscolaire & Primaire</option>
+                        <option value="Primaire-Secondaire">Primaire & Secondaire</option>
+                        <option value="Complete">École Complète (Préscolaire-Secondaire)</option>
+                      </select>
+                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Annee de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={formData.foundedYear??school?.foundedYear??''} onChange={e=>setFormData({...formData,foundedYear:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="1985"/></div>
+                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Devise / Slogan</label><input type="text" value={formData.slogan??school?.slogan??''} onChange={e=>setFormData({...formData,slogan:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Vers la lumiere..."/></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Mission / Vision</label><textarea value={formData.mission??school?.mission??''} onChange={e=>setFormData({...formData,mission:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base h-24 resize-none" placeholder="Notre mission est de former des citoyens responsables..."/></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Site Web</label><input type="url" value={formData.website??school?.website??''} onChange={e=>setFormData({...formData,website:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="https://www.monecole.com"/></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label><input type="text" value={formData.facebook??school?.facebook??''} onChange={e=>setFormData({...formData,facebook:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="@monecole"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label><input type="text" value={formData.instagram??school?.instagram??''} onChange={e=>setFormData({...formData,instagram:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="@monecole"/></div>
+                  </div>
+                </div>
+              </div>
+
               <button onClick={async()=>{
                 try{
                   await updateDoc(doc(db,'schools',school.id),{
@@ -1655,7 +1738,14 @@ export default function App() {
                     directorTitle: formData.directorTitle??school?.directorTitle,
                     directorPhone: formData.directorPhone??school?.directorPhone,
                     directorEmail: formData.directorEmail??school?.directorEmail,
-                    blockParentOnDebt: formData.blockParentOnDebt??school?.blockParentOnDebt??false
+                    blockParentOnDebt: formData.blockParentOnDebt??school?.blockParentOnDebt??false,
+                    schoolType: formData.schoolType??school?.schoolType??'',
+                    foundedYear: formData.foundedYear??school?.foundedYear??'',
+                    slogan: formData.slogan??school?.slogan??'',
+                    mission: formData.mission??school?.mission??'',
+                    website: formData.website??school?.website??'',
+                    facebook: formData.facebook??school?.facebook??'',
+                    instagram: formData.instagram??school?.instagram??''
                   });
                   setSchool({...school,
                     name: formData.schoolName??school?.name,
@@ -1665,7 +1755,14 @@ export default function App() {
                     directorTitle: formData.directorTitle??school?.directorTitle,
                     directorPhone: formData.directorPhone??school?.directorPhone,
                     directorEmail: formData.directorEmail??school?.directorEmail,
-                    blockParentOnDebt: formData.blockParentOnDebt??school?.blockParentOnDebt??false
+                    blockParentOnDebt: formData.blockParentOnDebt??school?.blockParentOnDebt??false,
+                    schoolType: formData.schoolType??school?.schoolType??'',
+                    foundedYear: formData.foundedYear??school?.foundedYear??'',
+                    slogan: formData.slogan??school?.slogan??'',
+                    mission: formData.mission??school?.mission??'',
+                    website: formData.website??school?.website??'',
+                    facebook: formData.facebook??school?.facebook??'',
+                    instagram: formData.instagram??school?.instagram??''
                   });
                   alert('Sauvegarde!');
                 }catch(err){alert('Erreur: '+err.message);}
