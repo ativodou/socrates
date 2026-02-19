@@ -6,6 +6,17 @@ import { Users, BookOpen, DollarSign, FileText, Settings, LogOut, Plus, Edit, Tr
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
 
+// Grade levels by school type
+const GRADE_LEVELS_BY_TYPE = {
+  'Prescolaire': ['Prescolaire', 'Maternelle'],
+  'Primaire': ['1ere', '2eme', '3eme', '4eme', '5eme', '6eme'],
+  'Secondaire': ['7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'],
+  'Prescolaire-Primaire': ['Prescolaire', 'Maternelle', '1ere', '2eme', '3eme', '4eme', '5eme', '6eme'],
+  'Primaire-Secondaire': ['1ere', '2eme', '3eme', '4eme', '5eme', '6eme', '7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'],
+  'Complete': ['Prescolaire', 'Maternelle', '1ere', '2eme', '3eme', '4eme', '5eme', '6eme', '7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'],
+};
+const CUSTOM_GRADE_TYPES = ['Technique', 'Universitaire'];
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [school, setSchool] = useState(null);
@@ -33,6 +44,10 @@ export default function App() {
   const [parentSchools, setParentSchools] = useState([]);
   const [parentSchoolStudents, setParentSchoolStudents] = useState([]);
   const [viewClass, setViewClass] = useState(null);
+  const [isNewRegistration, setIsNewRegistration] = useState(false);
+  const [newCustomGrade, setNewCustomGrade] = useState('');
+  const [publicSchool, setPublicSchool] = useState(null);
+  const [publicSchoolTeachers, setPublicSchoolTeachers] = useState([]);
   // Super Admin states
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [allSchools, setAllSchools] = useState([]);
@@ -43,56 +58,79 @@ export default function App() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminModalType, setAdminModalType] = useState('');
 
+  // Get grade levels for current school type
+  const getGradeLevels = (schoolType) => {
+    if (!schoolType) return ['Prescolaire', 'Maternelle', '1ere', '2eme', '3eme', '4eme', '5eme', '6eme', '7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'];
+    if (CUSTOM_GRADE_TYPES.includes(schoolType)) return school?.customGradeLevels || [];
+    return GRADE_LEVELS_BY_TYPE[schoolType] || [];
+  };
+  const isCustomGradeType = (schoolType) => CUSTOM_GRADE_TYPES.includes(schoolType);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        // Check if super admin
-        if (currentUser.email === SUPER_ADMIN_EMAIL) {
-          setIsSuperAdmin(true);
-          // Load all schools for super admin
-          const schoolsSnap = await getDocs(collection(db, 'schools'));
-          const schoolsData = await Promise.all(schoolsSnap.docs.map(async (schoolDoc) => {
-            const schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
-            // Skip super admin account
-            if (schoolData.email === SUPER_ADMIN_EMAIL) return null;
-            // Count students and teachers for each school
-            const studentsSnap = await getDocs(collection(db, 'schools', schoolDoc.id, 'students'));
-            const teachersSnap = await getDocs(collection(db, 'schools', schoolDoc.id, 'teachers'));
-            schoolData.studentCount = studentsSnap.size;
-            schoolData.teacherCount = teachersSnap.size;
-            return schoolData;
-          }));
-          setAllSchools(schoolsData.filter(s => s !== null));
-          // Load subscription payments
-          const subPaymentsSnap = await getDocs(query(collection(db, 'subscriptionPayments'), orderBy('date', 'desc')));
-          setSubscriptionPayments(subPaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        } else {
-          setIsSuperAdmin(false);
-          const schoolDoc = await getDoc(doc(db, 'schools', currentUser.uid));
-          if (schoolDoc.exists()) {
-            const schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
-            // Check if subscription is active
-            if (schoolData.status === 'disabled') {
-              alert('Votre compte est desactive. Contactez l\'administrateur.');
-              await signOut(auth);
-              return;
+      try {
+        if (currentUser) {
+          setUser(currentUser);
+          // Check if super admin
+          if (currentUser.email === SUPER_ADMIN_EMAIL) {
+            setIsSuperAdmin(true);
+            // Load all schools for super admin
+            const schoolsSnap = await getDocs(collection(db, 'schools'));
+            const schoolsData = await Promise.all(schoolsSnap.docs.map(async (schoolDoc) => {
+              const schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
+              // Skip super admin account
+              if (schoolData.email === SUPER_ADMIN_EMAIL) return null;
+              // Count students and teachers for each school
+              const studentsSnap = await getDocs(collection(db, 'schools', schoolDoc.id, 'students'));
+              const teachersSnap = await getDocs(collection(db, 'schools', schoolDoc.id, 'teachers'));
+              schoolData.studentCount = studentsSnap.size;
+              schoolData.teacherCount = teachersSnap.size;
+              return schoolData;
+            }));
+            setAllSchools(schoolsData.filter(s => s !== null));
+            // Load subscription payments
+            const subPaymentsSnap = await getDocs(query(collection(db, 'subscriptionPayments'), orderBy('date', 'desc')));
+            setSubscriptionPayments(subPaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } else {
+            setIsSuperAdmin(false);
+            const schoolDoc = await getDoc(doc(db, 'schools', currentUser.uid));
+            if (schoolDoc.exists()) {
+              const schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
+              // Check if subscription is active
+              if (schoolData.status === 'disabled') {
+                alert('Votre compte est desactive. Contactez l\'administrateur.');
+                await signOut(auth);
+                return;
+              }
+              setSchool(schoolData);
             }
-            setSchool(schoolData);
           }
+        } else { 
+          setUser(null); 
+          setSchool(null); 
+          setIsSuperAdmin(false);
+          setAllSchools([]);
         }
-      } else { 
-        setUser(null); 
-        setSchool(null); 
-        setIsSuperAdmin(false);
-        setAllSchools([]);
+      } catch (error) {
+        console.error('Auth listener error:', error);
+        setUser(null);
+        setSchool(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => { if (school) loadAllData(); }, [school]);
+  useEffect(() => { 
+    if (school) {
+      loadAllData();
+      if (isNewRegistration) {
+        setActiveTab('settings');
+        setIsNewRegistration(false);
+      }
+    }
+  }, [school]);
 
   const loadAllData = async () => {
     if (!school) return;
@@ -323,9 +361,27 @@ export default function App() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const { email, password, schoolName, phone } = formData;
+      const { email, password, schoolName, phone, address, schoolType, directorName, directorTitle } = formData;
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      await setDoc(doc(db, 'schools', userCred.user.uid), { name: schoolName, email, phone, createdAt: serverTimestamp(), subscription: 'trial', status: 'active', trialEndsAt: new Date(Date.now() + 30*24*60*60*1000) });
+      try {
+        await setDoc(doc(db, 'schools', userCred.user.uid), {
+          name: schoolName,
+          email,
+          phone,
+          address: address || '',
+          schoolType: schoolType || '',
+          directorName: directorName || '',
+          directorTitle: directorTitle || 'Directeur',
+          createdAt: serverTimestamp(),
+          subscription: 'trial',
+          status: 'active',
+          trialEndsAt: new Date(Date.now() + 30*24*60*60*1000)
+        });
+        setIsNewRegistration(true);
+      } catch (firestoreError) {
+        await userCred.user.delete();
+        throw new Error("Erreur sauvegarde: " + firestoreError.message);
+      }
       setFormData({});
     } catch (error) { alert("Echec inscription: " + error.message); }
   };
@@ -339,12 +395,37 @@ export default function App() {
   const handleLogout = async () => { await signOut(auth); setParentAccess(false); setParentStudent(null); setParentChildren([]); setIsSuperAdmin(false); setAllSchools([]); setViewingSchool(null); setParentSchools([]); setSchool(null); };
 
   const loadParentSchools = async () => {
-    const schoolsSnap = await getDocs(collection(db, 'schools'));
-    const schoolsList = schoolsSnap.docs
-      .map(d => ({ id: d.id, name: d.data().name, email: d.data().email }))
-      .filter(s => s.email !== SUPER_ADMIN_EMAIL && s.name);
-    setParentSchools(schoolsList);
+    try {
+      const schoolsSnap = await getDocs(collection(db, 'schools'));
+      const schoolsList = await Promise.all(schoolsSnap.docs.map(async d => {
+        const data = d.data();
+        if (data.email === SUPER_ADMIN_EMAIL || !data.name) return null;
+        let teacherCount = 0;
+        try {
+          const teachersSnap = await getDocs(collection(db, 'schools', d.id, 'teachers'));
+          teacherCount = teachersSnap.size;
+        } catch(e) { teacherCount = 0; }
+        return {
+          id: d.id,
+          name: data.name,
+          email: data.email,
+          logo: data.logo || null,
+          address: data.address || '',
+          phone: data.phone || '',
+          schoolType: data.schoolType || '',
+          directorName: data.directorName || '',
+          directorPhone: data.directorPhone || '',
+          defaultAnnualTuition: parseFloat(data.defaultAnnualTuition) || 0,
+          teacherCount,
+        };
+      }));
+      setParentSchools(schoolsList.filter(Boolean));
+    } catch(e) { console.error('loadParentSchools error:', e); }
   };
+
+  const isListedInDirectory = (s) =>
+    s.schoolType && s.address && s.phone && s.directorName &&
+    s.defaultAnnualTuition > 0 && s.teacherCount > 0;
 
   const loadParentSchoolStudents = async (schoolId) => {
     if (!schoolId) { setParentSchoolStudents([]); return; }
@@ -407,6 +488,8 @@ export default function App() {
       setClasses(classesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       const gradesSnap = await getDocs(collection(db, 'schools', formData.parentSchoolId, 'grades'));
       setGrades(gradesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const teachersSnap = await getDocs(collection(db, 'schools', formData.parentSchoolId, 'teachers'));
+      setTeachers(teachersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setPayments(allPayments);
       
       setParentChildren(allChildren);
@@ -530,7 +613,21 @@ export default function App() {
 
   const deleteTeacherPayment = async (id) => { if (!confirm('Supprimer ce paiement?')) return; try { await deleteDoc(doc(db, 'schools', school.id, 'teacherPayments', id)); loadAllData(); } catch (error) { alert('Erreur: ' + error.message); } };
 
-  const openModal = (type, item = null) => { setModalType(type); setEditItem(item); setFormData(item || {}); setShowModal(true); };
+  const openModal = (type, item = null) => {
+    setModalType(type);
+    setEditItem(item);
+    if (type === 'student' && !item) {
+      // Pre-fill with school fee defaults
+      setFormData({
+        annualTuition: school?.defaultAnnualTuition || '',
+        fraisDivers: school?.defaultFraisDivers || '',
+        depositAmount: school?.defaultDeposit || '',
+      });
+    } else {
+      setFormData(item || {});
+    }
+    setShowModal(true);
+  };
   
   // Calculate student balance (annual tuition + frais divers - all payments except deposits)
   const getStudentBalance = (studentId) => { 
@@ -634,6 +731,73 @@ export default function App() {
       </div>
       <p style="text-align:center;margin-top:30px;color:#666;">Date: _________________</p>
       <button onclick="window.print()" style="margin-top:20px;padding:15px 30px;font-size:1em;width:100%;">Imprimer</button>
+    </body></html>`);
+    w.document.close();
+  };
+
+  // Generate School Infosheet for parents
+  const generateSchoolInfosheet = () => {
+    const facultyHTML = teachers.map(t => `
+      <tr>
+        <td style="padding:10px;border:1px solid #e5e7eb;">${t.firstName} ${t.lastName}</td>
+        <td style="padding:10px;border:1px solid #e5e7eb;">${t.subject || 'N/A'}</td>
+        <td style="padding:10px;border:1px solid #e5e7eb;">${t.phone || 'N/A'}</td>
+      </tr>
+    `).join('');
+    const logoHtml = school?.logo ? `<img src="${school.logo}" style="max-height:100px;max-width:180px;object-fit:contain;"/>` : '';
+    const w = window.open('','_blank');
+    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fiche Ecole</title></head>
+    <body style="font-family:sans-serif;padding:20px;max-width:700px;margin:0 auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:3px solid #1e3a5f;padding-bottom:20px;">
+        <div>
+          <h1 style="color:#1e3a5f;margin:0;font-size:2em;">${school?.name || 'N/A'}</h1>
+          ${school?.slogan ? `<p style="color:#666;font-style:italic;margin:5px 0 0 0;">"${school.slogan}"</p>` : ''}
+          ${school?.schoolType ? `<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-size:0.85em;">${school.schoolType}</span>` : ''}
+        </div>
+        ${logoHtml}
+      </div>
+
+      ${school?.mission ? `
+      <div style="background:#f8fafc;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #1e3a5f;">
+        <h3 style="color:#1e3a5f;margin:0 0 8px 0;">Notre Mission</h3>
+        <p style="margin:0;color:#444;">${school.mission}</p>
+      </div>` : ''}
+
+      <h3 style="color:#1e3a5f;border-bottom:1px solid #e5e7eb;padding-bottom:8px;">Informations de Contact</h3>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        ${school?.address ? `<tr><td style="padding:8px;color:#666;width:40%;">Adresse</td><td style="padding:8px;">${school.address}</td></tr>` : ''}
+        ${school?.phone ? `<tr><td style="padding:8px;color:#666;">Telephone</td><td style="padding:8px;">${school.phone}</td></tr>` : ''}
+        ${school?.email ? `<tr><td style="padding:8px;color:#666;">Email</td><td style="padding:8px;">${school.email}</td></tr>` : ''}
+        ${school?.website ? `<tr><td style="padding:8px;color:#666;">Site Web</td><td style="padding:8px;">${school.website}</td></tr>` : ''}
+        ${school?.foundedYear ? `<tr><td style="padding:8px;color:#666;">Fondee en</td><td style="padding:8px;">${school.foundedYear}</td></tr>` : ''}
+      </table>
+
+      ${school?.directorName ? `
+      <h3 style="color:#1e3a5f;border-bottom:1px solid #e5e7eb;padding-bottom:8px;">Direction</h3>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr><td style="padding:8px;color:#666;width:40%;">${school.directorTitle || 'Directeur'}</td><td style="padding:8px;">${school.directorName}</td></tr>
+        ${school?.directorPhone ? `<tr><td style="padding:8px;color:#666;">Telephone</td><td style="padding:8px;">${school.directorPhone}</td></tr>` : ''}
+        ${school?.directorEmail ? `<tr><td style="padding:8px;color:#666;">Email</td><td style="padding:8px;">${school.directorEmail}</td></tr>` : ''}
+      </table>` : ''}
+
+      ${teachers.length > 0 ? `
+      <h3 style="color:#1e3a5f;border-bottom:1px solid #e5e7eb;padding-bottom:8px;">Corps Enseignant</h3>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <thead>
+          <tr style="background:#1e3a5f;color:white;">
+            <th style="padding:10px;text-align:left;">Nom</th>
+            <th style="padding:10px;text-align:left;">Matiere</th>
+            <th style="padding:10px;text-align:left;">Contact</th>
+          </tr>
+        </thead>
+        <tbody>${facultyHTML}</tbody>
+      </table>` : ''}
+
+      <div style="text-align:center;margin-top:30px;color:#999;font-size:0.85em;border-top:1px solid #e5e7eb;padding-top:15px;">
+        <p>Document genere par SOCRATES - Systeme de Gestion Scolaire</p>
+        <p>${new Date().toLocaleDateString()}</p>
+      </div>
+      <button onclick="window.print()" style="margin-top:20px;padding:15px 30px;font-size:1em;width:100%;background:#1e3a5f;color:white;border:none;border-radius:8px;cursor:pointer;">Imprimer</button>
     </body></html>`);
     w.document.close();
   };
@@ -815,51 +979,24 @@ export default function App() {
                 </div>
                 <div className="p-5 space-y-4">
                   {formData.contractLogo && <div className="flex justify-center"><img src={formData.contractLogo} alt="Logo" className="h-16 object-contain"/></div>}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole</label>
-                    <input type="text" value={formData.contractSchoolName || ''} onChange={e => setFormData({...formData, contractSchoolName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                    <input type="text" value={formData.contractAddress || ''} onChange={e => setFormData({...formData, contractAddress: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole</label><input type="text" value={formData.contractSchoolName || ''} onChange={e => setFormData({...formData, contractSchoolName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label><input type="text" value={formData.contractAddress || ''} onChange={e => setFormData({...formData, contractAddress: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <input type="email" value={formData.contractEmail || ''} onChange={e => setFormData({...formData, contractEmail: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
-                      <input type="tel" value={formData.contractPhone || ''} onChange={e => setFormData({...formData, contractPhone: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={formData.contractEmail || ''} onChange={e => setFormData({...formData, contractEmail: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label><input type="tel" value={formData.contractPhone || ''} onChange={e => setFormData({...formData, contractPhone: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                   </div>
                   <div className="border-t pt-4">
                     <p className="text-sm font-medium text-gray-700 mb-3">Directeur / Representant</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm text-gray-600 mb-1">Nom</label>
-                        <input type="text" value={formData.contractDirectorName || ''} onChange={e => setFormData({...formData, contractDirectorName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Jean Baptiste"/>
-                      </div>
-                      <div>
-                        <label className="block text-sm text-gray-600 mb-1">Titre</label>
-                        <input type="text" value={formData.contractDirectorTitle || ''} onChange={e => setFormData({...formData, contractDirectorTitle: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Directeur"/>
-                      </div>
+                      <div><label className="block text-sm text-gray-600 mb-1">Nom</label><input type="text" value={formData.contractDirectorName || ''} onChange={e => setFormData({...formData, contractDirectorName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Jean Baptiste"/></div>
+                      <div><label className="block text-sm text-gray-600 mb-1">Titre</label><input type="text" value={formData.contractDirectorTitle || ''} onChange={e => setFormData({...formData, contractDirectorTitle: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Directeur"/></div>
                     </div>
                   </div>
                   <div className="border-t pt-4">
                     <p className="text-sm font-medium text-gray-700 mb-3">Tarification</p>
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Frais d'installation (HTG)</label>
-                      <input type="number" min="0" value={formData.contractSetupFee || ''} onChange={e => setFormData({...formData, contractSetupFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                    </div>
-                    <div className="mt-3">
-                      <label className="block text-sm text-gray-600 mb-1">Abonnement annuel (HTG)</label>
-                      <input type="number" min="0" value={formData.contractAnnualFee || ''} onChange={e => setFormData({...formData, contractAnnualFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl mt-3">
-                      <span className="text-gray-600">Mensuel (÷12)</span>
-                      <span className="font-bold">HTG {((parseFloat(formData.contractAnnualFee) || 0) / 12).toFixed(0)}</span>
-                    </div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Frais d'installation (HTG)</label><input type="number" min="0" value={formData.contractSetupFee || ''} onChange={e => setFormData({...formData, contractSetupFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                    <div className="mt-3"><label className="block text-sm text-gray-600 mb-1">Abonnement annuel (HTG)</label><input type="number" min="0" value={formData.contractAnnualFee || ''} onChange={e => setFormData({...formData, contractAnnualFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl mt-3"><span className="text-gray-600">Mensuel (÷12)</span><span className="font-bold">HTG {((parseFloat(formData.contractAnnualFee) || 0) / 12).toFixed(0)}</span></div>
                   </div>
                   <div className="flex gap-3 pt-4">
                     <button type="button" onClick={() => { setShowAdminModal(false); setFormData({}); }} className="flex-1 px-4 py-4 border rounded-xl font-medium">Annuler</button>
@@ -890,7 +1027,6 @@ export default function App() {
         </header>
 
         <div className="p-4 space-y-4">
-          {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="bg-white rounded-xl shadow-lg p-4"><p className="text-xs text-gray-500">Ecoles</p><p className="text-2xl font-bold text-purple-700">{allSchools.length}</p><p className="text-xs text-green-600">{activeSchools} actives</p></div>
             <div className="bg-white rounded-xl shadow-lg p-4"><p className="text-xs text-gray-500">Eleves</p><p className="text-2xl font-bold text-purple-700">{totalStudents}</p></div>
@@ -899,7 +1035,6 @@ export default function App() {
             <div className="bg-white rounded-xl shadow-lg p-4"><p className="text-xs text-gray-500">Revenus</p><p className="text-2xl font-bold text-green-600">HTG {getTotalSubscriptionRevenue().toFixed(0)}</p></div>
           </div>
 
-          {/* Schools List */}
           <div className="bg-white rounded-xl shadow-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-800">Toutes les ecoles ({allSchools.length})</h3>
@@ -915,10 +1050,7 @@ export default function App() {
                 return (
                 <div key={school.id} className="border rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{school.name}</h4>
-                      <p className="text-sm text-gray-500">{school.email}</p>
-                    </div>
+                    <div><h4 className="font-semibold text-gray-800">{school.name}</h4><p className="text-sm text-gray-500">{school.email}</p></div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${school.status === 'disabled' ? 'bg-red-100 text-red-700' : school.subscription === 'trial' ? 'bg-yellow-100 text-yellow-700' : school.subscription === 'monthly' ? 'bg-blue-100 text-blue-700' : school.subscription === 'yearly' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
                       {school.status === 'disabled' ? 'Desactive' : school.subscription === 'trial' ? 'Essai' : school.subscription === 'monthly' ? 'Mensuel' : school.subscription === 'yearly' ? 'Annuel' : 'Actif'}
                     </span>
@@ -933,9 +1065,7 @@ export default function App() {
                   {school.annualFee > 0 && (
                     <div className="flex items-center justify-between mb-3 p-2 bg-gray-50 rounded-lg">
                       <span className="text-sm text-gray-600">HTG {(school.annualFee/12).toFixed(0)}/mois</span>
-                      <span className={`font-bold ${balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                        {balance > 0 ? `Du: HTG ${balance.toFixed(0)}` : 'A jour'}
-                      </span>
+                      <span className={`font-bold ${balance > 0 ? 'text-red-500' : 'text-green-500'}`}>{balance > 0 ? `Du: HTG ${balance.toFixed(0)}` : 'A jour'}</span>
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -960,38 +1090,12 @@ export default function App() {
                 <button onClick={() => { setShowAdminModal(false); setFormData({}); }} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><X size={20}/></button>
               </div>
               <form onSubmit={saveSubscriptionPayment} className="p-5 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ecole</label>
-                  <select value={formData.schoolId || ''} onChange={e => setFormData({...formData, schoolId: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" required>
-                    <option value="">Selectionner</option>
-                    {allSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Montant (HTG)</label>
-                  <input type="number" required min="0" value={formData.amount || ''} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base text-xl"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input type="date" value={formData.date || new Date().toISOString().split('T')[0]} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Methode</label>
-                  <select value={formData.method || 'Especes'} onChange={e => setFormData({...formData, method: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
-                    <option value="Especes">Especes</option>
-                    <option value="MonCash">MonCash</option>
-                    <option value="Virement">Virement</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <input type="text" value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Abonnement mensuel"/>
-                </div>
-                <label className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer bg-orange-50">
-                  <input type="checkbox" checked={formData.isSetupFee || false} onChange={e => setFormData({...formData, isSetupFee: e.target.checked})} className="w-5 h-5 rounded"/>
-                  <span className="text-sm font-medium text-orange-700">Frais d'installation (une seule fois)</span>
-                </label>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Ecole</label><select value={formData.schoolId || ''} onChange={e => setFormData({...formData, schoolId: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" required><option value="">Selectionner</option>{allSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Montant (HTG)</label><input type="number" required min="0" value={formData.amount || ''} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base text-xl"/></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" value={formData.date || new Date().toISOString().split('T')[0]} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Methode</label><select value={formData.method || 'Especes'} onChange={e => setFormData({...formData, method: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"><option value="Especes">Especes</option><option value="MonCash">MonCash</option><option value="Virement">Virement</option><option value="Cheque">Cheque</option></select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><input type="text" value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Abonnement mensuel"/></div>
+                <label className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer bg-orange-50"><input type="checkbox" checked={formData.isSetupFee || false} onChange={e => setFormData({...formData, isSetupFee: e.target.checked})} className="w-5 h-5 rounded"/><span className="text-sm font-medium text-orange-700">Frais d'installation (une seule fois)</span></label>
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={() => { setShowAdminModal(false); setFormData({}); }} className="flex-1 px-4 py-4 border rounded-xl font-medium">Annuler</button>
                   <button type="submit" className="flex-1 bg-purple-600 text-white px-4 py-4 rounded-xl font-medium">Enregistrer</button>
@@ -1011,51 +1115,24 @@ export default function App() {
               </div>
               <div className="p-5 space-y-4">
                 {formData.contractLogo && <div className="flex justify-center"><img src={formData.contractLogo} alt="Logo" className="h-16 object-contain"/></div>}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole</label>
-                  <input type="text" value={formData.contractSchoolName || ''} onChange={e => setFormData({...formData, contractSchoolName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                  <input type="text" value={formData.contractAddress || ''} onChange={e => setFormData({...formData, contractAddress: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole</label><input type="text" value={formData.contractSchoolName || ''} onChange={e => setFormData({...formData, contractSchoolName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label><input type="text" value={formData.contractAddress || ''} onChange={e => setFormData({...formData, contractAddress: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" value={formData.contractEmail || ''} onChange={e => setFormData({...formData, contractEmail: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
-                    <input type="tel" value={formData.contractPhone || ''} onChange={e => setFormData({...formData, contractPhone: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={formData.contractEmail || ''} onChange={e => setFormData({...formData, contractEmail: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label><input type="tel" value={formData.contractPhone || ''} onChange={e => setFormData({...formData, contractPhone: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                 </div>
                 <div className="border-t pt-4">
                   <p className="text-sm font-medium text-gray-700 mb-3">Directeur / Representant</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Nom</label>
-                      <input type="text" value={formData.contractDirectorName || ''} onChange={e => setFormData({...formData, contractDirectorName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Jean Baptiste"/>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Titre</label>
-                      <input type="text" value={formData.contractDirectorTitle || ''} onChange={e => setFormData({...formData, contractDirectorTitle: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Directeur"/>
-                    </div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Nom</label><input type="text" value={formData.contractDirectorName || ''} onChange={e => setFormData({...formData, contractDirectorName: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Jean Baptiste"/></div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Titre</label><input type="text" value={formData.contractDirectorTitle || ''} onChange={e => setFormData({...formData, contractDirectorTitle: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Directeur"/></div>
                   </div>
                 </div>
                 <div className="border-t pt-4">
                   <p className="text-sm font-medium text-gray-700 mb-3">Tarification</p>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Frais d'installation (HTG)</label>
-                    <input type="number" min="0" value={formData.contractSetupFee || ''} onChange={e => setFormData({...formData, contractSetupFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
-                  <div className="mt-3">
-                    <label className="block text-sm text-gray-600 mb-1">Abonnement annuel (HTG)</label>
-                    <input type="number" min="0" value={formData.contractAnnualFee || ''} onChange={e => setFormData({...formData, contractAnnualFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl mt-3">
-                    <span className="text-gray-600">Mensuel (÷12)</span>
-                    <span className="font-bold">HTG {((parseFloat(formData.contractAnnualFee) || 0) / 12).toFixed(0)}</span>
-                  </div>
+                  <div><label className="block text-sm text-gray-600 mb-1">Frais d'installation (HTG)</label><input type="number" min="0" value={formData.contractSetupFee || ''} onChange={e => setFormData({...formData, contractSetupFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  <div className="mt-3"><label className="block text-sm text-gray-600 mb-1">Abonnement annuel (HTG)</label><input type="number" min="0" value={formData.contractAnnualFee || ''} onChange={e => setFormData({...formData, contractAnnualFee: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl mt-3"><span className="text-gray-600">Mensuel (÷12)</span><span className="font-bold">HTG {((parseFloat(formData.contractAnnualFee) || 0) / 12).toFixed(0)}</span></div>
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={() => { setShowAdminModal(false); setFormData({}); }} className="flex-1 px-4 py-4 border rounded-xl font-medium">Annuler</button>
@@ -1090,17 +1167,10 @@ export default function App() {
             </div>
             <button onClick={()=>{setParentAccess(false);setParentStudent(null);setParentChildren([]);}} className="bg-white/20 hover:bg-white/30 p-3 rounded-full"><LogOut size={20}/></button>
           </div>
-          {/* Child Selector - show if multiple children */}
           {parentChildren.length > 1 && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {parentChildren.map(child => (
-                <button 
-                  key={child.id} 
-                  onClick={() => setParentStudent(child)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition ${parentStudent.id === child.id ? 'bg-white text-socrates-navy' : 'bg-white/20 text-white'}`}
-                >
-                  {child.firstName}
-                </button>
+                <button key={child.id} onClick={() => setParentStudent(child)} className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition ${parentStudent.id === child.id ? 'bg-white text-socrates-navy' : 'bg-white/20 text-white'}`}>{child.firstName}</button>
               ))}
             </div>
           )}
@@ -1117,9 +1187,10 @@ export default function App() {
                 {parentChildren.length > 1 && <p className="text-xs text-blue-600">{parentChildren.length} enfants inscrits</p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-3 gap-3 mt-4">
               <button onClick={()=>generateContract(parentStudent)} className="bg-purple-100 text-purple-700 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><FileText size={20}/>Contrat</button>
               <button onClick={()=>generateReportCard(parentStudent)} className="bg-socrates-blue text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><Download size={20}/>Bulletin</button>
+              <button onClick={generateSchoolInfosheet} className="bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><FileText size={20}/>Ecole</button>
             </div>
           </div>
 
@@ -1137,14 +1208,12 @@ export default function App() {
                 {school?.schoolType && <span className="inline-block mt-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">{school.schoolType}</span>}
               </div>
             </div>
-            
             {school?.mission && (
               <div className="bg-gray-50 rounded-xl p-4 mb-4">
                 <p className="text-sm font-medium text-gray-700 mb-1">Notre Mission</p>
                 <p className="text-sm text-gray-600">{school.mission}</p>
               </div>
             )}
-            
             <div className="space-y-2 text-sm">
               {school?.address && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">📍</span>{school.address}</p>}
               {school?.phone && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">📞</span>{school.phone}</p>}
@@ -1152,7 +1221,6 @@ export default function App() {
               {school?.foundedYear && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">📅</span>Fondée en {school.foundedYear}</p>}
               {school?.directorName && <p className="flex items-center gap-2 text-gray-600"><span className="text-gray-400">👤</span>{school.directorTitle || 'Directeur'}: {school.directorName}</p>}
             </div>
-            
             {(school?.website || school?.facebook || school?.instagram) && (
               <div className="flex gap-3 mt-4 pt-4 border-t">
                 {school?.website && <a href={school.website} target="_blank" rel="noopener noreferrer" className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium text-center">🌐 Site Web</a>}
@@ -1236,34 +1304,119 @@ export default function App() {
   // AUTH SCREEN
   if (!user) return (
     <div className="min-h-screen bg-gradient-to-br from-socrates-navy via-socrates-blue to-socrates-light flex flex-col items-center justify-center p-4">
+
+      {/* Public school profile viewer */}
+      {publicSchool && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between rounded-t-2xl z-10">
+              <h3 className="font-bold text-gray-800 text-lg">{publicSchool.name}</h3>
+              <button onClick={()=>{setPublicSchool(null);setPublicSchoolTeachers([]);}} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><X size={20}/></button>
+            </div>
+            <div className="p-5 space-y-5">
+              <div className="flex items-center gap-4">
+                {publicSchool.logo
+                  ? <img src={publicSchool.logo} alt="Logo" className="w-20 h-20 rounded-xl object-contain border"/>
+                  : <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-socrates-navy to-socrates-blue text-white flex items-center justify-center text-3xl font-bold">{publicSchool.name?.[0]}</div>
+                }
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">{publicSchool.name}</h2>
+                  {publicSchool.slogan && <p className="text-sm text-gray-500 italic">"{publicSchool.slogan}"</p>}
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    {publicSchool.schoolType && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">{publicSchool.schoolType}</span>}
+                    {publicSchool.foundedYear && <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">Fondée {publicSchool.foundedYear}</span>}
+                  </div>
+                </div>
+              </div>
+              {publicSchool.mission && (
+                <div className="bg-blue-50 rounded-xl p-4 border-l-4 border-socrates-navy">
+                  <p className="text-sm font-semibold text-socrates-navy mb-1">Notre Mission</p>
+                  <p className="text-sm text-gray-700">{publicSchool.mission}</p>
+                </div>
+              )}
+              <div className="bg-white border rounded-xl p-4 space-y-2">
+                <p className="font-semibold text-gray-700 mb-2">Contact</p>
+                {publicSchool.address && <p className="text-sm text-gray-600">📍 {publicSchool.address}</p>}
+                {publicSchool.phone && <p className="text-sm text-gray-600">📞 {publicSchool.phone}</p>}
+                {publicSchool.email && <p className="text-sm text-gray-600">✉️ {publicSchool.email}</p>}
+                {publicSchool.directorName && <p className="text-sm text-gray-600">👤 {publicSchool.directorTitle||'Directeur'}: {publicSchool.directorName}</p>}
+              </div>
+              {(publicSchool.website||publicSchool.facebook||publicSchool.instagram) && (
+                <div className="flex gap-2">
+                  {publicSchool.website && <a href={publicSchool.website} target="_blank" rel="noopener noreferrer" className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium text-center">🌐 Site Web</a>}
+                  {publicSchool.facebook && <a href={`https://facebook.com/${publicSchool.facebook.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg text-sm font-medium text-center">Facebook</a>}
+                  {publicSchool.instagram && <a href={`https://instagram.com/${publicSchool.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-pink-100 text-pink-700 py-2 rounded-lg text-sm font-medium text-center">Instagram</a>}
+                </div>
+              )}
+              {(publicSchool.defaultAnnualTuition > 0 || publicSchool.defaultFraisDivers > 0 || publicSchool.defaultDeposit > 0) && (
+                <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                  <p className="font-semibold text-green-800 mb-3">💰 Frais de Scolarite</p>
+                  <div className="space-y-2">
+                    {publicSchool.defaultAnnualTuition > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Scolarite annuelle</span>
+                        <span className="font-bold text-gray-800">HTG {parseFloat(publicSchool.defaultAnnualTuition).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {publicSchool.defaultAnnualTuition > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-500">Paiement mensuel (÷10)</span>
+                        <span className="text-gray-600">HTG {(parseFloat(publicSchool.defaultAnnualTuition)/10).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {publicSchool.defaultFraisDivers > 0 && (
+                      <div className="flex justify-between items-center border-t pt-2 mt-2">
+                        <span className="text-sm text-gray-600">Frais divers <span className="text-xs text-orange-600">(paye d'avance)</span></span>
+                        <span className="font-bold text-gray-800">HTG {parseFloat(publicSchool.defaultFraisDivers).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {publicSchool.defaultDeposit > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Depot de reservation</span>
+                        <span className="text-gray-800">HTG {parseFloat(publicSchool.defaultDeposit).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {(publicSchool.defaultAnnualTuition > 0 || publicSchool.defaultFraisDivers > 0) && (
+                      <div className="flex justify-between items-center border-t pt-2 mt-2 bg-green-100 rounded-lg px-2 py-1">
+                        <span className="text-sm font-semibold text-green-800">Total annuel</span>
+                        <span className="font-bold text-green-800">HTG {((parseFloat(publicSchool.defaultAnnualTuition)||0)+(parseFloat(publicSchool.defaultFraisDivers)||0)).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {publicSchoolTeachers.length > 0 && (
+                <div>
+                  <p className="font-semibold text-gray-700 mb-3">Corps Enseignant</p>
+                  <div className="space-y-2">
+                    {publicSchoolTeachers.map((t,i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <div className="w-9 h-9 rounded-full bg-socrates-blue text-white flex items-center justify-center text-sm font-bold">{t.firstName?.[0]}{t.lastName?.[0]}</div>
+                        <div><p className="font-medium text-sm">{t.firstName} {t.lastName}</p><p className="text-xs text-gray-500">{t.subject||'N/A'}</p></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button onClick={()=>{setPublicSchool(null);setPublicSchoolTeachers([]);setAuthMode('parent');loadParentSchools();setFormData({parentSchoolId:publicSchool.id,schoolSearch:publicSchool.name});}} className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold">Acceder au Portail Parent</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8">
         <div className="text-center mb-6">
           <div className="w-24 h-24 mx-auto mb-3">
             <svg viewBox="0 0 100 100" className="w-full h-full">
-              <defs>
-                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1e3a5f"/>
-                  <stop offset="100%" stopColor="#3b82f6"/>
-                </linearGradient>
-              </defs>
+              <defs><linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#1e3a5f"/><stop offset="100%" stopColor="#3b82f6"/></linearGradient></defs>
               <circle cx="50" cy="50" r="48" fill="url(#logoGradient)"/>
-              {/* Owl body */}
               <ellipse cx="50" cy="58" rx="25" ry="28" fill="#f8fafc"/>
-              {/* Owl head */}
               <circle cx="50" cy="38" r="22" fill="#f8fafc"/>
-              {/* Ear tufts */}
-              <path d="M32 22 L38 35 L28 35 Z" fill="#f8fafc"/>
-              <path d="M68 22 L72 35 L62 35 Z" fill="#f8fafc"/>
-              {/* Eyes */}
-              <circle cx="40" cy="38" r="10" fill="#1e3a5f"/>
-              <circle cx="60" cy="38" r="10" fill="#1e3a5f"/>
-              <circle cx="40" cy="38" r="6" fill="#fbbf24"/>
-              <circle cx="60" cy="38" r="6" fill="#fbbf24"/>
-              <circle cx="42" cy="36" r="2" fill="#fff"/>
-              <circle cx="62" cy="36" r="2" fill="#fff"/>
-              {/* Beak */}
+              <path d="M32 22 L38 35 L28 35 Z" fill="#f8fafc"/><path d="M68 22 L72 35 L62 35 Z" fill="#f8fafc"/>
+              <circle cx="40" cy="38" r="10" fill="#1e3a5f"/><circle cx="60" cy="38" r="10" fill="#1e3a5f"/>
+              <circle cx="40" cy="38" r="6" fill="#fbbf24"/><circle cx="60" cy="38" r="6" fill="#fbbf24"/>
+              <circle cx="42" cy="36" r="2" fill="#fff"/><circle cx="62" cy="36" r="2" fill="#fff"/>
               <path d="M50 45 L46 52 L50 50 L54 52 Z" fill="#f59e0b"/>
-              {/* Graduation cap */}
               <path d="M25 25 L50 15 L75 25 L50 32 Z" fill="#1e3a5f"/>
               <rect x="48" y="15" width="4" height="8" fill="#1e3a5f"/>
               <circle cx="50" cy="13" r="3" fill="#fbbf24"/>
@@ -1273,9 +1426,10 @@ export default function App() {
           <p className="text-gray-500 italic text-sm">Vers la lumiere</p>
         </div>
         <div className="flex mb-6 bg-gray-100 rounded-xl p-1">
-          <button onClick={()=>setAuthMode('login')} className={`flex-1 py-3 rounded-lg text-sm font-medium transition ${authMode==='login'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Connexion</button>
-          <button onClick={()=>setAuthMode('register')} className={`flex-1 py-3 rounded-lg text-sm font-medium transition ${authMode==='register'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Inscription</button>
-          <button onClick={()=>{setAuthMode('parent');loadParentSchools();}} className={`flex-1 py-3 rounded-lg text-sm font-medium transition ${authMode==='parent'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Parent</button>
+          <button onClick={()=>setAuthMode('login')} className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${authMode==='login'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Connexion</button>
+          <button onClick={()=>setAuthMode('register')} className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${authMode==='register'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Inscription</button>
+          <button onClick={()=>{setAuthMode('parent');loadParentSchools();}} className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${authMode==='parent'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Parent</button>
+          <button onClick={()=>{setAuthMode('directory');loadParentSchools();}} className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${authMode==='directory'?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>Annuaire</button>
         </div>
         {authMode==='login'&&(<form onSubmit={handleLogin} className="space-y-4">
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" required value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="ecole@exemple.com"/></div>
@@ -1283,10 +1437,52 @@ export default function App() {
           <button type="submit" className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Se connecter</button>
         </form>)}
         {authMode==='register'&&(<form onSubmit={handleRegister} className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole</label><input type="text" required value={formData.schoolName||''} onChange={e=>setFormData({...formData,schoolName:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Academie Excellence"/></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" required value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="admin@ecole.com"/></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label><input type="tel" value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="+509 1234 5678"/></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label><input type="password" required minLength={6} value={formData.password||''} onChange={e=>setFormData({...formData,password:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Min 6 caracteres"/></div>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3"><p className="text-xs text-blue-800">Les champs marques <span className="text-red-500">*</span> sont obligatoires pour apparaitre dans l'Annuaire.</p></div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole <span className="text-red-500">*</span></label>
+            <input type="text" required value={formData.schoolName||''} onChange={e=>setFormData({...formData,schoolName:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Academie Excellence"/>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type d'ecole <span className="text-red-500">*</span></label>
+            <select required value={formData.schoolType||''} onChange={e=>setFormData({...formData,schoolType:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base">
+              <option value="">Selectionner</option>
+              <option value="Prescolaire">Préscolaire</option>
+              <option value="Primaire">Primaire</option>
+              <option value="Secondaire">Secondaire</option>
+              <option value="Prescolaire-Primaire">Préscolaire & Primaire</option>
+              <option value="Primaire-Secondaire">Primaire & Secondaire</option>
+              <option value="Complete">École Complète (Préscolaire-Secondaire)</option>
+              <option value="Technique">Technique / Professionnel</option>
+              <option value="Universitaire">Universitaire</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse <span className="text-red-500">*</span></label>
+            <input type="text" required value={formData.address||''} onChange={e=>setFormData({...formData,address:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Rue, Ville"/>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Telephone <span className="text-red-500">*</span></label>
+            <input type="tel" required value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="+509 1234 5678"/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nom du directeur <span className="text-red-500">*</span></label>
+              <input type="text" required value={formData.directorName||''} onChange={e=>setFormData({...formData,directorName:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Jean Baptiste"/>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+              <input type="text" value={formData.directorTitle||''} onChange={e=>setFormData({...formData,directorTitle:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Directeur"/>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+            <input type="email" required value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="admin@ecole.com"/>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe <span className="text-red-500">*</span></label>
+            <input type="password" required minLength={6} value={formData.password||''} onChange={e=>setFormData({...formData,password:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="Min 6 caracteres"/>
+          </div>
+          <p className="text-xs text-gray-400 text-center">Les frais de scolarite et le corps enseignant peuvent etre ajoutes apres la creation du compte.</p>
           <button type="submit" className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Creer un compte</button>
         </form>)}
         {authMode==='parent'&&(<form onSubmit={handleParentLogin} className="space-y-4">
@@ -1294,19 +1490,68 @@ export default function App() {
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Ecole</label>
             <input type="text" placeholder="Tapez pour rechercher..." value={formData.schoolSearch||''} onChange={e=>{setFormData({...formData,schoolSearch:e.target.value,parentSchoolId:''});}} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base mb-2"/>
             <div className="max-h-40 overflow-y-auto border rounded-xl">
-              {parentSchools.filter(s=>!formData.schoolSearch || s.name?.toLowerCase().includes(formData.schoolSearch.toLowerCase())).map(s=>(
+              {parentSchools.filter(s=>!formData.schoolSearch||s.name?.toLowerCase().includes(formData.schoolSearch.toLowerCase())).map(s=>(
                 <button type="button" key={s.id} onClick={()=>setFormData({...formData,parentSchoolId:s.id,schoolSearch:s.name})} className={`w-full text-left px-4 py-3 border-b last:border-b-0 ${formData.parentSchoolId===s.id?'bg-blue-50 text-socrates-blue font-medium':'hover:bg-gray-50'}`}>{s.name}</button>
               ))}
-              {parentSchools.filter(s=>!formData.schoolSearch || s.name?.toLowerCase().includes(formData.schoolSearch.toLowerCase())).length===0 && <p className="px-4 py-3 text-gray-400 text-center">Aucune ecole trouvee</p>}
+              {parentSchools.filter(s=>!formData.schoolSearch||s.name?.toLowerCase().includes(formData.schoolSearch.toLowerCase())).length===0&&<p className="px-4 py-3 text-gray-400 text-center">Aucune ecole trouvee</p>}
             </div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Email ou Telephone</label><input type="text" required value={formData.parentContact||''} onChange={e=>setFormData({...formData,parentContact:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-base" placeholder="parent@email.com"/></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">PIN</label><input type="password" required maxLength={6} value={formData.parentPin||''} onChange={e=>setFormData({...formData,parentPin:e.target.value})} className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-socrates-blue text-center text-3xl tracking-widest" placeholder="******"/></div>
           <button type="submit" className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Acceder au portail</button>
         </form>)}
+        {authMode==='directory'&&(
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+              <input type="text" placeholder="Rechercher une ecole..." value={formData.directorySearch||''} onChange={e=>setFormData({...formData,directorySearch:e.target.value})} className="pl-10 pr-4 py-3 border rounded-xl w-full text-base"/>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {parentSchools.length === 0 && (
+                <p className="text-center text-gray-400 py-8">Chargement...</p>
+              )}
+              {parentSchools
+                .filter(s=>!formData.directorySearch||s.name?.toLowerCase().includes(formData.directorySearch.toLowerCase()))
+                .map(s=>{
+                  const complete = isListedInDirectory(s);
+                  return (
+                    <button key={s.id} type="button" onClick={async()=>{
+                      const schoolDoc = await getDoc(doc(db,'schools',s.id));
+                      const schoolData = { id: s.id, ...schoolDoc.data() };
+                      let tList = [];
+                      try {
+                        const teachersSnap = await getDocs(collection(db,'schools',s.id,'teachers'));
+                        tList = teachersSnap.docs.map(d=>({id:d.id,...d.data()}));
+                      } catch(e){}
+                      setPublicSchoolTeachers(tList);
+                      setPublicSchool(schoolData);
+                    }} className="w-full text-left p-4 bg-gray-50 hover:bg-blue-50 border hover:border-blue-200 rounded-xl transition">
+                      <div className="flex items-center gap-3">
+                        {s.logo
+                          ? <img src={s.logo} alt="" className="w-12 h-12 rounded-lg object-contain bg-white border"/>
+                          : <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-socrates-navy to-socrates-blue text-white flex items-center justify-center font-bold text-lg">{s.name?.[0]}</div>
+                        }
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-gray-800 truncate">{s.name}</p>
+                            {!complete && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full flex-shrink-0">Incomplet</span>}
+                          </div>
+                          {s.schoolType ? <p className="text-xs text-blue-600">{s.schoolType}</p> : <p className="text-xs text-gray-400 italic">Type non defini</p>}
+                          {s.address ? <p className="text-xs text-gray-400 truncate">{s.address}</p> : <p className="text-xs text-gray-300 italic">Adresse non definie</p>}
+                        </div>
+                        <span className="text-gray-300 text-xl">›</span>
+                      </div>
+                    </button>
+                  );
+                })
+              }
+              {parentSchools.filter(s=>!formData.directorySearch||s.name?.toLowerCase().includes(formData.directorySearch.toLowerCase())).length===0 && parentSchools.length > 0 && (
+                <p className="text-center text-gray-400 py-8">Aucune ecole trouvee</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      
-      {/* Footer */}
       <div className="mt-8 text-center text-white/70 text-sm">
         <p>SOCRATES - Systeme de Gestion Scolaire</p>
         <p className="mt-1">Contact: anbyanssa@gmail.com | +1 305-504-0143</p>
@@ -1328,47 +1573,25 @@ export default function App() {
           </div>
         </header>
         <div className="p-4 space-y-4">
-          {/* Curriculum */}
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><ClipboardList size={20} className="text-socrates-blue"/>Programme / Curriculum</h3>
-            {viewClass.curriculum ? (
-              <p className="text-gray-700 whitespace-pre-wrap">{viewClass.curriculum}</p>
-            ) : (
-              <p className="text-gray-400 italic">Aucun programme defini</p>
-            )}
+            {viewClass.curriculum ? <p className="text-gray-700 whitespace-pre-wrap">{viewClass.curriculum}</p> : <p className="text-gray-400 italic">Aucun programme defini</p>}
             <button onClick={()=>openModal('class', viewClass)} className="mt-4 text-socrates-blue font-medium">Modifier</button>
           </div>
-
-          {/* Books */}
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><Book size={20} className="text-socrates-blue"/>Livres Requis</h3>
             {viewClass.books?.length > 0 ? (
-              <div className="space-y-3">
-                {viewClass.books.map((book, i) => (
-                  <div key={i} className="p-3 bg-gray-50 rounded-xl">
-                    <p className="font-semibold text-gray-800">{book.title}</p>
-                    {book.author && <p className="text-sm text-gray-600">Auteur: {book.author}</p>}
-                    {book.isbn && <p className="text-sm text-gray-500">ISBN: {book.isbn}</p>}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400 italic">Aucun livre defini</p>
-            )}
+              <div className="space-y-3">{viewClass.books.map((book, i) => (<div key={i} className="p-3 bg-gray-50 rounded-xl"><p className="font-semibold text-gray-800">{book.title}</p>{book.author && <p className="text-sm text-gray-600">Auteur: {book.author}</p>}{book.isbn && <p className="text-sm text-gray-500">ISBN: {book.isbn}</p>}</div>))}</div>
+            ) : <p className="text-gray-400 italic">Aucun livre defini</p>}
             <button onClick={()=>openModal('class', viewClass)} className="mt-4 text-socrates-blue font-medium">Modifier</button>
           </div>
-
-          {/* Students */}
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><Users size={20} className="text-socrates-blue"/>Eleves ({classStudents.length})</h3>
             <div className="space-y-2">
               {classStudents.map(student => (
                 <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-socrates-blue text-white flex items-center justify-center font-bold text-sm">{student.firstName?.[0]}{student.lastName?.[0]}</div>
-                  <div className="flex-1">
-                    <p className="font-medium">{student.firstName} {student.lastName}</p>
-                    <p className="text-sm text-gray-500">{student.gradeLevel}</p>
-                  </div>
+                  <div className="flex-1"><p className="font-medium">{student.firstName} {student.lastName}</p><p className="text-sm text-gray-500">{student.gradeLevel}</p></div>
                 </div>
               ))}
               {classStudents.length === 0 && <p className="text-gray-400 text-center py-4">Aucun eleve inscrit</p>}
@@ -1475,8 +1698,7 @@ export default function App() {
                         <p className="text-xs text-gray-400">{getStudentBalance(student.id)>0?'du':'paye'}</p>
                       </div>
                     </div>
-                    {/* Notes */}
-                    {student.notes && student.notes.trim() !== '' && <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm"><p className="text-yellow-800"><strong>Message:</strong> {student.notes}</p></div>}
+                    {student.notes && student.notes.trim() !== '' && <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm mb-3"><p className="text-yellow-800"><strong>Message:</strong> {student.notes}</p></div>}
                     <div className="flex gap-2 flex-wrap">
                       <button onClick={()=>generateContract(student)} className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><FileText size={16}/>Contrat</button>
                       <button onClick={()=>generateReportCard(student)} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><Download size={16}/>Bulletin</button>
@@ -1509,12 +1731,12 @@ export default function App() {
                       <div className="flex-1">
                         <p className="font-semibold">{teacher.firstName} {teacher.lastName}</p>
                         <p className="text-sm text-gray-500">{teacher.subject||'N/A'}</p>
-                        <p className="text-xs text-gray-400">${getMonthlySalary(teacher)}/mois</p>
+                        <p className="text-xs text-gray-400">HTG {getMonthlySalary(teacher)}/mois</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">Annuel: ${teacher.annualSalary||0}</p>
+                        <p className="text-sm text-gray-500">Annuel: HTG {teacher.annualSalary||0}</p>
                         <p className={`font-bold ${getTeacherBalance(teacher.id)>0?'text-red-500':'text-green-500'}`}>
-                          {getTeacherBalance(teacher.id)>0?`Du: HTG {getTeacherBalance(teacher.id).toFixed(0)}`:'Paye'}
+                          {getTeacherBalance(teacher.id)>0?`Du: HTG ${getTeacherBalance(teacher.id).toFixed(0)}`:'Paye'}
                         </p>
                       </div>
                     </div>
@@ -1627,6 +1849,49 @@ export default function App() {
           {/* SETTINGS */}
           {activeTab==='settings'&&(
             <div className="max-w-2xl space-y-4">
+              {(!school?.directorName && !school?.phone && !school?.address) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                  <div className="text-blue-500 text-2xl">👋</div>
+                  <div>
+                    <p className="font-semibold text-blue-800">Bienvenue sur SOCRATES!</p>
+                    <p className="text-sm text-blue-600 mt-1">Completez votre profil pour commencer. Ces informations apparaitront sur vos documents et dans le portail parent.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Annuaire readiness checklist */}
+              {(()=>{
+                const checks = [
+                  { label: "Type d'ecole",         done: !!school?.schoolType },
+                  { label: 'Adresse',               done: !!school?.address },
+                  { label: 'Telephone ecole',       done: !!school?.phone },
+                  { label: 'Nom du directeur',      done: !!school?.directorName },
+                  { label: 'Frais de scolarite',    done: (parseFloat(school?.defaultAnnualTuition)||0) > 0 },
+                  { label: 'Au moins un enseignant',done: teachers.length > 0 },
+                ];
+                const completed = checks.filter(c=>c.done).length;
+                const allDone = completed === checks.length;
+                return (
+                  <div className={`rounded-xl p-4 border ${allDone?'bg-green-50 border-green-200':'bg-yellow-50 border-yellow-200'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className={`font-semibold ${allDone?'text-green-800':'text-yellow-800'}`}>
+                        {allDone ? "✅ Votre ecole est dans l'Annuaire!" : `📋 Annuaire: ${completed}/${checks.length} completes`}
+                      </p>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${allDone?'bg-green-200 text-green-800':'bg-yellow-200 text-yellow-800'}`}>
+                        {allDone?'Visible':'Non visible'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {checks.map((c,i)=>(
+                        <div key={i} className={`flex items-center gap-2 text-sm ${c.done?'text-green-700':'text-yellow-700'}`}>
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${c.done?'bg-green-200':'bg-yellow-200'}`}>{c.done?'✓':'!'}</span>
+                          <span>{c.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="bg-white rounded-xl shadow-lg p-5">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Informations de l'Ecole</h3>
                 <div className="space-y-4">
@@ -1640,24 +1905,16 @@ export default function App() {
                         <input type="file" accept="image/*" className="hidden" onChange={async(e)=>{
                           const file = e.target.files[0];
                           if(file){
-                            // Check file size (max 500KB)
-                            if(file.size > 500 * 1024){
-                              alert('Image trop grande. Maximum 500KB.');
-                              return;
-                            }
+                            if(file.size > 500 * 1024){ alert('Image trop grande. Maximum 500KB.'); return; }
                             const reader = new FileReader();
                             reader.onloadend = async() => {
                               try {
                                 await updateDoc(doc(db,'schools',school.id),{logo:reader.result});
                                 setSchool({...school,logo:reader.result});
                                 alert('Logo sauvegarde!');
-                              } catch(err) {
-                                alert('Erreur: ' + err.message);
-                              }
+                              } catch(err) { alert('Erreur: ' + err.message); }
                             };
-                            reader.onerror = () => {
-                              alert('Erreur de lecture du fichier');
-                            };
+                            reader.onerror = () => { alert('Erreur de lecture du fichier'); };
                             reader.readAsDataURL(file);
                           }
                         }}/>
@@ -1689,6 +1946,117 @@ export default function App() {
               </div>
 
               <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Type d'Ecole & Niveaux</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Type d'ecole</label>
+                      <select value={formData.schoolType??school?.schoolType??''} onChange={e=>setFormData({...formData,schoolType:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
+                        <option value="">Selectionner</option>
+                        <option value="Prescolaire">Préscolaire</option>
+                        <option value="Primaire">Primaire</option>
+                        <option value="Secondaire">Secondaire</option>
+                        <option value="Prescolaire-Primaire">Préscolaire & Primaire</option>
+                        <option value="Primaire-Secondaire">Primaire & Secondaire</option>
+                        <option value="Complete">École Complète (Préscolaire-Secondaire)</option>
+                        <option value="Technique">Technique / Professionnel</option>
+                        <option value="Universitaire">Universitaire</option>
+                      </select>
+                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Annee de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={formData.foundedYear??school?.foundedYear??''} onChange={e=>setFormData({...formData,foundedYear:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="1985"/></div>
+                  </div>
+
+                  {/* Predefined grade levels for standard school types */}
+                  {(formData.schoolType??school?.schoolType) && !isCustomGradeType(formData.schoolType??school?.schoolType) && (
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <p className="text-sm font-medium text-blue-800 mb-2">Niveaux disponibles pour ce type:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {getGradeLevels(formData.schoolType??school?.schoolType).map(g=>(
+                          <span key={g} className="bg-white text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-sm">{g}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom grade levels for Technique/Universitaire */}
+                  {isCustomGradeType(formData.schoolType??school?.schoolType) && (
+                    <div className="border rounded-xl p-4 space-y-3">
+                      <p className="text-sm font-medium text-gray-700">Niveaux / Annees personnalises</p>
+                      <p className="text-xs text-gray-500">Definissez vos propres niveaux (ex: Annee 1, Licence 1, Master...)</p>
+                      <div className="flex flex-wrap gap-2 min-h-[40px]">
+                        {(formData.customGradeLevels??school?.customGradeLevels??[]).map((g,i)=>(
+                          <span key={i} className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                            {g}
+                            <button type="button" onClick={()=>{
+                              const levels=[...(formData.customGradeLevels??school?.customGradeLevels??[])];
+                              levels.splice(i,1);
+                              setFormData({...formData,customGradeLevels:levels});
+                            }} className="hover:text-red-600"><X size={12}/></button>
+                          </span>
+                        ))}
+                        {(formData.customGradeLevels??school?.customGradeLevels??[]).length===0&&<p className="text-gray-400 text-sm">Aucun niveau defini</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <input type="text" value={newCustomGrade} onChange={e=>setNewCustomGrade(e.target.value)} onKeyDown={e=>{
+                          if(e.key==='Enter'){
+                            e.preventDefault();
+                            if(newCustomGrade.trim()){
+                              const levels=[...(formData.customGradeLevels??school?.customGradeLevels??[])];
+                              if(!levels.includes(newCustomGrade.trim())) levels.push(newCustomGrade.trim());
+                              setFormData({...formData,customGradeLevels:levels});
+                              setNewCustomGrade('');
+                            }
+                          }
+                        }} className="flex-1 px-4 py-2 border rounded-xl text-base" placeholder="Ex: Annee 1, Licence 1..."/>
+                        <button type="button" onClick={()=>{
+                          if(newCustomGrade.trim()){
+                            const levels=[...(formData.customGradeLevels??school?.customGradeLevels??[])];
+                            if(!levels.includes(newCustomGrade.trim())) levels.push(newCustomGrade.trim());
+                            setFormData({...formData,customGradeLevels:levels});
+                            setNewCustomGrade('');
+                          }
+                        }} className="bg-socrates-blue text-white px-4 py-2 rounded-xl"><Plus size={18}/></button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fee Defaults */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Frais par Defaut</h3>
+                <p className="text-sm text-gray-500 mb-4">Ces montants pre-remplissent automatiquement le formulaire lors de l'ajout d'un nouvel eleve.</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Scolarite annuelle (HTG)</label>
+                      <input type="number" min="0" value={formData.defaultAnnualTuition??school?.defaultAnnualTuition??''} onChange={e=>setFormData({...formData,defaultAnnualTuition:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="0"/>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Mensuel (÷10)</label>
+                      <input type="text" value={(parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)>0?'HTG '+((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)/10).toFixed(0):'-'} className="w-full px-4 py-3 border rounded-xl text-base bg-gray-50" readOnly/>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Frais divers (HTG)</label>
+                      <input type="number" min="0" value={formData.defaultFraisDivers??school?.defaultFraisDivers??''} onChange={e=>setFormData({...formData,defaultFraisDivers:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="0"/>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Depot requis (HTG)</label>
+                      <input type="number" min="0" value={formData.defaultDeposit??school?.defaultDeposit??''} onChange={e=>setFormData({...formData,defaultDeposit:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="0"/>
+                    </div>
+                  </div>
+                  {((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)+(parseFloat(formData.defaultFraisDivers??school?.defaultFraisDivers)||0))>0&&(
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                      <span className="text-gray-600">Total annuel par defaut</span>
+                      <span className="font-bold">HTG {((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)+(parseFloat(formData.defaultFraisDivers??school?.defaultFraisDivers)||0)).toFixed(0)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg p-5">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Controle Acces Parent</h3>
                 <label className="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50">
                   <div>
@@ -1704,22 +2072,6 @@ export default function App() {
               <div className="bg-white rounded-xl shadow-lg p-5">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Profil Etendu (visible aux parents)</h3>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'ecole</label>
-                      <select value={formData.schoolType??school?.schoolType??''} onChange={e=>setFormData({...formData,schoolType:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
-                        <option value="">Selectionner</option>
-                        <option value="Prescolaire">Préscolaire</option>
-                        <option value="Primaire">Primaire</option>
-                        <option value="Secondaire">Secondaire</option>
-                        <option value="Universitaire">Universitaire</option>
-                        <option value="Prescolaire-Primaire">Préscolaire & Primaire</option>
-                        <option value="Primaire-Secondaire">Primaire & Secondaire</option>
-                        <option value="Complete">École Complète (Préscolaire-Secondaire)</option>
-                        <option value="Technique">Technique / Professionnel</option>
-                      </select>
-                    </div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Annee de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={formData.foundedYear??school?.foundedYear??''} onChange={e=>setFormData({...formData,foundedYear:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="1985"/></div>
-                  </div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Devise / Slogan</label><input type="text" value={formData.slogan??school?.slogan??''} onChange={e=>setFormData({...formData,slogan:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Vers la lumiere..."/></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Mission / Vision</label><textarea value={formData.mission??school?.mission??''} onChange={e=>setFormData({...formData,mission:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base h-24 resize-none" placeholder="Notre mission est de former des citoyens responsables..."/></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Site Web</label><input type="url" value={formData.website??school?.website??''} onChange={e=>setFormData({...formData,website:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="https://www.monecole.com"/></div>
@@ -1732,7 +2084,19 @@ export default function App() {
 
               <button onClick={async()=>{
                 try{
-                  await updateDoc(doc(db,'schools',school.id),{
+                  // Validate mandatory fields
+                  const missing = [
+                    !(formData.schoolType??school?.schoolType)   && "Type d'ecole",
+                    !(formData.address??school?.address)         && "Adresse",
+                    !(formData.schoolPhone??school?.phone)       && "Telephone",
+                    !(formData.directorName??school?.directorName) && "Nom du directeur",
+                    !((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0) > 0) && "Frais de scolarite",
+                  ].filter(Boolean);
+                  if (missing.length > 0) {
+                    alert('Champs obligatoires manquants:\n\n' + missing.map(m=>'• '+m).join('\n'));
+                    return;
+                  }
+                  const updateData = {
                     name: formData.schoolName??school?.name,
                     address: formData.address??school?.address,
                     phone: formData.schoolPhone??school?.phone,
@@ -1747,28 +2111,50 @@ export default function App() {
                     mission: formData.mission??school?.mission??'',
                     website: formData.website??school?.website??'',
                     facebook: formData.facebook??school?.facebook??'',
-                    instagram: formData.instagram??school?.instagram??''
-                  });
-                  setSchool({...school,
-                    name: formData.schoolName??school?.name,
-                    address: formData.address??school?.address,
-                    phone: formData.schoolPhone??school?.phone,
-                    directorName: formData.directorName??school?.directorName,
-                    directorTitle: formData.directorTitle??school?.directorTitle,
-                    directorPhone: formData.directorPhone??school?.directorPhone,
-                    directorEmail: formData.directorEmail??school?.directorEmail,
-                    blockParentOnDebt: formData.blockParentOnDebt??school?.blockParentOnDebt??false,
-                    schoolType: formData.schoolType??school?.schoolType??'',
-                    foundedYear: formData.foundedYear??school?.foundedYear??'',
-                    slogan: formData.slogan??school?.slogan??'',
-                    mission: formData.mission??school?.mission??'',
-                    website: formData.website??school?.website??'',
-                    facebook: formData.facebook??school?.facebook??'',
-                    instagram: formData.instagram??school?.instagram??''
-                  });
+                    instagram: formData.instagram??school?.instagram??'',
+                    defaultAnnualTuition: parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0,
+                    defaultFraisDivers: parseFloat(formData.defaultFraisDivers??school?.defaultFraisDivers)||0,
+                    defaultDeposit: parseFloat(formData.defaultDeposit??school?.defaultDeposit)||0,
+                    customGradeLevels: formData.customGradeLevels??school?.customGradeLevels??[],
+                  };
+                  await updateDoc(doc(db,'schools',school.id), updateData);
+                  setSchool({...school, ...updateData});
                   alert('Sauvegarde!');
                 }catch(err){alert('Erreur: '+err.message);}
               }} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+
+              {/* Mandatory fields warning shown below save button */}
+              {(()=>{
+                const pending = {
+                  schoolType:   formData.schoolType??school?.schoolType,
+                  address:      formData.address??school?.address,
+                  phone:        formData.schoolPhone??school?.phone,
+                  directorName: formData.directorName??school?.directorName,
+                  tuition:      parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0,
+                };
+                const missing = [
+                  !pending.schoolType    && "Type d'ecole",
+                  !pending.address       && "Adresse",
+                  !pending.phone         && "Telephone",
+                  !pending.directorName  && "Nom du directeur",
+                  !pending.tuition       && "Frais de scolarite",
+                ].filter(Boolean);
+                if (missing.length === 0) return null;
+                return (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-red-700 mb-2">⚠️ Champs obligatoires manquants:</p>
+                    <div className="space-y-1">
+                      {missing.map((m,i)=>(
+                        <p key={i} className="text-sm text-red-600 flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-red-200 flex items-center justify-center text-xs font-bold flex-shrink-0">!</span>
+                          {m}
+                        </p>
+                      ))}
+                    </div>
+                    <p className="text-xs text-red-500 mt-2">Ces champs sont requis pour apparaitre dans l'Annuaire.</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1790,31 +2176,32 @@ export default function App() {
               {modalType==='student'&&(<>
                 <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-gray-700 mb-1">Prenom</label><input type="text" required value={formData.firstName||''} onChange={e=>setFormData({...formData,firstName:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Nom</label><input type="text" required value={formData.lastName||''} onChange={e=>setFormData({...formData,lastName:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label><input type="text" value={formData.address||''} onChange={e=>setFormData({...formData,address:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Rue, Quartier, Ville"/></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label><select value={formData.gradeLevel||''} onChange={e=>setFormData({...formData,gradeLevel:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"><option value="">Selectionner</option>{['Prescolaire','Maternelle','1ere','2eme','3eme','4eme','5eme','6eme','7eme','8eme','9eme','NS1','NS2','NS3','Philo'].map(g=>(<option key={g} value={g}>{g}</option>))}</select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
+                  {isCustomGradeType(school?.schoolType) ? (
+                    <input type="text" value={formData.gradeLevel||''} onChange={e=>setFormData({...formData,gradeLevel:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Ex: Annee 1, Licence 2..."/>
+                  ) : (
+                    <select value={formData.gradeLevel||''} onChange={e=>setFormData({...formData,gradeLevel:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
+                      <option value="">Selectionner</option>
+                      {getGradeLevels(school?.schoolType).map(g=>(<option key={g} value={g}>{g}</option>))}
+                    </select>
+                  )}
+                </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Classes</label><div className="border rounded-xl p-3 max-h-32 overflow-y-auto space-y-2">{classes.map(cls=>(<label key={cls.id} className="flex items-center gap-3 p-2"><input type="checkbox" checked={formData.enrolledClasses?.includes(cls.id)||false} onChange={e=>{const current=formData.enrolledClasses||[];setFormData({...formData,enrolledClasses:e.target.checked?[...current,cls.id]:current.filter(id=>id!==cls.id)});}} className="w-5 h-5 rounded"/><span>{cls.name}</span></label>))}{classes.length===0&&<p className="text-sm text-gray-500">Aucune classe</p>}</div></div>
-                
-                <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Message aux parents (academique/comportement)</p>
+                <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Message aux parents</p>
                   <textarea value={formData.notes||''} onChange={e=>setFormData({...formData,notes:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base h-24 resize-none" placeholder="Observations, commentaires sur l'eleve..."/>
                 </div>
-                
                 <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Contrat Annuel</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="block text-sm text-gray-600 mb-1">Scolarite annuelle (HTG)</label><input type="number" min="0" step="0.01" value={formData.annualTuition||''} onChange={e=>setFormData({...formData,annualTuition:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                     <div><label className="block text-sm text-gray-600 mb-1">Mensuel (10 mois)</label><input type="text" value={(parseFloat(formData.annualTuition)||0) > 0 ? 'HTG '+((parseFloat(formData.annualTuition)||0)/10).toFixed(2) : '-'} className="w-full px-4 py-3 border rounded-xl text-base bg-gray-50" readOnly/></div>
                   </div>
-                  <div className="mt-3">
-                    <label className="block text-sm text-gray-600 mb-1">Frais divers - uniformes, livres (HTG) <span className="text-xs text-orange-600">paye d'avance</span></label>
-                    <input type="number" min="0" step="0.01" value={formData.fraisDivers||''} onChange={e=>setFormData({...formData,fraisDivers:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/>
-                  </div>
-                  <div className="mt-3 p-3 bg-gray-50 rounded-xl">
-                    <div className="flex justify-between"><span className="text-gray-600">Total annuel:</span><span className="font-bold">HTG {((parseFloat(formData.annualTuition)||0)+(parseFloat(formData.fraisDivers)||0)).toFixed(2)}</span></div>
-                  </div>
+                  <div className="mt-3"><label className="block text-sm text-gray-600 mb-1">Frais divers (HTG) <span className="text-xs text-orange-600">paye d'avance</span></label><input type="number" min="0" step="0.01" value={formData.fraisDivers||''} onChange={e=>setFormData({...formData,fraisDivers:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  <div className="mt-3 p-3 bg-gray-50 rounded-xl"><div className="flex justify-between"><span className="text-gray-600">Total annuel:</span><span className="font-bold">HTG {((parseFloat(formData.annualTuition)||0)+(parseFloat(formData.fraisDivers)||0)).toFixed(2)}</span></div></div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div><label className="block text-sm text-gray-600 mb-1">Depot requis (HTG)</label><input type="number" min="0" step="0.01" value={formData.depositAmount||''} onChange={e=>setFormData({...formData,depositAmount:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                     <div className="flex items-end"><label className="flex items-center gap-3 p-3 border rounded-xl w-full cursor-pointer"><input type="checkbox" checked={formData.depositPaid||false} onChange={e=>setFormData({...formData,depositPaid:e.target.checked})} className="w-5 h-5 rounded"/><span className="text-sm">Depot paye</span></label></div>
                   </div>
                 </div>
-
                 <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Acces Parent</p><div className="space-y-3"><input type="email" value={formData.parentEmail||''} onChange={e=>setFormData({...formData,parentEmail:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Email parent"/><input type="tel" value={formData.parentPhone||''} onChange={e=>setFormData({...formData,parentPhone:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Tel parent"/><input type="text" maxLength={6} value={formData.parentPin||''} onChange={e=>setFormData({...formData,parentPin:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base text-center text-xl tracking-widest" placeholder="PIN 6 chiffres"/></div></div>
               </>)}
 
@@ -1838,24 +2225,13 @@ export default function App() {
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Nom classe</label><input type="text" required value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Mathematiques"/></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Enseignant</label><select value={formData.teacherId||''} onChange={e=>setFormData({...formData,teacherId:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"><option value="">Selectionner</option>{teachers.map(t=>(<option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>))}</select></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Salle</label><input type="text" value={formData.room||''} onChange={e=>setFormData({...formData,room:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
-                
+                <div className="border-t pt-4"><label className="block text-sm font-medium text-gray-700 mb-1">Programme / Curriculum</label><textarea value={formData.curriculum||''} onChange={e=>setFormData({...formData,curriculum:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base h-24 resize-none" placeholder="Description du programme, objectifs, etc."/></div>
                 <div className="border-t pt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Programme / Curriculum</label>
-                  <textarea value={formData.curriculum||''} onChange={e=>setFormData({...formData,curriculum:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base h-24 resize-none" placeholder="Description du programme, objectifs, etc."/>
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700">Livres Requis</label>
-                    <button type="button" onClick={addBook} className="text-socrates-blue text-sm font-medium flex items-center gap-1"><Plus size={16}/>Ajouter livre</button>
-                  </div>
+                  <div className="flex items-center justify-between mb-3"><label className="text-sm font-medium text-gray-700">Livres Requis</label><button type="button" onClick={addBook} className="text-socrates-blue text-sm font-medium flex items-center gap-1"><Plus size={16}/>Ajouter livre</button></div>
                   <div className="space-y-3">
                     {(formData.books||[]).map((book, i) => (
                       <div key={i} className="p-3 border rounded-xl space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-500">Livre {i+1}</span>
-                          <button type="button" onClick={()=>removeBook(i)} className="text-red-500"><X size={16}/></button>
-                        </div>
+                        <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Livre {i+1}</span><button type="button" onClick={()=>removeBook(i)} className="text-red-500"><X size={16}/></button></div>
                         <input type="text" value={book.title||''} onChange={e=>updateBook(i,'title',e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Titre du livre"/>
                         <input type="text" value={book.author||''} onChange={e=>updateBook(i,'author',e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Auteur (optionnel)"/>
                         <input type="text" value={book.isbn||''} onChange={e=>updateBook(i,'isbn',e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ISBN (optionnel)"/>
