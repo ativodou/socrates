@@ -6,16 +6,41 @@ import { Users, BookOpen, DollarSign, FileText, Settings, LogOut, Plus, Edit, Tr
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
 
-// Grade levels by school type
-const GRADE_LEVELS_BY_TYPE = {
-  'Prescolaire': ['Prescolaire', 'Maternelle'],
-  'Primaire': ['1ere', '2eme', '3eme', '4eme', '5eme', '6eme'],
-  'Secondaire': ['7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'],
-  'Prescolaire-Primaire': ['Prescolaire', 'Maternelle', '1ere', '2eme', '3eme', '4eme', '5eme', '6eme'],
-  'Primaire-Secondaire': ['1ere', '2eme', '3eme', '4eme', '5eme', '6eme', '7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'],
-  'Complete': ['Prescolaire', 'Maternelle', '1ere', '2eme', '3eme', '4eme', '5eme', '6eme', '7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'],
-};
+// Official Haitian grade levels - full structure
+const PRESCOLAIRE_LEVELS = ['Pépinière', 'Maternelle 1', 'Maternelle 2', 'Maternelle 3'];
+const PRIMAIRE_LEVELS    = ['1ère AF', '2ème AF', '3ème AF', '4ème AF', '5ème AF', '6ème AF'];
+const TROISIEME_CYCLE    = ['7ème AF', '8ème AF', '9ème AF'];
+const SECONDAIRE_NS      = ['NS1', 'NS2', 'NS3'];
+const SECONDAIRE_TRAD    = ['Seconde', 'Rhéto'];
+const PHILO_LEVEL        = ['Philo'];  // always separate, always priced differently
+
+// Fee cycles — groups of levels that share the same fee
+const FEE_CYCLES = [
+  { key: 'prescolaire',    label: 'Préscolaire',          levels: PRESCOLAIRE_LEVELS },
+  { key: 'premier_cycle',  label: '1er Cycle Fondamental', levels: ['1ère AF', '2ème AF', '3ème AF'] },
+  { key: 'deuxieme_cycle', label: '2ème Cycle Fondamental',levels: ['4ème AF', '5ème AF', '6ème AF'] },
+  { key: 'troisieme_cycle',label: '3ème Cycle Fondamental',levels: TROISIEME_CYCLE },
+  { key: 'secondaire',     label: 'Secondaire',            levels: [...SECONDAIRE_NS, ...SECONDAIRE_TRAD] },
+  { key: 'philo',          label: 'Philo / NS4',           levels: PHILO_LEVEL },
+];
+
+const GRADE_LEVELS_BY_TYPE = (secondSystem = 'NS') => ({
+  'Préscolaire':          [...PRESCOLAIRE_LEVELS],
+  'Primaire':             [...PRIMAIRE_LEVELS],
+  'Secondaire':           [...TROISIEME_CYCLE, ...(secondSystem==='NS'?SECONDAIRE_NS:SECONDAIRE_TRAD), ...PHILO_LEVEL],
+  'Préscolaire-Primaire': [...PRESCOLAIRE_LEVELS, ...PRIMAIRE_LEVELS],
+  'Primaire-Secondaire':  [...PRIMAIRE_LEVELS, ...TROISIEME_CYCLE, ...(secondSystem==='NS'?SECONDAIRE_NS:SECONDAIRE_TRAD), ...PHILO_LEVEL],
+  'Complète':             [...PRESCOLAIRE_LEVELS, ...PRIMAIRE_LEVELS, ...TROISIEME_CYCLE, ...(secondSystem==='NS'?SECONDAIRE_NS:SECONDAIRE_TRAD), ...PHILO_LEVEL],
+});
 const CUSTOM_GRADE_TYPES = ['Technique', 'Universitaire'];
+
+// Returns fee for a given level from the school's levelFees map
+const getFeeForLevel = (level, levelFees = {}) => {
+  if (levelFees[level]) return levelFees[level];
+  const cycle = FEE_CYCLES.find(c => c.levels.includes(level));
+  if (!cycle) return null;
+  return levelFees[cycle.key] || null;
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -48,6 +73,7 @@ export default function App() {
   const [newCustomGrade, setNewCustomGrade] = useState('');
   const [publicSchool, setPublicSchool] = useState(null);
   const [publicSchoolTeachers, setPublicSchoolTeachers] = useState([]);
+  const [publicSchoolClasses, setPublicSchoolClasses] = useState([]);
   // Super Admin states
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [allSchools, setAllSchools] = useState([]);
@@ -60,9 +86,10 @@ export default function App() {
 
   // Get grade levels for current school type
   const getGradeLevels = (schoolType) => {
-    if (!schoolType) return ['Prescolaire', 'Maternelle', '1ere', '2eme', '3eme', '4eme', '5eme', '6eme', '7eme', '8eme', '9eme', 'NS1', 'NS2', 'NS3', 'Philo'];
+    if (!schoolType) return [...PRESCOLAIRE_LEVELS, ...PRIMAIRE_LEVELS, ...TROISIEME_CYCLE, ...SECONDAIRE_NS, ...PHILO_LEVEL];
     if (CUSTOM_GRADE_TYPES.includes(schoolType)) return school?.customGradeLevels || [];
-    return GRADE_LEVELS_BY_TYPE[schoolType] || [];
+    const secondSystem = school?.secondarySystem || 'NS';
+    return GRADE_LEVELS_BY_TYPE(secondSystem)[schoolType] || [];
   };
   const isCustomGradeType = (schoolType) => CUSTOM_GRADE_TYPES.includes(schoolType);
 
@@ -415,7 +442,7 @@ export default function App() {
           schoolType: data.schoolType || '',
           directorName: data.directorName || '',
           directorPhone: data.directorPhone || '',
-          defaultAnnualTuition: parseFloat(data.defaultAnnualTuition) || 0,
+          levelFees: data.levelFees || {},
           teacherCount,
         };
       }));
@@ -425,7 +452,7 @@ export default function App() {
 
   const isListedInDirectory = (s) =>
     s.schoolType && s.address && s.phone && s.directorName &&
-    s.defaultAnnualTuition > 0 && s.teacherCount > 0;
+    Object.keys(s.levelFees||{}).length > 0 && s.teacherCount > 0;
 
   const loadParentSchoolStudents = async (schoolId) => {
     if (!schoolId) { setParentSchoolStudents([]); return; }
@@ -617,12 +644,8 @@ export default function App() {
     setModalType(type);
     setEditItem(item);
     if (type === 'student' && !item) {
-      // Pre-fill with school fee defaults
-      setFormData({
-        annualTuition: school?.defaultAnnualTuition || '',
-        fraisDivers: school?.defaultFraisDivers || '',
-        depositAmount: school?.defaultDeposit || '',
-      });
+      // Fees will auto-fill when grade level is selected
+      setFormData({});
     } else {
       setFormData(item || {});
     }
@@ -718,7 +741,7 @@ export default function App() {
         ` : `
         <tr><td style="padding:10px;border:1px solid #ddd;">Scolarite (10 mois)</td><td style="padding:10px;border:1px solid #ddd;text-align:right;">HTG ${scolarite.toFixed(2)}</td></tr>
         <tr><td style="padding:10px;border:1px solid #ddd;"><em>Paiement mensuel</em></td><td style="padding:10px;border:1px solid #ddd;text-align:right;"><em>HTG ${monthly}</em></td></tr>
-        <tr><td style="padding:10px;border:1px solid #ddd;">Frais divers <span style="color:#c65;font-size:0.85em;">(paye d'avance)</span></td><td style="padding:10px;border:1px solid #ddd;text-align:right;">HTG ${fraisDivers.toFixed(2)}</td></tr>
+        <tr><td style="padding:10px;border:1px solid #ddd;">Frais d'inscription <span style="color:#c65;font-size:0.85em;">(paiement unique)</span></td><td style="padding:10px;border:1px solid #ddd;text-align:right;">HTG ${fraisDivers.toFixed(2)}</td></tr>
         <tr style="background:#f8f8f8;"><td style="padding:10px;border:1px solid #ddd;"><strong>Total Annuel</strong></td><td style="padding:10px;border:1px solid #ddd;text-align:right;font-weight:bold;">HTG ${annual.toFixed(2)}</td></tr>
         <tr><td style="padding:10px;border:1px solid #ddd;"><strong>Depot de Reservation</strong></td><td style="padding:10px;border:1px solid #ddd;text-align:right;">HTG ${parseFloat(person.depositAmount||0).toFixed(2)} ${person.depositPaid ? '(Paye)' : '(Non paye)'}</td></tr>
         `}
@@ -1311,7 +1334,7 @@ export default function App() {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between rounded-t-2xl z-10">
               <h3 className="font-bold text-gray-800 text-lg">{publicSchool.name}</h3>
-              <button onClick={()=>{setPublicSchool(null);setPublicSchoolTeachers([]);}} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><X size={20}/></button>
+              <button onClick={()=>{setPublicSchool(null);setPublicSchoolTeachers([]);setPublicSchoolClasses([]);}} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"><X size={20}/></button>
             </div>
             <div className="p-5 space-y-5">
               <div className="flex items-center gap-4">
@@ -1337,10 +1360,88 @@ export default function App() {
               <div className="bg-white border rounded-xl p-4 space-y-2">
                 <p className="font-semibold text-gray-700 mb-2">Contact</p>
                 {publicSchool.address && <p className="text-sm text-gray-600">📍 {publicSchool.address}</p>}
+                {(publicSchool.gpsLat && publicSchool.gpsLng) && (
+                  <a href={`https://maps.google.com/?q=${publicSchool.gpsLat},${publicSchool.gpsLng}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-socrates-blue bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200 hover:bg-blue-100 transition">
+                    🗺️ Voir sur Google Maps
+                  </a>
+                )}
                 {publicSchool.phone && <p className="text-sm text-gray-600">📞 {publicSchool.phone}</p>}
                 {publicSchool.email && <p className="text-sm text-gray-600">✉️ {publicSchool.email}</p>}
                 {publicSchool.directorName && <p className="text-sm text-gray-600">👤 {publicSchool.directorTitle||'Directeur'}: {publicSchool.directorName}</p>}
               </div>
+              {/* Infos pratiques */}
+              {(publicSchool.languages?.length>0 || publicSchool.capacity || publicSchool.accreditation || publicSchool.yearStart) && (
+                <div className="bg-white border rounded-xl p-4 space-y-2">
+                  <p className="font-semibold text-gray-700 mb-2">Infos Pratiques</p>
+                  {publicSchool.languages?.length>0 && <p className="text-sm text-gray-600">🗣️ {publicSchool.languages.join(', ')}</p>}
+                  {publicSchool.capacity && <p className="text-sm text-gray-600">👥 Capacite: {publicSchool.capacity} eleves</p>}
+                  {publicSchool.accreditation && <p className="text-sm text-gray-600">🏛️ {publicSchool.accreditation}</p>}
+                  {publicSchool.yearStart && publicSchool.yearEnd && <p className="text-sm text-gray-600">📅 {new Date(publicSchool.yearStart).toLocaleDateString('fr-FR',{month:'long',day:'numeric'})} — {new Date(publicSchool.yearEnd).toLocaleDateString('fr-FR',{month:'long',day:'numeric'})}</p>}
+                </div>
+              )}
+              {/* Services */}
+              {(publicSchool.hasUniform||publicSchool.hasCafeteria||publicSchool.hasTransport||publicSchool.hasInternet||publicSchool.activities?.length>0) && (
+                <div className="bg-white border rounded-xl p-4">
+                  <p className="font-semibold text-gray-700 mb-3">Services & Activites</p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {publicSchool.hasUniform    && <span className="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full">👔 Uniforme</span>}
+                    {publicSchool.hasCafeteria  && <span className="bg-orange-50 text-orange-700 text-xs px-3 py-1 rounded-full">🍽️ Cantina</span>}
+                    {publicSchool.hasTransport  && <span className="bg-green-50 text-green-700 text-xs px-3 py-1 rounded-full">🚌 Transport</span>}
+                    {publicSchool.hasInternet   && <span className="bg-purple-50 text-purple-700 text-xs px-3 py-1 rounded-full">📶 Internet</span>}
+                  </div>
+                  {publicSchool.hasUniform && publicSchool.uniformDesc && <p className="text-xs text-gray-500 mb-3">Uniforme: {publicSchool.uniformDesc}</p>}
+                  {publicSchool.activities?.length>0 && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-2">Activites parascolaires</p>
+                      <div className="space-y-2">
+                        {publicSchool.activities.map((a,i)=>(
+                          <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
+                            <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{a.name?.[0]}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800">{a.name}</p>
+                              {a.description && <p className="text-xs text-gray-500">{a.description}</p>}
+                              {a.responsable && <p className="text-xs text-orange-600">{a.responsable}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Programs for Technique/Universitaire */}
+              {publicSchool.programs?.length>0 && (
+                <div>
+                  <p className="font-semibold text-gray-700 mb-3">Programmes Offerts</p>
+                  <div className="space-y-3">
+                    {publicSchool.programs.map((p,pi)=>(
+                      <div key={pi} className="border rounded-xl overflow-hidden">
+                        <div className="bg-socrates-navy text-white px-4 py-3">
+                          <p className="font-semibold text-sm">{p.name}</p>
+                          <p className="text-xs opacity-75">{p.domain||''} • {p.duration} an{p.duration>1?'s':''}</p>
+                        </div>
+                        <div className="divide-y">
+                          {Array.from({length:parseInt(p.duration)||1},(_,y)=>{
+                            const feeKey=`prog_${pi}_y${y}`;
+                            const fee=publicSchool.levelFees?.[feeKey];
+                            return (
+                              <div key={y} className="flex items-center justify-between px-4 py-2">
+                                <span className="text-sm text-gray-700">Année {y+1}</span>
+                                {fee?.tuition>0 ? (
+                                  <div className="text-right">
+                                    <span className="font-medium text-sm text-gray-800">HTG {parseFloat(fee.tuition).toLocaleString()}</span>
+                                    <span className="text-xs text-gray-400 ml-1">({(parseFloat(fee.tuition)/10).toFixed(0)}/mois)</span>
+                                  </div>
+                                ) : <span className="text-xs text-gray-400">-</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {(publicSchool.website||publicSchool.facebook||publicSchool.instagram) && (
                 <div className="flex gap-2">
                   {publicSchool.website && <a href={publicSchool.website} target="_blank" rel="noopener noreferrer" className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium text-center">🌐 Site Web</a>}
@@ -1348,57 +1449,98 @@ export default function App() {
                   {publicSchool.instagram && <a href={`https://instagram.com/${publicSchool.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-pink-100 text-pink-700 py-2 rounded-lg text-sm font-medium text-center">Instagram</a>}
                 </div>
               )}
-              {(publicSchool.defaultAnnualTuition > 0 || publicSchool.defaultFraisDivers > 0 || publicSchool.defaultDeposit > 0) && (
-                <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-                  <p className="font-semibold text-green-800 mb-3">💰 Frais de Scolarite</p>
-                  <div className="space-y-2">
-                    {publicSchool.defaultAnnualTuition > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Scolarite annuelle</span>
-                        <span className="font-bold text-gray-800">HTG {parseFloat(publicSchool.defaultAnnualTuition).toLocaleString()}</span>
-                      </div>
-                    )}
-                    {publicSchool.defaultAnnualTuition > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Paiement mensuel (÷10)</span>
-                        <span className="text-gray-600">HTG {(parseFloat(publicSchool.defaultAnnualTuition)/10).toLocaleString()}</span>
-                      </div>
-                    )}
-                    {publicSchool.defaultFraisDivers > 0 && (
-                      <div className="flex justify-between items-center border-t pt-2 mt-2">
-                        <span className="text-sm text-gray-600">Frais divers <span className="text-xs text-orange-600">(paye d'avance)</span></span>
-                        <span className="font-bold text-gray-800">HTG {parseFloat(publicSchool.defaultFraisDivers).toLocaleString()}</span>
-                      </div>
-                    )}
-                    {publicSchool.defaultDeposit > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Depot de reservation</span>
-                        <span className="text-gray-800">HTG {parseFloat(publicSchool.defaultDeposit).toLocaleString()}</span>
-                      </div>
-                    )}
-                    {(publicSchool.defaultAnnualTuition > 0 || publicSchool.defaultFraisDivers > 0) && (
-                      <div className="flex justify-between items-center border-t pt-2 mt-2 bg-green-100 rounded-lg px-2 py-1">
-                        <span className="text-sm font-semibold text-green-800">Total annuel</span>
-                        <span className="font-bold text-green-800">HTG {((parseFloat(publicSchool.defaultAnnualTuition)||0)+(parseFloat(publicSchool.defaultFraisDivers)||0)).toLocaleString()}</span>
-                      </div>
-                    )}
+              {isListedInDirectory({...publicSchool, teacherCount: publicSchoolTeachers.length}) ? (<>
+                {/* Fees per cycle */}
+                {Object.keys(publicSchool.levelFees||{}).length > 0 && (
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                    <p className="font-semibold text-green-800 mb-3">💰 Frais de Scolarite</p>
+                    <div className="space-y-3">
+                      {FEE_CYCLES.filter(c=>publicSchool.levelFees?.[c.key]?.tuition>0||publicSchool.levelFees?.[c.key]?.frais>0).map(c=>{
+                        const tuition = parseFloat(publicSchool.levelFees[c.key]?.tuition)||0;
+                        const frais = parseFloat(publicSchool.levelFees[c.key]?.frais)||0;
+                        return (
+                          <div key={c.key} className={`p-3 rounded-xl ${c.key==='philo'?'bg-purple-100 border border-purple-200':'bg-white border border-gray-100'}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className={`font-semibold text-sm ${c.key==='philo'?'text-purple-800':'text-gray-800'}`}>{c.label}</p>
+                              {c.key==='philo' && <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">Tarif spécial</span>}
+                            </div>
+                            {tuition > 0 && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-500">Scolarité annuelle</span>
+                                <div className="text-right">
+                                  <span className={`font-bold text-sm ${c.key==='philo'?'text-purple-700':'text-gray-800'}`}>HTG {tuition.toLocaleString()}</span>
+                                  <span className="text-xs text-gray-400 ml-2">({(tuition/10).toFixed(0)} / mois)</span>
+                                </div>
+                              </div>
+                            )}
+                            {frais > 0 && (
+                              <div className="flex justify-between items-center mt-1">
+                                <span className="text-xs text-orange-600">Frais d'inscription <span className="italic">(unique)</span></span>
+                                <span className="font-medium text-sm text-orange-700">HTG {frais.toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+                )}
+                {publicSchoolTeachers.length > 0 && (
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-3">Corps Enseignant</p>
+                    <div className="space-y-2">
+                      {publicSchoolTeachers.map((t,i) => (
+                        <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="w-9 h-9 rounded-full bg-socrates-blue text-white flex items-center justify-center text-sm font-bold">{t.firstName?.[0]}{t.lastName?.[0]}</div>
+                          <div><p className="font-medium text-sm">{t.firstName} {t.lastName}</p><p className="text-xs text-gray-500">{t.subject||'N/A'}</p></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {publicSchoolClasses.length > 0 && (
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-3">Apercu Academique</p>
+                    <div className="space-y-2">
+                      {publicSchoolClasses.map((cls,i) => {
+                        const t = publicSchoolTeachers.find(t=>t.id===cls.teacherId);
+                        return (
+                          <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="w-9 h-9 rounded-lg bg-socrates-navy text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{cls.name?.[0]}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-gray-800">{cls.name}</p>
+                              {cls.gradeLevel && <p className="text-xs text-gray-400">{cls.gradeLevel}</p>}
+                            </div>
+                            {t && <p className="text-xs text-gray-500 flex-shrink-0">{t.firstName} {t.lastName}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {(publicSchool.adminStaff||[]).length > 0 && (
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-3">Personnel Administratif</p>
+                    <div className="space-y-2">
+                      {publicSchool.adminStaff.map((s,i)=>(
+                        <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{s.firstName?.[0]}{s.lastName?.[0]}</div>
+                          <div>
+                            <p className="font-medium text-sm">{s.firstName} {s.lastName}</p>
+                            <p className="text-xs text-purple-600">{s.role}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+                  <p className="text-yellow-700 font-medium text-sm">⚠️ Profil incomplet</p>
+                  <p className="text-yellow-600 text-xs mt-1">Cette ecole n'a pas encore complete son profil. Les frais et le corps enseignant seront visibles une fois le profil complete.</p>
                 </div>
               )}
-              {publicSchoolTeachers.length > 0 && (
-                <div>
-                  <p className="font-semibold text-gray-700 mb-3">Corps Enseignant</p>
-                  <div className="space-y-2">
-                    {publicSchoolTeachers.map((t,i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                        <div className="w-9 h-9 rounded-full bg-socrates-blue text-white flex items-center justify-center text-sm font-bold">{t.firstName?.[0]}{t.lastName?.[0]}</div>
-                        <div><p className="font-medium text-sm">{t.firstName} {t.lastName}</p><p className="text-xs text-gray-500">{t.subject||'N/A'}</p></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <button onClick={()=>{setPublicSchool(null);setPublicSchoolTeachers([]);setAuthMode('parent');loadParentSchools();setFormData({parentSchoolId:publicSchool.id,schoolSearch:publicSchool.name});}} className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold">Acceder au Portail Parent</button>
+              <button onClick={()=>{setPublicSchool(null);setPublicSchoolTeachers([]);setPublicSchoolClasses([]);setAuthMode('parent');loadParentSchools();setFormData({parentSchoolId:publicSchool.id,schoolSearch:publicSchool.name});}} className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-4 rounded-xl font-semibold">Acceder au Portail Parent</button>
             </div>
           </div>
         </div>
@@ -1518,12 +1660,15 @@ export default function App() {
                     <button key={s.id} type="button" onClick={async()=>{
                       const schoolDoc = await getDoc(doc(db,'schools',s.id));
                       const schoolData = { id: s.id, ...schoolDoc.data() };
-                      let tList = [];
+                      let tList = [], cList = [];
                       try {
                         const teachersSnap = await getDocs(collection(db,'schools',s.id,'teachers'));
                         tList = teachersSnap.docs.map(d=>({id:d.id,...d.data()}));
+                        const classesSnap = await getDocs(collection(db,'schools',s.id,'classes'));
+                        cList = classesSnap.docs.map(d=>({id:d.id,...d.data()}));
                       } catch(e){}
                       setPublicSchoolTeachers(tList);
+                      setPublicSchoolClasses(cList);
                       setPublicSchool(schoolData);
                     }} className="w-full text-left p-4 bg-gray-50 hover:bg-blue-50 border hover:border-blue-200 rounded-xl transition">
                       <div className="flex items-center gap-3">
@@ -1866,7 +2011,7 @@ export default function App() {
                   { label: 'Adresse',               done: !!school?.address },
                   { label: 'Telephone ecole',       done: !!school?.phone },
                   { label: 'Nom du directeur',      done: !!school?.directorName },
-                  { label: 'Frais de scolarite',    done: (parseFloat(school?.defaultAnnualTuition)||0) > 0 },
+                  { label: 'Frais de scolarite',    done: Object.keys(school?.levelFees||{}).length > 0 },
                   { label: 'Au moins un enseignant',done: teachers.length > 0 },
                 ];
                 const completed = checks.filter(c=>c.done).length;
@@ -1923,7 +2068,37 @@ export default function App() {
                     </div>
                   </div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'ecole</label><input type="text" value={formData.schoolName??school?.name??''} onChange={e=>setFormData({...formData,schoolName:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label><input type="text" value={formData.address??school?.address??''} onChange={e=>setFormData({...formData,address:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Rue, Ville"/></div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                    <input type="text" value={formData.address??school?.address??''} onChange={e=>setFormData({...formData,address:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Rue, Ville"/>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button type="button" onClick={async()=>{
+                        if(!navigator.geolocation){alert('Geolocalisation non supportee.');return;}
+                        setFormData(f=>({...f,gpsLoading:true}));
+                        navigator.geolocation.getCurrentPosition(async pos=>{
+                          const {latitude:lat,longitude:lng} = pos.coords;
+                          try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                            const data = await res.json();
+                            const addr = data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                            setFormData(f=>({...f, address: addr, gpsLat: lat.toFixed(6), gpsLng: lng.toFixed(6), gpsLoading:false}));
+                          } catch(e){
+                            setFormData(f=>({...f, gpsLat: lat.toFixed(6), gpsLng: lng.toFixed(6), gpsLoading:false}));
+                          }
+                        }, ()=>{setFormData(f=>({...f,gpsLoading:false}));alert('Impossible d\'obtenir la position.');});
+                      }} className="flex items-center gap-2 text-sm bg-blue-50 text-socrates-blue border border-blue-200 px-3 py-2 rounded-xl hover:bg-blue-100 transition">
+                        📍 {(formData.gpsLoading??false) ? 'Localisation...' : 'Localiser l\'école'}
+                      </button>
+                      {(formData.gpsLat??school?.gpsLat) && (
+                        <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-xl">
+                          ✅ GPS: {formData.gpsLat??school?.gpsLat}, {formData.gpsLng??school?.gpsLng}
+                        </span>
+                      )}
+                    </div>
+                    {!(formData.gpsLat??school?.gpsLat) && (
+                      <p className="text-xs text-orange-500 mt-1">⚠️ Coordonnees GPS non definies. Cliquez "Localiser" pour verifier l'adresse.</p>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label><input type="tel" value={formData.schoolPhone??school?.phone??''} onChange={e=>setFormData({...formData,schoolPhone:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={school?.email||user?.email||''} className="w-full px-4 py-3 border rounded-xl bg-gray-50 text-base" readOnly/></div>
@@ -1953,12 +2128,12 @@ export default function App() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Type d'ecole</label>
                       <select value={formData.schoolType??school?.schoolType??''} onChange={e=>setFormData({...formData,schoolType:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
                         <option value="">Selectionner</option>
-                        <option value="Prescolaire">Préscolaire</option>
+                        <option value="Préscolaire">Préscolaire</option>
                         <option value="Primaire">Primaire</option>
                         <option value="Secondaire">Secondaire</option>
-                        <option value="Prescolaire-Primaire">Préscolaire & Primaire</option>
+                        <option value="Préscolaire-Primaire">Préscolaire & Primaire</option>
                         <option value="Primaire-Secondaire">Primaire & Secondaire</option>
-                        <option value="Complete">École Complète (Préscolaire-Secondaire)</option>
+                        <option value="Complète">École Complète</option>
                         <option value="Technique">Technique / Professionnel</option>
                         <option value="Universitaire">Universitaire</option>
                       </select>
@@ -1966,95 +2141,201 @@ export default function App() {
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Annee de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={formData.foundedYear??school?.foundedYear??''} onChange={e=>setFormData({...formData,foundedYear:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="1985"/></div>
                   </div>
 
+                  {/* NS vs Traditional toggle — only for schools with secondary */}
+                  {['Secondaire','Primaire-Secondaire','Complète'].includes(formData.schoolType??school?.schoolType) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Système secondaire</label>
+                      <div className="flex bg-gray-100 rounded-xl p-1">
+                        {['NS','Traditionnel'].map(sys=>(
+                          <button key={sys} type="button" onClick={()=>setFormData({...formData,secondarySystem:sys})} className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${(formData.secondarySystem??school?.secondarySystem??'NS')===sys?'bg-white shadow text-socrates-navy':'text-gray-500'}`}>
+                            {sys==='NS'?'Nouveau Système (NS1-NS4)':'Traditionnel (Rhéto-Philo)'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Predefined grade levels for standard school types */}
                   {(formData.schoolType??school?.schoolType) && !isCustomGradeType(formData.schoolType??school?.schoolType) && (
                     <div className="bg-blue-50 rounded-xl p-4">
-                      <p className="text-sm font-medium text-blue-800 mb-2">Niveaux disponibles pour ce type:</p>
+                      <p className="text-sm font-medium text-blue-800 mb-2">Niveaux disponibles:</p>
                       <div className="flex flex-wrap gap-2">
                         {getGradeLevels(formData.schoolType??school?.schoolType).map(g=>(
-                          <span key={g} className="bg-white text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-sm">{g}</span>
+                          <span key={g} className={`px-3 py-1 rounded-full text-sm border ${g==='Philo'||g==='NS4'?'bg-purple-100 text-purple-700 border-purple-200 font-medium':'bg-white text-blue-700 border-blue-200'}`}>{g}</span>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Custom grade levels for Technique/Universitaire */}
+                  {/* Structured programs for Technique/Universitaire */}
                   {isCustomGradeType(formData.schoolType??school?.schoolType) && (
-                    <div className="border rounded-xl p-4 space-y-3">
-                      <p className="text-sm font-medium text-gray-700">Niveaux / Annees personnalises</p>
-                      <p className="text-xs text-gray-500">Definissez vos propres niveaux (ex: Annee 1, Licence 1, Master...)</p>
-                      <div className="flex flex-wrap gap-2 min-h-[40px]">
-                        {(formData.customGradeLevels??school?.customGradeLevels??[]).map((g,i)=>(
-                          <span key={i} className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm flex items-center gap-1">
-                            {g}
-                            <button type="button" onClick={()=>{
-                              const levels=[...(formData.customGradeLevels??school?.customGradeLevels??[])];
-                              levels.splice(i,1);
-                              setFormData({...formData,customGradeLevels:levels});
-                            }} className="hover:text-red-600"><X size={12}/></button>
-                          </span>
-                        ))}
-                        {(formData.customGradeLevels??school?.customGradeLevels??[]).length===0&&<p className="text-gray-400 text-sm">Aucun niveau defini</p>}
-                      </div>
-                      <div className="flex gap-2">
-                        <input type="text" value={newCustomGrade} onChange={e=>setNewCustomGrade(e.target.value)} onKeyDown={e=>{
-                          if(e.key==='Enter'){
-                            e.preventDefault();
-                            if(newCustomGrade.trim()){
-                              const levels=[...(formData.customGradeLevels??school?.customGradeLevels??[])];
-                              if(!levels.includes(newCustomGrade.trim())) levels.push(newCustomGrade.trim());
-                              setFormData({...formData,customGradeLevels:levels});
-                              setNewCustomGrade('');
-                            }
-                          }
-                        }} className="flex-1 px-4 py-2 border rounded-xl text-base" placeholder="Ex: Annee 1, Licence 1..."/>
-                        <button type="button" onClick={()=>{
-                          if(newCustomGrade.trim()){
-                            const levels=[...(formData.customGradeLevels??school?.customGradeLevels??[])];
-                            if(!levels.includes(newCustomGrade.trim())) levels.push(newCustomGrade.trim());
-                            setFormData({...formData,customGradeLevels:levels});
-                            setNewCustomGrade('');
-                          }
-                        }} className="bg-socrates-blue text-white px-4 py-2 rounded-xl"><Plus size={18}/></button>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Programmes offerts</p>
+                        <p className="text-xs text-gray-500 mb-3">Chaque programme a sa propre duree et ses annees. Les frais seront definis par programme ci-dessous.</p>
+                        <div className="space-y-2 mb-2">
+                          {(formData.programs??school?.programs??[]).length===0 && <p className="text-gray-400 text-sm text-center py-3">Aucun programme. Ajoutez en dessous.</p>}
+                          {(formData.programs??school?.programs??[]).map((p,i)=>(
+                            <div key={i} className="border rounded-xl p-3 bg-gray-50">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm text-gray-800">{p.name}</p>
+                                  <p className="text-xs text-gray-500">{p.duration} an{p.duration>1?'s':''} • {p.domain||'Domaine non specifie'}</p>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {Array.from({length:parseInt(p.duration)||1},(_,y)=>(
+                                      <span key={y} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Année {y+1}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <button type="button" onClick={()=>{
+                                  const list=[...(formData.programs??school?.programs??[])];
+                                  list.splice(i,1);
+                                  setFormData({...formData,programs:list});
+                                }} className="text-red-400 hover:text-red-600 p-1 flex-shrink-0"><X size={16}/></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {formData.showAddProgram ? (
+                          <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3">
+                            <p className="text-sm font-medium text-blue-800">Nouveau programme</p>
+                            <input type="text" placeholder="Nom du programme (ex: Licence en Informatique)" value={formData.newProgName||''} onChange={e=>setFormData({...formData,newProgName:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Domaine</label>
+                                <input type="text" placeholder="Informatique, Gestion..." value={formData.newProgDomain||''} onChange={e=>setFormData({...formData,newProgDomain:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Durée (années)</label>
+                                <select value={formData.newProgDuration||'1'} onChange={e=>setFormData({...formData,newProgDuration:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm">
+                                  {[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} an{n>1?'s':''}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                            <div className="bg-white rounded-lg px-3 py-2 text-xs text-gray-500">
+                              Années générées: {Array.from({length:parseInt(formData.newProgDuration||1)},(_,i)=>`Année ${i+1}`).join(', ')}
+                            </div>
+                            <div className="flex gap-2">
+                              <button type="button" onClick={()=>{
+                                if(!formData.newProgName){alert('Nom du programme requis.');return;}
+                                const list=[...(formData.programs??school?.programs??[]),{name:formData.newProgName,domain:formData.newProgDomain||'',duration:parseInt(formData.newProgDuration||1)}];
+                                setFormData({...formData,programs:list,showAddProgram:false,newProgName:'',newProgDomain:'',newProgDuration:'1'});
+                              }} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                              <button type="button" onClick={()=>setFormData({...formData,showAddProgram:false})} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-xl text-sm">Annuler</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={()=>setFormData({...formData,showAddProgram:true})} className="w-full border-2 border-dashed border-blue-200 text-socrates-blue py-3 rounded-xl text-sm font-medium hover:border-blue-400 transition flex items-center justify-center gap-2"><Plus size={16}/>Ajouter un programme</button>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Fee Defaults */}
-              <div className="bg-white rounded-xl shadow-lg p-5">
-                <h3 className="text-lg font-semibold text-gray-800 mb-1">Frais par Defaut</h3>
-                <p className="text-sm text-gray-500 mb-4">Ces montants pre-remplissent automatiquement le formulaire lors de l'ajout d'un nouvel eleve.</p>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Scolarite annuelle (HTG)</label>
-                      <input type="number" min="0" value={formData.defaultAnnualTuition??school?.defaultAnnualTuition??''} onChange={e=>setFormData({...formData,defaultAnnualTuition:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="0"/>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Mensuel (÷10)</label>
-                      <input type="text" value={(parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)>0?'HTG '+((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)/10).toFixed(0):'-'} className="w-full px-4 py-3 border rounded-xl text-base bg-gray-50" readOnly/>
-                    </div>
+
+              {/* Fees per cycle */}
+              {(formData.schoolType??school?.schoolType) && !isCustomGradeType(formData.schoolType??school?.schoolType) && (
+                <div className="bg-white rounded-xl shadow-lg p-5">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-1">Frais par Cycle / Niveau</h3>
+                  <p className="text-sm text-gray-500 mb-4">Definissez les frais specifiques pour chaque cycle. Philo est toujours separe car les frais different.</p>
+                  <div className="space-y-3">
+                    {FEE_CYCLES.filter(cycle => {
+                      const levels = getGradeLevels(formData.schoolType??school?.schoolType);
+                      return cycle.levels.some(l => levels.includes(l));
+                    }).map(cycle => {
+                      const fees = formData.levelFees??school?.levelFees??{};
+                      const tuition = fees[cycle.key]?.tuition ?? '';
+                      const frais = fees[cycle.key]?.frais ?? '';
+                      return (
+                        <div key={cycle.key} className={`border rounded-xl p-4 ${cycle.key==='philo'?'border-purple-200 bg-purple-50':''}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className={`font-medium text-sm ${cycle.key==='philo'?'text-purple-800':'text-gray-800'}`}>{cycle.label}</p>
+                              <p className="text-xs text-gray-400">{cycle.levels.filter(l=>getGradeLevels(formData.schoolType??school?.schoolType).includes(l)).join(', ')}</p>
+                            </div>
+                            {cycle.key==='philo' && <span className="text-xs bg-purple-200 text-purple-700 px-2 py-1 rounded-full font-medium">Tarif special</span>}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Scolarite annuelle (HTG)</label>
+                              <input type="number" min="0" value={tuition} onChange={e=>{
+                                const lf = {...(formData.levelFees??school?.levelFees??{})};
+                                lf[cycle.key] = {...(lf[cycle.key]||{}), tuition: e.target.value};
+                                setFormData({...formData, levelFees: lf});
+                              }} className={`w-full px-3 py-2 border rounded-xl text-sm ${cycle.key==='philo'?'border-purple-200':''}`} placeholder="0"/>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Frais divers (HTG)</label>
+                              <input type="number" min="0" value={frais} onChange={e=>{
+                                const lf = {...(formData.levelFees??school?.levelFees??{})};
+                                lf[cycle.key] = {...(lf[cycle.key]||{}), frais: e.target.value};
+                                setFormData({...formData, levelFees: lf});
+                              }} className={`w-full px-3 py-2 border rounded-xl text-sm ${cycle.key==='philo'?'border-purple-200':''}`} placeholder="0"/>
+                            </div>
+                          </div>
+                          {tuition > 0 && (
+                            <div className="flex justify-between items-center mt-2 bg-white rounded-lg px-3 py-1.5 text-xs">
+                              <span className="text-gray-500">Mensuel (÷10)</span>
+                              <span className="font-medium">HTG {(parseFloat(tuition)/10).toFixed(0)}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Frais divers (HTG)</label>
-                      <input type="number" min="0" value={formData.defaultFraisDivers??school?.defaultFraisDivers??''} onChange={e=>setFormData({...formData,defaultFraisDivers:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="0"/>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Depot requis (HTG)</label>
-                      <input type="number" min="0" value={formData.defaultDeposit??school?.defaultDeposit??''} onChange={e=>setFormData({...formData,defaultDeposit:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="0"/>
-                    </div>
-                  </div>
-                  {((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)+(parseFloat(formData.defaultFraisDivers??school?.defaultFraisDivers)||0))>0&&(
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                      <span className="text-gray-600">Total annuel par defaut</span>
-                      <span className="font-bold">HTG {((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0)+(parseFloat(formData.defaultFraisDivers??school?.defaultFraisDivers)||0)).toFixed(0)}</span>
-                    </div>
-                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Fees per program/year for Technique/Universitaire */}
+              {isCustomGradeType(formData.schoolType??school?.schoolType) && (formData.programs??school?.programs??[]).length > 0 && (
+                <div className="bg-white rounded-xl shadow-lg p-5">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-1">Frais par Programme</h3>
+                  <p className="text-sm text-gray-500 mb-4">Definissez la scolarite et les frais d'inscription pour chaque annee de chaque programme.</p>
+                  <div className="space-y-4">
+                    {(formData.programs??school?.programs??[]).map((p,pi)=>(
+                      <div key={pi} className="border rounded-xl overflow-hidden">
+                        <div className="bg-socrates-navy text-white px-4 py-3">
+                          <p className="font-semibold text-sm">{p.name}</p>
+                          <p className="text-xs opacity-75">{p.domain||''} • {p.duration} an{p.duration>1?'s':''}</p>
+                        </div>
+                        <div className="divide-y">
+                          {Array.from({length:parseInt(p.duration)||1},(_,y)=>{
+                            const feeKey = `prog_${pi}_y${y}`;
+                            const fees = formData.levelFees??school?.levelFees??{};
+                            const tuition = fees[feeKey]?.tuition ?? '';
+                            const frais = fees[feeKey]?.frais ?? '';
+                            return (
+                              <div key={y} className="p-3">
+                                <p className="text-sm font-medium text-gray-700 mb-2">Année {y+1}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Scolarite annuelle (HTG)</label>
+                                    <input type="number" min="0" value={tuition} onChange={e=>{
+                                      const lf={...(formData.levelFees??school?.levelFees??{})};
+                                      lf[feeKey]={...(lf[feeKey]||{}),tuition:e.target.value};
+                                      setFormData({...formData,levelFees:lf});
+                                    }} className="w-full px-3 py-2 border rounded-xl text-sm" placeholder="0"/>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Frais d'inscription (HTG)</label>
+                                    <input type="number" min="0" value={frais} onChange={e=>{
+                                      const lf={...(formData.levelFees??school?.levelFees??{})};
+                                      lf[feeKey]={...(lf[feeKey]||{}),frais:e.target.value};
+                                      setFormData({...formData,levelFees:lf});
+                                    }} className="w-full px-3 py-2 border rounded-xl text-sm" placeholder="0"/>
+                                  </div>
+                                </div>
+                                {tuition>0 && <p className="text-xs text-gray-400 mt-1">≈ HTG {(parseFloat(tuition)/10).toFixed(0)} / mois</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="bg-white rounded-xl shadow-lg p-5">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Controle Acces Parent</h3>
@@ -2082,15 +2363,255 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Infos Pratiques */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Infos Pratiques</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Maximum par classe</label><input type="number" min="0" value={formData.capacity??school?.capacity??''} onChange={e=>setFormData({...formData,capacity:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Ex: 35"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Accreditation</label><input type="text" value={formData.accreditation??school?.accreditation??''} onChange={e=>setFormData({...formData,accreditation:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="MNE, Prive..."/></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Langues d'enseignement</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Français','Créole','Anglais','Espagnol'].map(lang=>{
+                        const langs = formData.languages??school?.languages??[];
+                        const selected = langs.includes(lang);
+                        return (
+                          <button key={lang} type="button" onClick={()=>{
+                            const current = formData.languages??school?.languages??[];
+                            setFormData({...formData, languages: selected ? current.filter(l=>l!==lang) : [...current, lang]});
+                          }} className={`px-4 py-2 rounded-full text-sm font-medium border transition ${selected?'bg-socrates-blue text-white border-socrates-blue':'bg-white text-gray-600 border-gray-300'}`}>{lang}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Debut annee scolaire</label><input type="date" value={formData.yearStart??school?.yearStart??''} onChange={e=>setFormData({...formData,yearStart:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Fin annee scolaire</label><input type="date" value={formData.yearEnd??school?.yearEnd??''} onChange={e=>setFormData({...formData,yearEnd:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activites & Services */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Services & Activites</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      {key:'hasUniform',    label:'Uniforme requis',     icon:'👔'},
+                      {key:'hasCafeteria',  label:'Cantina / Cafeteria', icon:'🍽️'},
+                      {key:'hasTransport',  label:'Transport scolaire',  icon:'🚌'},
+                      {key:'hasInternet',   label:'Acces Internet',      icon:'📶'},
+                    ].map(({key,label,icon})=>(
+                      <label key={key} onClick={()=>setFormData({...formData,[key]:!(formData[key]??school?.[key])})} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${(formData[key]??school?.[key])?'bg-blue-50 border-blue-300':'hover:bg-gray-50'}`}>
+                        <span className="text-xl">{icon}</span>
+                        <span className="text-sm font-medium text-gray-700 flex-1">{label}</span>
+                        <div className={`w-10 h-6 rounded-full transition flex-shrink-0 ${(formData[key]??school?.[key])?'bg-socrates-blue':'bg-gray-300'}`}>
+                          <div className={`w-6 h-6 bg-white rounded-full shadow transition transform ${(formData[key]??school?.[key])?'translate-x-4':'translate-x-0'}`}/>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {(formData.hasUniform??school?.hasUniform) && (
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Description uniforme</label><input type="text" value={formData.uniformDesc??school?.uniformDesc??''} onChange={e=>setFormData({...formData,uniformDesc:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Chemise blanche, pantalon bleu..."/></div>
+                  )}
+                </div>
+              </div>
+
+              {/* Activites Parascolaires — mirrors Classes card */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Activites Parascolaires</h3>
+                <p className="text-sm text-gray-500 mb-4">Ajoutez les activites proposees par l'ecole et leur responsable.</p>
+                <div className="space-y-2 mb-3">
+                  {(formData.activities??school?.activities??[]).length === 0 && <p className="text-gray-400 text-sm text-center py-3">Aucune activite definie.</p>}
+                  {(formData.activities??school?.activities??[]).map((a,i)=>(
+                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="w-9 h-9 rounded-lg bg-orange-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{a.name?.[0]}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{a.name}</p>
+                        <p className="text-xs text-gray-500">{a.description||'Sans description'}{a.responsable ? ` • ${a.responsable}` : ''}</p>
+                      </div>
+                      <button type="button" onClick={()=>{
+                        const list=[...(formData.activities??school?.activities??[])];
+                        list.splice(i,1);
+                        setFormData({...formData,activities:list});
+                      }} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                    </div>
+                  ))}
+                </div>
+                {formData.showAddActivity ? (
+                  <div className="border border-orange-200 rounded-xl p-4 bg-orange-50 space-y-3">
+                    <p className="text-sm font-medium text-orange-800">Nouvelle activite</p>
+                    <input type="text" placeholder="Nom de l'activite (ex: Équipe de Football U15)" value={formData.newActivityName||''} onChange={e=>setFormData({...formData,newActivityName:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                    <input type="text" placeholder="Description (ex: Entrainement chaque mercredi)" value={formData.newActivityDesc||''} onChange={e=>setFormData({...formData,newActivityDesc:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                    <input type="text" placeholder="Coach / Responsable (optionnel)" value={formData.newActivityResp||''} onChange={e=>setFormData({...formData,newActivityResp:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={()=>{
+                        if(!formData.newActivityName){alert('Nom de l\'activite requis.');return;}
+                        const list=[...(formData.activities??school?.activities??[]),{name:formData.newActivityName,description:formData.newActivityDesc||'',responsable:formData.newActivityResp||''}];
+                        setFormData({...formData,activities:list,showAddActivity:false,newActivityName:'',newActivityDesc:'',newActivityResp:''});
+                      }} className="flex-1 bg-orange-500 text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                      <button type="button" onClick={()=>setFormData({...formData,showAddActivity:false})} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-xl text-sm">Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={()=>setFormData({...formData,showAddActivity:true})} className="w-full border-2 border-dashed border-orange-200 text-orange-500 py-3 rounded-xl text-sm font-medium hover:border-orange-400 transition flex items-center justify-center gap-2"><Plus size={16}/>Ajouter une activite</button>
+                )}
+              </div>
+
+              {/* Apercu Academique — add teachers and classes inline */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Corps Enseignant</h3>
+                <p className="text-sm text-gray-500 mb-4">Ajoutez vos enseignants ici. Vous pourrez completer leurs informations depuis l'onglet Enseignants.</p>
+                <div className="space-y-2 mb-3">
+                  {teachers.length === 0 && <p className="text-gray-400 text-sm text-center py-3">Aucun enseignant. Ajoutez en dessous.</p>}
+                  {teachers.map(t=>(
+                    <div key={t.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="w-9 h-9 rounded-full bg-socrates-blue text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{t.firstName?.[0]}{t.lastName?.[0]}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{t.firstName} {t.lastName}</p>
+                        <p className="text-xs text-gray-500">{t.subject||'Matiere non definie'}</p>
+                      </div>
+                      <button type="button" onClick={async()=>{if(window.confirm('Supprimer cet enseignant?')){await deleteDoc(doc(db,'schools',school.id,'teachers',t.id));loadAllData();}}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                    </div>
+                  ))}
+                </div>
+                {/* Quick add teacher form */}
+                {(formData.showAddTeacher) ? (
+                  <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3">
+                    <p className="text-sm font-medium text-blue-800">Nouvel enseignant</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="Prénom" value={formData.newTeacherFirst||''} onChange={e=>setFormData({...formData,newTeacherFirst:e.target.value})} className="px-3 py-2 border rounded-xl text-sm"/>
+                      <input type="text" placeholder="Nom" value={formData.newTeacherLast||''} onChange={e=>setFormData({...formData,newTeacherLast:e.target.value})} className="px-3 py-2 border rounded-xl text-sm"/>
+                    </div>
+                    <input type="text" placeholder="Matière principale (ex: Mathématiques)" value={formData.newTeacherSubject||''} onChange={e=>setFormData({...formData,newTeacherSubject:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={async()=>{
+                        if(!formData.newTeacherFirst||!formData.newTeacherLast){alert('Prénom et nom requis.');return;}
+                        await addDoc(collection(db,'schools',school.id,'teachers'),{firstName:formData.newTeacherFirst,lastName:formData.newTeacherLast,subject:formData.newTeacherSubject||'',createdAt:serverTimestamp()});
+                        setFormData({...formData,showAddTeacher:false,newTeacherFirst:'',newTeacherLast:'',newTeacherSubject:''});
+                        loadAllData();
+                      }} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                      <button type="button" onClick={()=>setFormData({...formData,showAddTeacher:false})} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-xl text-sm">Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={()=>setFormData({...formData,showAddTeacher:true})} className="w-full border-2 border-dashed border-gray-300 text-gray-500 py-3 rounded-xl text-sm font-medium hover:border-socrates-blue hover:text-socrates-blue transition flex items-center justify-center gap-2"><Plus size={16}/>Ajouter un enseignant</button>
+                )}
+              </div>
+
+              {/* Classes inline */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Classes</h3>
+                <p className="text-sm text-gray-500 mb-4">Ajoutez vos classes et assignez un enseignant. Detaillez depuis l'onglet Classes.</p>
+                <div className="space-y-2 mb-3">
+                  {classes.length === 0 && <p className="text-gray-400 text-sm text-center py-3">Aucune classe. Ajoutez en dessous.</p>}
+                  {classes.map(cls=>{
+                    const t = teachers.find(t=>t.id===cls.teacherId);
+                    return (
+                      <div key={cls.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <div className="w-9 h-9 rounded-lg bg-socrates-navy text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{cls.name?.[0]}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{cls.name}</p>
+                          <p className="text-xs text-gray-500">{cls.gradeLevel||'Niveau non defini'}{t?` • ${t.firstName} ${t.lastName}`:' • Sans enseignant'}</p>
+                        </div>
+                        {/* Teacher assignment dropdown inline */}
+                        <select value={cls.teacherId||''} onChange={async e=>{await updateDoc(doc(db,'schools',school.id,'classes',cls.id),{teacherId:e.target.value});loadAllData();}} className="text-xs border rounded-lg px-2 py-1 max-w-[120px] truncate">
+                          <option value="">Enseignant</option>
+                          {teachers.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
+                        </select>
+                        <button type="button" onClick={async()=>{if(window.confirm('Supprimer cette classe?')){await deleteDoc(doc(db,'schools',school.id,'classes',cls.id));loadAllData();}}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(formData.showAddClass) ? (
+                  <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3">
+                    <p className="text-sm font-medium text-blue-800">Nouvelle classe</p>
+                    <input type="text" placeholder="Nom de la classe (ex: 3ème A)" value={formData.newClassName||''} onChange={e=>setFormData({...formData,newClassName:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={formData.newClassGrade||''} onChange={e=>setFormData({...formData,newClassGrade:e.target.value})} className="px-3 py-2 border rounded-xl text-sm">
+                        <option value="">Niveau</option>
+                        {getGradeLevels(school?.schoolType).map(g=><option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <select value={formData.newClassTeacher||''} onChange={e=>setFormData({...formData,newClassTeacher:e.target.value})} className="px-3 py-2 border rounded-xl text-sm">
+                        <option value="">Enseignant (optionnel)</option>
+                        {teachers.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={async()=>{
+                        if(!formData.newClassName){alert('Nom de classe requis.');return;}
+                        await addDoc(collection(db,'schools',school.id,'classes'),{name:formData.newClassName,gradeLevel:formData.newClassGrade||'',teacherId:formData.newClassTeacher||'',createdAt:serverTimestamp()});
+                        setFormData({...formData,showAddClass:false,newClassName:'',newClassGrade:'',newClassTeacher:''});
+                        loadAllData();
+                      }} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                      <button type="button" onClick={()=>setFormData({...formData,showAddClass:false})} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-xl text-sm">Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={()=>setFormData({...formData,showAddClass:true})} className="w-full border-2 border-dashed border-gray-300 text-gray-500 py-3 rounded-xl text-sm font-medium hover:border-socrates-blue hover:text-socrates-blue transition flex items-center justify-center gap-2"><Plus size={16}/>Ajouter une classe</button>
+                )}
+              </div>
+
+              {/* Personnel Administratif */}
+              <div className="bg-white rounded-xl shadow-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Personnel Administratif</h3>
+                <p className="text-sm text-gray-500 mb-4">Principal, conseiller, secretaire, coach, infirmier, etc.</p>
+                <div className="space-y-2 mb-3">
+                  {(formData.adminStaff??school?.adminStaff??[]).length === 0 && <p className="text-gray-400 text-sm text-center py-3">Aucun personnel administratif.</p>}
+                  {(formData.adminStaff??school?.adminStaff??[]).map((s,i)=>(
+                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{s.firstName?.[0]}{s.lastName?.[0]}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{s.firstName} {s.lastName}</p>
+                        <p className="text-xs text-purple-600">{s.role}</p>
+                      </div>
+                      <button type="button" onClick={()=>{
+                        const list=[...(formData.adminStaff??school?.adminStaff??[])];
+                        list.splice(i,1);
+                        setFormData({...formData,adminStaff:list});
+                      }} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                    </div>
+                  ))}
+                </div>
+                {(formData.showAddStaff) ? (
+                  <div className="border border-purple-200 rounded-xl p-4 bg-purple-50 space-y-3">
+                    <p className="text-sm font-medium text-purple-800">Nouveau membre</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="Prénom" value={formData.newStaffFirst||''} onChange={e=>setFormData({...formData,newStaffFirst:e.target.value})} className="px-3 py-2 border rounded-xl text-sm"/>
+                      <input type="text" placeholder="Nom" value={formData.newStaffLast||''} onChange={e=>setFormData({...formData,newStaffLast:e.target.value})} className="px-3 py-2 border rounded-xl text-sm"/>
+                    </div>
+                    <select value={formData.newStaffRole||''} onChange={e=>setFormData({...formData,newStaffRole:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm">
+                      <option value="">Rôle / Fonction</option>
+                      {['Principal','Vice-Principal','Conseiller Pédagogique','Secrétaire','Comptable','Coach Sportif','Infirmier(e)','Bibliothécaire','Agent de Sécurité','Technicien Informatique','Autre'].map(r=><option key={r} value={r}>{r}</option>)}
+                    </select>
+                    {formData.newStaffRole==='Autre' && <input type="text" placeholder="Précisez le rôle" value={formData.newStaffRoleCustom||''} onChange={e=>setFormData({...formData,newStaffRoleCustom:e.target.value})} className="w-full px-3 py-2 border rounded-xl text-sm"/>}
+                    <div className="flex gap-2">
+                      <button type="button" onClick={()=>{
+                        if(!formData.newStaffFirst||!formData.newStaffLast||!formData.newStaffRole){alert('Prénom, nom et rôle requis.');return;}
+                        const role = formData.newStaffRole==='Autre'?(formData.newStaffRoleCustom||'Autre'):formData.newStaffRole;
+                        const list=[...(formData.adminStaff??school?.adminStaff??[]),{firstName:formData.newStaffFirst,lastName:formData.newStaffLast,role}];
+                        setFormData({...formData,adminStaff:list,showAddStaff:false,newStaffFirst:'',newStaffLast:'',newStaffRole:'',newStaffRoleCustom:''});
+                      }} className="flex-1 bg-purple-600 text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                      <button type="button" onClick={()=>setFormData({...formData,showAddStaff:false})} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-xl text-sm">Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={()=>setFormData({...formData,showAddStaff:true})} className="w-full border-2 border-dashed border-purple-200 text-purple-500 py-3 rounded-xl text-sm font-medium hover:border-purple-400 transition flex items-center justify-center gap-2"><Plus size={16}/>Ajouter un membre</button>
+                )}
+              </div>
+
               <button onClick={async()=>{
                 try{
                   // Validate mandatory fields
                   const missing = [
-                    !(formData.schoolType??school?.schoolType)   && "Type d'ecole",
-                    !(formData.address??school?.address)         && "Adresse",
-                    !(formData.schoolPhone??school?.phone)       && "Telephone",
-                    !(formData.directorName??school?.directorName) && "Nom du directeur",
-                    !((parseFloat(formData.defaultAnnualTuition??school?.defaultAnnualTuition)||0) > 0) && "Frais de scolarite",
+                    !(formData.schoolType??school?.schoolType)      && "Type d'ecole",
+                    !(formData.address??school?.address)            && "Adresse",
+                    !(formData.schoolPhone??school?.phone)          && "Telephone",
+                    !(formData.directorName??school?.directorName)  && "Nom du directeur",
+                    !(Object.keys(formData.levelFees??school?.levelFees??{}).length > 0) && "Frais par cycle",
                   ].filter(Boolean);
                   if (missing.length > 0) {
                     alert('Champs obligatoires manquants:\n\n' + missing.map(m=>'• '+m).join('\n'));
@@ -2099,6 +2620,8 @@ export default function App() {
                   const updateData = {
                     name: formData.schoolName??school?.name,
                     address: formData.address??school?.address,
+                    gpsLat: formData.gpsLat??school?.gpsLat??'',
+                    gpsLng: formData.gpsLng??school?.gpsLng??'',
                     phone: formData.schoolPhone??school?.phone,
                     directorName: formData.directorName??school?.directorName,
                     directorTitle: formData.directorTitle??school?.directorTitle,
@@ -2116,6 +2639,22 @@ export default function App() {
                     defaultFraisDivers: parseFloat(formData.defaultFraisDivers??school?.defaultFraisDivers)||0,
                     defaultDeposit: parseFloat(formData.defaultDeposit??school?.defaultDeposit)||0,
                     customGradeLevels: formData.customGradeLevels??school?.customGradeLevels??[],
+                    secondarySystem: formData.secondarySystem??school?.secondarySystem??'NS',
+                    levelFees: formData.levelFees??school?.levelFees??{},
+                    adminStaff: formData.adminStaff??school?.adminStaff??[],
+                    capacity: formData.capacity??school?.capacity??'',
+                    accreditation: formData.accreditation??school?.accreditation??'',
+                    languages: formData.languages??school?.languages??[],
+                    yearStart: formData.yearStart??school?.yearStart??'',
+                    yearEnd: formData.yearEnd??school?.yearEnd??'',
+                    hasUniform: formData.hasUniform??school?.hasUniform??false,
+                    uniformDesc: formData.uniformDesc??school?.uniformDesc??'',
+                    hasCafeteria: formData.hasCafeteria??school?.hasCafeteria??false,
+                    hasTransport: formData.hasTransport??school?.hasTransport??false,
+                    hasInternet: formData.hasInternet??school?.hasInternet??false,
+                    extracurricular: formData.extracurricular??school?.extracurricular??'',
+                    activities: formData.activities??school?.activities??[],
+                    programs: formData.programs??school?.programs??[],
                   };
                   await updateDoc(doc(db,'schools',school.id), updateData);
                   setSchool({...school, ...updateData});
@@ -2180,7 +2719,18 @@ export default function App() {
                   {isCustomGradeType(school?.schoolType) ? (
                     <input type="text" value={formData.gradeLevel||''} onChange={e=>setFormData({...formData,gradeLevel:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Ex: Annee 1, Licence 2..."/>
                   ) : (
-                    <select value={formData.gradeLevel||''} onChange={e=>setFormData({...formData,gradeLevel:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base">
+                    <select value={formData.gradeLevel||''} onChange={e=>{
+                      const level = e.target.value;
+                      const lf = school?.levelFees || {};
+                      const cycle = FEE_CYCLES.find(c => c.levels.includes(level));
+                      const cycleFees = cycle ? lf[cycle.key] : null;
+                      setFormData({
+                        ...formData,
+                        gradeLevel: level,
+                        annualTuition: cycleFees?.tuition || school?.defaultAnnualTuition || '',
+                        fraisDivers: cycleFees?.frais || school?.defaultFraisDivers || '',
+                      });
+                    }} className="w-full px-4 py-3 border rounded-xl text-base">
                       <option value="">Selectionner</option>
                       {getGradeLevels(school?.schoolType).map(g=>(<option key={g} value={g}>{g}</option>))}
                     </select>
@@ -2193,10 +2743,14 @@ export default function App() {
                 <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Contrat Annuel</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="block text-sm text-gray-600 mb-1">Scolarite annuelle (HTG)</label><input type="number" min="0" step="0.01" value={formData.annualTuition||''} onChange={e=>setFormData({...formData,annualTuition:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
-                    <div><label className="block text-sm text-gray-600 mb-1">Mensuel (10 mois)</label><input type="text" value={(parseFloat(formData.annualTuition)||0) > 0 ? 'HTG '+((parseFloat(formData.annualTuition)||0)/10).toFixed(2) : '-'} className="w-full px-4 py-3 border rounded-xl text-base bg-gray-50" readOnly/></div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Mensuel (÷10)</label><input type="text" value={(parseFloat(formData.annualTuition)||0) > 0 ? 'HTG '+((parseFloat(formData.annualTuition)||0)/10).toFixed(2) : '-'} className="w-full px-4 py-3 border rounded-xl text-base bg-gray-50" readOnly/></div>
                   </div>
-                  <div className="mt-3"><label className="block text-sm text-gray-600 mb-1">Frais divers (HTG) <span className="text-xs text-orange-600">paye d'avance</span></label><input type="number" min="0" step="0.01" value={formData.fraisDivers||''} onChange={e=>setFormData({...formData,fraisDivers:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
-                  <div className="mt-3 p-3 bg-gray-50 rounded-xl"><div className="flex justify-between"><span className="text-gray-600">Total annuel:</span><span className="font-bold">HTG {((parseFloat(formData.annualTuition)||0)+(parseFloat(formData.fraisDivers)||0)).toFixed(2)}</span></div></div>
+                  <div className="mt-3"><label className="block text-sm text-gray-600 mb-1">Frais d'inscription (HTG) <span className="text-xs text-orange-600 font-medium">paiement unique a l'inscription</span></label><input type="number" min="0" step="0.01" value={formData.fraisDivers||''} onChange={e=>setFormData({...formData,fraisDivers:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
+                  <div className="mt-3 p-3 bg-gray-50 rounded-xl space-y-1">
+                    <div className="flex justify-between text-sm"><span className="text-gray-500">Scolarite annuelle:</span><span>HTG {(parseFloat(formData.annualTuition)||0).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-gray-500">Frais d'inscription (unique):</span><span className="text-orange-600">HTG {(parseFloat(formData.fraisDivers)||0).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1"><span>Total du:</span><span>HTG {((parseFloat(formData.annualTuition)||0)+(parseFloat(formData.fraisDivers)||0)).toFixed(2)}</span></div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div><label className="block text-sm text-gray-600 mb-1">Depot requis (HTG)</label><input type="number" min="0" step="0.01" value={formData.depositAmount||''} onChange={e=>setFormData({...formData,depositAmount:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-base"/></div>
                     <div className="flex items-end"><label className="flex items-center gap-3 p-3 border rounded-xl w-full cursor-pointer"><input type="checkbox" checked={formData.depositPaid||false} onChange={e=>setFormData({...formData,depositPaid:e.target.checked})} className="w-5 h-5 rounded"/><span className="text-sm">Depot paye</span></label></div>
