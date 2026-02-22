@@ -3,7 +3,7 @@ import { BookOpen, Plus, Edit, Trash2, Calendar, ClipboardList, Users, Graduatio
 import { useSchool } from '../../contexts/SchoolContext';
 
 export default function Classes({ onOpenModal, onViewClass }) {
-  const { classes, teachers, students, gradingPeriods, deleteClass, isPrescolaireOnly, isAdultSchool } = useSchool();
+  const { classes, teachers, students, gradingPeriods, deleteClass, isPrescolaireOnly, isAdultSchool, isUpperCycle } = useSchool();
 
   const prescoOnly = isPrescolaireOnly();
   const adult = isAdultSchool();
@@ -63,6 +63,9 @@ export default function Classes({ onOpenModal, onViewClass }) {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {classes.map(cls => {
           const teacher = teachers.find(t => t.id === cls.teacherId);
+          const allTeacherIds = cls.teacherIds || (cls.teacherId ? [cls.teacherId] : []);
+          const assignedTeachers = teachers.filter(t => allTeacherIds.includes(t.id));
+          const isUpper = isUpperCycle(cls.gradeLevel);
           const studentCount = students.filter(s => s.enrolledClasses?.includes(cls.id)).length;
           const capacityPct = cls.maxCapacity ? Math.round((studentCount / parseInt(cls.maxCapacity)) * 100) : null;
           return (
@@ -81,10 +84,21 @@ export default function Classes({ onOpenModal, onViewClass }) {
               {cls.gradeLevel && <span className="inline-block bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full mt-1 w-fit">{cls.gradeLevel}</span>}
 
               <div className="mt-2 space-y-1 flex-1">
-                <p className="text-sm text-gray-500 flex items-center gap-1.5">
-                  <GraduationCap size={14} className="text-gray-400" />
-                  {teacher ? `${teacher.firstName} ${teacher.lastName}` : <span className="text-orange-500">Aucun {adult ? 'professeur' : 'enseignant'}</span>}
-                </p>
+                {isUpper && assignedTeachers.length > 1 ? (
+                  <>
+                    <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                      <GraduationCap size={14} className="text-gray-400" />
+                      <span className="font-medium">{teacher ? `${teacher.firstName} ${teacher.lastName}` : 'N/A'}</span>
+                      <span className="text-xs text-gray-400">(titulaire)</span>
+                    </p>
+                    <p className="text-xs text-gray-400 ml-5">+ {assignedTeachers.length - 1} autre{assignedTeachers.length - 1 > 1 ? 's' : ''} {adult ? 'prof' : 'enseignant'}{assignedTeachers.length - 1 > 1 ? 's' : ''}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                    <GraduationCap size={14} className="text-gray-400" />
+                    {teacher ? `${teacher.firstName} ${teacher.lastName}` : <span className="text-orange-500">Aucun {adult ? 'professeur' : 'enseignant'}</span>}
+                  </p>
+                )}
                 {cls.room && <p className="text-sm text-gray-400">📍 {cls.room}</p>}
               </div>
 

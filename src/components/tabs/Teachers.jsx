@@ -27,7 +27,7 @@ export default function Teachers({ onOpenModal }) {
   const paidThisMonth = teachers.filter(t => teacherPayments.some(p => p.teacherId === t.id && (p.date || '').startsWith(currentMonth))).length;
   const totalPaidAllTime = teacherPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
-  const getTeacherClasses = (teacherId) => classes.filter(c => c.teacherId === teacherId);
+  const getTeacherClasses = (teacherId) => classes.filter(c => c.teacherId === teacherId || (c.teacherIds || []).includes(teacherId));
 
   const getTeacherPaymentHistory = (teacherId) => {
     return teacherPayments.filter(p => p.teacherId === teacherId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));

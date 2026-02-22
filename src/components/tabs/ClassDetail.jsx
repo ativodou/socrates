@@ -3,11 +3,14 @@ import { X, Users, ClipboardList, Book, GraduationCap, MapPin } from 'lucide-rea
 import { useSchool } from '../../contexts/SchoolContext';
 
 export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
-  const { students, teachers, getStudentBalance, isAdultSchool, isPrescolaireOnly } = useSchool();
+  const { students, teachers, getStudentBalance, isAdultSchool, isPrescolaireOnly, isUpperCycle } = useSchool();
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
   const classStudents = students.filter(s => s.enrolledClasses?.includes(viewClass.id));
   const teacher = teachers.find(t => t.id === viewClass.teacherId);
+  const allTeacherIds = viewClass.teacherIds || (viewClass.teacherId ? [viewClass.teacherId] : []);
+  const assignedTeachers = teachers.filter(t => allTeacherIds.includes(t.id));
+  const isUpper = isUpperCycle(viewClass.gradeLevel);
   const capacityPct = viewClass.maxCapacity ? Math.round((classStudents.length / parseInt(viewClass.maxCapacity)) * 100) : null;
 
   return (
@@ -19,6 +22,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
             <h1 className="font-bold text-lg">{viewClass.name}</h1>
             <p className="text-xs text-blue-200">
               {teacher ? `${teacher.firstName} ${teacher.lastName}` : `Aucun ${adult ? 'professeur' : 'enseignant'}`}
+              {isUpper && assignedTeachers.length > 1 ? ` + ${assignedTeachers.length - 1}` : ''}
               {viewClass.gradeLevel && ` • ${viewClass.gradeLevel}`}
               {viewClass.room && ` • ${viewClass.room}`}
             </p>
@@ -56,6 +60,27 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div className={`h-3 rounded-full transition-all ${capacityPct >= 90 ? 'bg-red-500' : capacityPct >= 70 ? 'bg-orange-400' : 'bg-green-500'}`} style={{ width: `${Math.min(capacityPct, 100)}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Assigned Teachers (upper cycles) */}
+        {isUpper && assignedTeachers.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} />{adult ? 'Professeurs' : 'Enseignants'} assignés</h3>
+            <div className="space-y-2">
+              {assignedTeachers.map(t => (
+                <div key={t.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    {t.photo ? <img src={t.photo} alt="" className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-socrates-navy text-white flex items-center justify-center text-xs font-bold">{t.firstName?.[0]}{t.lastName?.[0]}</div>}
+                    <div>
+                      <p className="text-sm font-medium">{t.firstName} {t.lastName}</p>
+                      <p className="text-xs text-gray-400">{t.subject || ''}</p>
+                    </div>
+                  </div>
+                  {t.id === viewClass.teacherId && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Titulaire</span>}
+                </div>
+              ))}
             </div>
           </div>
         )}

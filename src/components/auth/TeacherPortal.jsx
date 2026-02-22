@@ -22,7 +22,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
   const [gradePeriodId, setGradePeriodId] = useState('');
 
   // My classes = classes where I'm the teacher
-  const myClasses = allClasses.filter(c => c.teacherId === teacher.id);
+  const myClasses = allClasses.filter(c => c.teacherId === teacher.id || (c.teacherIds || []).includes(teacher.id));
   const myClassIds = myClasses.map(c => c.id);
 
   const loadData = async () => {

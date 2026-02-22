@@ -428,7 +428,17 @@ export function SchoolProvider({ children }) {
   };
 
   const saveClass = async (data, editId = null) => {
-    const payload = { ...data, books: data.books || [], gradeLevel: data.gradeLevel || '', maxCapacity: data.maxCapacity || '', room: data.room || '', updatedAt: serverTimestamp() };
+    const teacherIds = data.teacherIds || (data.teacherId ? [data.teacherId] : []);
+    const payload = {
+      ...data,
+      books: data.books || [],
+      gradeLevel: data.gradeLevel || '',
+      maxCapacity: data.maxCapacity || '',
+      room: data.room || '',
+      teacherId: data.teacherId || teacherIds[0] || '',
+      teacherIds,
+      updatedAt: serverTimestamp(),
+    };
     if (editId) await updateDoc(doc(db, 'schools', school.id, 'classes', editId), payload);
     else await addDoc(collection(db, 'schools', school.id, 'classes'), { ...payload, createdAt: serverTimestamp() });
     loadAllData();
@@ -446,10 +456,10 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const saveGrade = async (studentId, classId, periodId, score) => {
-    const existingGrade = grades.find(g => g.studentId === studentId && g.classId === classId && g.periodId === periodId);
-    if (existingGrade) await updateDoc(doc(db, 'schools', school.id, 'grades', existingGrade.id), { score, updatedAt: serverTimestamp() });
-    else await addDoc(collection(db, 'schools', school.id, 'grades'), { studentId, classId, periodId, score, createdAt: serverTimestamp() });
+  const saveGrade = async (studentId, classId, periodId, score, subject = '') => {
+    const existingGrade = grades.find(g => g.studentId === studentId && g.classId === classId && g.periodId === periodId && (g.subject || '') === subject);
+    if (existingGrade) await updateDoc(doc(db, 'schools', school.id, 'grades', existingGrade.id), { score: parseFloat(score) || 0, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db, 'schools', school.id, 'grades'), { studentId, classId, periodId, subject, score: parseFloat(score) || 0, createdAt: serverTimestamp() });
     loadAllData();
   };
 
@@ -649,6 +659,9 @@ export function SchoolProvider({ children }) {
 
   const isCustomGradeType = (schoolType) => CUSTOM_GRADE_TYPES.includes(schoolType);
 
+  const UPPER_CYCLE_LEVELS = [...TROISIEME_CYCLE, ...SECONDAIRE_NS, ...SECONDAIRE_TRAD, ...PHILO_LEVEL];
+  const isUpperCycle = (gradeLevel) => UPPER_CYCLE_LEVELS.includes(gradeLevel);
+
   // School type helpers
   const isPrescolaireOnly = () => school?.schoolType === 'Préscolaire';
   const hasPrescolaire = () => ['Préscolaire', 'Préscolaire-Primaire', 'Complète'].includes(school?.schoolType);
@@ -697,7 +710,7 @@ export function SchoolProvider({ children }) {
     // Computed
     getStudentBalance, getMonthlyTuition, getStudentTotal,
     getTeacherBalance, getMonthlySalary,
-    getLetterGrade, getGradeLevels, isCustomGradeType,
+    getLetterGrade, getGradeLevels, isCustomGradeType, isUpperCycle,
     isPrescolaireOnly, hasPrescolaire, isAdultSchool,
     isListedInDirectory,
 

@@ -9,7 +9,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
     saveStudent, saveTeacher, saveClass, savePeriod,
     savePayment, saveTeacherPayment, saveExpense,
     getStudentBalance, getTeacherBalance, getMonthlySalary,
-    getGradeLevels, isCustomGradeType, FEE_CYCLES,
+    getGradeLevels, isCustomGradeType, isUpperCycle, FEE_CYCLES,
     isAdultSchool, isPrescolaireOnly,
   } = useSchool();
 
@@ -360,10 +360,51 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
                 : <select value={formData.gradeLevel || ''} onChange={e => set('gradeLevel', e.target.value)} className={inputCls}><option value="">Sélectionner</option>{getGradeLevels(school?.schoolType).map(g => <option key={g} value={g}>{g}</option>)}</select>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>{adult ? 'Professeur' : 'Enseignant'} titulaire</label><select value={formData.teacherId || ''} onChange={e => set('teacherId', e.target.value)} className={inputCls}><option value="">Sélectionner</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select></div>
-            <div><label className={labelCls}>Salle</label><input type="text" value={formData.room || ''} onChange={e => set('room', e.target.value)} className={inputCls} placeholder="Salle 3" /></div>
-          </div>
+
+          {/* Teacher assignment — depends on cycle */}
+          {(!formData.gradeLevel || !isUpperCycle(formData.gradeLevel)) && !isCustomGradeType(school?.schoolType) ? (
+            /* Lower cycle: single titulaire does everything */
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={labelCls}>{adult ? 'Professeur' : 'Enseignant(e)'} titulaire</label><select value={formData.teacherId || ''} onChange={e => { set('teacherId', e.target.value); set('teacherIds', e.target.value ? [e.target.value] : []); }} className={inputCls}><option value="">Sélectionner</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select></div>
+              <div><label className={labelCls}>Salle</label><input type="text" value={formData.room || ''} onChange={e => set('room', e.target.value)} className={inputCls} placeholder="Salle 3" /></div>
+            </div>
+          ) : (
+            /* Upper cycle / custom: titulaire + multiple subject teachers */
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={labelCls}>Titulaire (responsable de classe)</label><select value={formData.teacherId || ''} onChange={e => {
+                  set('teacherId', e.target.value);
+                  const ids = formData.teacherIds || [];
+                  if (e.target.value && !ids.includes(e.target.value)) set('teacherIds', [e.target.value, ...ids.filter(id => id !== formData.teacherId)]);
+                }} className={inputCls}><option value="">Sélectionner</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}{t.subject ? ` (${t.subject})` : ''}</option>)}</select></div>
+                <div><label className={labelCls}>Salle</label><input type="text" value={formData.room || ''} onChange={e => set('room', e.target.value)} className={inputCls} placeholder="Salle 3" /></div>
+              </div>
+              <div className="border rounded-xl p-3">
+                <label className={labelCls}>{adult ? 'Professeurs' : 'Enseignants'} de matière</label>
+                <p className="text-xs text-gray-400 mb-2">Cochez tous les {adult ? 'professeurs' : 'enseignants'} qui donnent cours dans cette classe</p>
+                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
+                  {teachers.map(t => {
+                    const ids = formData.teacherIds || [];
+                    const checked = ids.includes(t.id);
+                    return (
+                      <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm ${checked ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}>
+                        <input type="checkbox" checked={checked} onChange={e => {
+                          let newIds = [...ids];
+                          if (e.target.checked) newIds.push(t.id);
+                          else newIds = newIds.filter(id => id !== t.id);
+                          set('teacherIds', newIds);
+                        }} className="w-4 h-4 rounded" />
+                        <span>{t.firstName} {t.lastName}</span>
+                        {t.subject && <span className="text-xs text-gray-400">({t.subject})</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                {(formData.teacherIds || []).length > 0 && <p className="text-xs text-blue-600 mt-2 font-medium">{(formData.teacherIds || []).length} {adult ? 'professeur' : 'enseignant'}{(formData.teacherIds || []).length > 1 ? 's' : ''} assigné{(formData.teacherIds || []).length > 1 ? 's' : ''}</p>}
+              </div>
+            </>
+          )}
+
           <div><label className={labelCls}>Capacité maximale</label><input type="number" min="1" value={formData.maxCapacity || ''} onChange={e => set('maxCapacity', e.target.value)} className={inputCls} placeholder="45" /></div>
           <div><label className={labelCls}>Programme / Curriculum</label><textarea value={formData.curriculum || ''} onChange={e => set('curriculum', e.target.value)} className={`${inputCls} h-24 resize-none`} /></div>
           <div className="border-t pt-4">

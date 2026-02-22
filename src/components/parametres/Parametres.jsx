@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Check, ChevronRight, MapPin, Phone, User, School, BookOpen, Users, GraduationCap, Briefcase, Heart, DollarSign, ClipboardCheck } from 'lucide-react';
+import { Plus, X, Check, ChevronRight, MapPin, Phone, User, School, BookOpen, Users, GraduationCap, Briefcase, Heart, DollarSign, ClipboardCheck, FileText } from 'lucide-react';
 import { db } from '../../firebase';
 import { doc, updateDoc, addDoc, deleteDoc, collection } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
@@ -11,6 +11,7 @@ const SECTIONS = [
   { id: 'structure', label: 'Structure', icon: BookOpen, color: 'text-indigo-600' },
   { id: 'enseignants', label: 'Enseignants', icon: GraduationCap, color: 'text-teal-600' },
   { id: 'classes', label: 'Classes', icon: Users, color: 'text-cyan-600' },
+  { id: 'matieres', label: 'Matières', icon: FileText, color: 'text-amber-600' },
   { id: 'eleves', label: 'Élèves', icon: Users, color: 'text-sky-600' },
   { id: 'personnel', label: 'Personnel', icon: Briefcase, color: 'text-violet-600' },
   { id: 'viescolaire', label: 'Vie Scolaire', icon: Heart, color: 'text-orange-600' },
@@ -63,6 +64,8 @@ export default function Parametres() {
         hasTransport: val('hasTransport', 'hasTransport', false),
         hasInternet: val('hasInternet', 'hasInternet', false),
         activities: val('activities', 'activities', []), programs: val('programs', 'programs', []),
+        subjects: val('subjects', 'subjects', []),
+        promotionThreshold: parseInt(val('promotionThreshold', 'promotionThreshold', 50)) || 50,
       };
       await updateSchoolSettings(updateData);
       alert('Sauvegardé !');
@@ -389,7 +392,7 @@ export default function Parametres() {
               {classes.map(c => (
                 <div key={c.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center text-sm font-bold">{c.name?.[0]}</div>
-                  <div className="flex-1"><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-gray-500">{teachers.find(t => t.id === c.teacherId)?.firstName || 'Sans enseignant'} • {c.room || ''}</p></div>
+                  <div className="flex-1"><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-gray-500">{teachers.find(t => t.id === c.teacherId)?.firstName || 'Sans enseignant'}{(c.teacherIds || []).length > 1 ? ` + ${(c.teacherIds || []).length - 1}` : ''} • {c.room || ''}</p></div>
                   <button type="button" onClick={async () => { if (window.confirm('Supprimer ?')) { await deleteDoc(doc(db, 'schools', school.id, 'classes', c.id)); loadAllData(); }}} className="text-red-400 hover:text-red-600 p-1"><X size={16} /></button>
                 </div>
               ))}
@@ -408,6 +411,98 @@ export default function Parametres() {
               </div>
             ) : <button type="button" onClick={() => set('showAddClass', true)} className="w-full border-2 border-dashed border-cyan-200 text-cyan-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />Ajouter une classe</button>}
           </div>
+        </div>)}
+
+        {/* ═══ MATIÈRES ═══ */}
+        {activeSection === 'matieres' && (<div className="space-y-5">
+          <h2 className="text-xl font-bold text-gray-800">Matières & Coefficients</h2>
+          <p className="text-sm text-gray-500">Définissez les matières enseignées et leur poids pour le calcul des moyennes et bulletins.</p>
+
+          {/* Current subjects */}
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <div className="space-y-2">
+              {(val('subjects','subjects',[]) || []).length === 0 && <p className="text-gray-400 text-sm text-center py-6">Aucune matière configurée. Utilisez les boutons ci-dessous pour ajouter.</p>}
+              {(val('subjects','subjects',[]) || []).map((subj, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm font-bold">{subj.coefficient || 1}</div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{subj.name}</p>
+                    <p className="text-xs text-gray-400">Coefficient: {subj.coefficient || 1}</p>
+                  </div>
+                  <input type="number" min="1" max="10" value={subj.coefficient || 1} onChange={e => {
+                    const subs = [...(val('subjects','subjects',[]) || [])];
+                    subs[i] = { ...subs[i], coefficient: parseInt(e.target.value) || 1 };
+                    set('subjects', subs);
+                  }} className="w-16 px-2 py-1.5 border rounded-lg text-center text-sm font-bold" />
+                  <button type="button" onClick={() => {
+                    const subs = [...(val('subjects','subjects',[]) || [])];
+                    subs.splice(i, 1);
+                    set('subjects', subs);
+                  }} className="text-red-400 hover:text-red-600 p-1"><X size={16} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick-add defaults */}
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h3 className="font-semibold text-gray-800 mb-3">📚 Matières courantes — Ajouter rapidement</h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { name: 'Français', coefficient: 4 },
+                { name: 'Mathématiques', coefficient: 4 },
+                { name: 'Sciences Expérimentales', coefficient: 3 },
+                { name: 'Sciences Sociales', coefficient: 3 },
+                { name: 'Anglais', coefficient: 2 },
+                { name: 'Espagnol', coefficient: 2 },
+                { name: 'Créole', coefficient: 2 },
+                { name: 'Éducation Physique', coefficient: 1 },
+                { name: 'Musique / Art', coefficient: 1 },
+                { name: 'Informatique', coefficient: 2 },
+                { name: 'Éducation Civique', coefficient: 1 },
+                { name: 'Religion / Morale', coefficient: 1 },
+                { name: 'Philosophie', coefficient: 3 },
+                { name: 'Physique', coefficient: 3 },
+                { name: 'Chimie', coefficient: 3 },
+                { name: 'Biologie', coefficient: 3 },
+              ].filter(d => !(val('subjects','subjects',[]) || []).some(s => s.name === d.name)).map(d => (
+                <button key={d.name} type="button" onClick={() => {
+                  const subs = [...(val('subjects','subjects',[]) || []), d];
+                  set('subjects', subs);
+                }} className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100 transition">
+                  + {d.name} ({d.coefficient})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom add */}
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h3 className="font-semibold text-gray-800 mb-3">➕ Ajouter une matière personnalisée</h3>
+            <div className="flex gap-2">
+              <input type="text" value={formData.newSubjectName || ''} onChange={e => set('newSubjectName', e.target.value)} className="flex-1 px-3 py-2.5 border rounded-xl text-sm" placeholder="Nom de la matière" />
+              <input type="number" min="1" max="10" value={formData.newSubjectCoeff || ''} onChange={e => set('newSubjectCoeff', e.target.value)} className="w-20 px-3 py-2.5 border rounded-xl text-sm text-center" placeholder="Coeff" />
+              <button type="button" onClick={() => {
+                if (!formData.newSubjectName?.trim()) return;
+                const subs = [...(val('subjects','subjects',[]) || []), { name: formData.newSubjectName.trim(), coefficient: parseInt(formData.newSubjectCoeff) || 1 }];
+                set('subjects', subs);
+                set('newSubjectName', '');
+                set('newSubjectCoeff', '');
+              }} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-medium"><Plus size={16} /></button>
+            </div>
+          </div>
+
+          {/* Promotion threshold */}
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h3 className="font-semibold text-gray-800 mb-3">🎓 Seuil de promotion</h3>
+            <p className="text-xs text-gray-400 mb-3">Moyenne annuelle minimum pour passer à la classe supérieure</p>
+            <div className="flex items-center gap-3">
+              <input type="number" min="0" max="100" value={val('promotionThreshold', 'promotionThreshold', 50)} onChange={e => set('promotionThreshold', parseInt(e.target.value) || 50)} className="w-24 px-3 py-2.5 border rounded-xl text-center text-lg font-bold" />
+              <span className="text-gray-500">/ 100</span>
+            </div>
+          </div>
+
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
         </div>)}
 
         {/* ═══ 7. ÉLÈVES ═══ */}
