@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FileText, Printer, Award, CheckCircle, XCircle } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function Grades() {
   const {
@@ -13,6 +14,7 @@ export default function Grades() {
   const [viewMode, setViewMode] = useState('entry'); // 'entry' | 'summary'
 
   const adult = isAdultSchool();
+  const { t } = useLang();
   const subjects = school?.subjects || [];
   const selectedClass = classes.find(c => c.id === selectedClassId);
   const selectedPeriod = gradingPeriods.find(p => p.id === selectedPeriodId);
@@ -148,7 +150,7 @@ export default function Grades() {
           <p style="font-size:1.5em;font-weight:700;color:${sData?.average !== null && sData.average >= 50 ? '#16a34a' : '#dc2626'};margin:4px 0;">${sData?.average !== null ? sData.average.toFixed(2) : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
-          <p style="color:#6b7280;font-size:0.8em;margin:0;">Rang</p>
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">{t('rank')}</p>
           <p style="font-size:1.5em;font-weight:700;color:#1e3a5f;margin:4px 0;">${sData?.rank ? sData.rank + '/' + totalRanked : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
@@ -156,7 +158,7 @@ export default function Grades() {
           <p style="font-size:1.5em;font-weight:700;color:${annualAvg !== null && annualAvg >= 50 ? '#16a34a' : '#dc2626'};margin:4px 0;">${annualAvg !== null ? annualAvg.toFixed(2) : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
-          <p style="color:#6b7280;font-size:0.8em;margin:0;">Moy. Classe</p>
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">{t('classAverage')}</p>
           <p style="font-size:1.5em;font-weight:700;color:#1e3a5f;margin:4px 0;">${classAvg}</p>
         </div>
       </div>
@@ -186,18 +188,18 @@ export default function Grades() {
       {/* Selectors */}
       <div className="flex flex-col sm:flex-row gap-3">
         <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)} className={`${inputCls} flex-1`}>
-          <option value="">Sélectionner classe</option>
+          <option value="">{`${t('selectClass')}`}</option>
           {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name} {cls.gradeLevel ? `(${cls.gradeLevel})` : ''}</option>)}
         </select>
         <select value={selectedPeriodId} onChange={e => setSelectedPeriodId(e.target.value)} className={`${inputCls} flex-1`}>
-          <option value="">Sélectionner période</option>
+          <option value="">{`${t('selectPeriod')}`}</option>
           {gradingPeriods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         {selectedClassId && selectedPeriodId && (
           <div className="flex gap-2">
-            <button onClick={() => setViewMode('entry')} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${viewMode === 'entry' ? 'bg-socrates-blue text-white' : 'bg-gray-100 text-gray-600'}`}>Saisie</button>
-            <button onClick={() => setViewMode('summary')} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${viewMode === 'summary' ? 'bg-socrates-blue text-white' : 'bg-gray-100 text-gray-600'}`}>Résultats</button>
-            <button onClick={() => setViewMode('promotion')} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${viewMode === 'promotion' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600'}`}>Promotion</button>
+            <button onClick={() => setViewMode('entry')} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${viewMode === 'entry' ? 'bg-socrates-blue text-white' : 'bg-gray-100 text-gray-600'}`}>{`${t('gradeEntry')}`}</button>
+            <button onClick={() => setViewMode('summary')} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${viewMode === 'summary' ? 'bg-socrates-blue text-white' : 'bg-gray-100 text-gray-600'}`}>{`${t('gradeResults')}`}</button>
+            <button onClick={() => setViewMode('promotion')} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${viewMode === 'promotion' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{`${t('promotion')}`}</button>
           </div>
         )}
       </div>
@@ -205,7 +207,7 @@ export default function Grades() {
       {/* No subjects warning */}
       {subjects.length === 0 && selectedClassId && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-yellow-800 text-sm">
-          ⚠️ Aucune matière configurée. Allez dans <strong>Paramètres → Matières</strong> pour définir les matières et coefficients.
+          ⚠️ {t('noSubjectsWarning')}
         </div>
       )}
 
@@ -218,15 +220,15 @@ export default function Grades() {
           </div>
           <div className="bg-white rounded-xl shadow-lg p-4 text-center">
             <p className="text-2xl font-bold text-blue-600">{classAvg}</p>
-            <p className="text-xs text-gray-500">Moy. Classe</p>
+            <p className="text-xs text-gray-500">{t('classAverage')}</p>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-4 text-center">
             <p className="text-2xl font-bold text-green-600">{highest}</p>
-            <p className="text-xs text-gray-500">Plus haute</p>
+            <p className="text-xs text-gray-500">{t('highestAvg')}</p>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-4 text-center">
             <p className="text-2xl font-bold text-red-500">{lowest}</p>
-            <p className="text-xs text-gray-500">Plus basse</p>
+            <p className="text-xs text-gray-500">{t('lowestAvg')}</p>
           </div>
         </div>
       )}
@@ -234,7 +236,7 @@ export default function Grades() {
       {/* ═══ GRADE ENTRY ═══ */}
       {viewMode === 'entry' && selectedClassId && selectedPeriodId && subjects.length > 0 && (
         <div className="space-y-3">
-          <p className="text-sm text-gray-500">Notes sur 100 — {selectedClass?.name} — {selectedPeriod?.name}</p>
+          <p className="text-sm text-gray-500">{t('scoresOutOf100')} — {selectedClass?.name} — {selectedPeriod?.name}</p>
           {classStudents.map(student => {
             const sData = rankedStudents.find(s => s.student.id === student.id);
             return (
@@ -272,8 +274,8 @@ export default function Grades() {
       {viewMode === 'summary' && selectedClassId && selectedPeriodId && subjects.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Classement — {selectedClass?.name} — {selectedPeriod?.name}</p>
-            <button onClick={printAllBulletins} className="bg-socrates-navy text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><Printer size={16} />Tous les bulletins</button>
+            <p className="text-sm text-gray-500">{t('ranking')} — {selectedClass?.name} — {selectedPeriod?.name}</p>
+            <button onClick={printAllBulletins} className="bg-socrates-navy text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><Printer size={16} />{t('printAllBulletins')}</button>
           </div>
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
@@ -283,8 +285,8 @@ export default function Grades() {
                     <th className="px-3 py-3 text-left">#</th>
                     <th className="px-3 py-3 text-left">{adult ? 'Étudiant(e)' : 'Élève'}</th>
                     {subjects.map(s => <th key={s.name} className="px-2 py-3 text-center text-xs whitespace-nowrap" title={`${s.name} (coeff ${s.coefficient})`}>{s.name.length > 5 ? s.name.substring(0, 4) + '.' : s.name}</th>)}
-                    <th className="px-3 py-3 text-center">Moy.</th>
-                    <th className="px-3 py-3 text-center">Rang</th>
+                    <th className="px-3 py-3 text-center">{t('average')}</th>
+                    <th className="px-3 py-3 text-center">{t('rank')}</th>
                     <th className="px-3 py-3 text-center"></th>
                   </tr>
                 </thead>
@@ -339,7 +341,7 @@ export default function Grades() {
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Décisions de promotion — {selectedClass?.name} — Seuil: {threshold}/100</p>
+              <p className="text-sm text-gray-500">{t('promotion')} — {selectedClass?.name} — {t('promotionThreshold')}: {threshold}/100</p>
               <button onClick={applyPromotions} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><CheckCircle size={16} />Appliquer les décisions</button>
             </div>
 
@@ -390,7 +392,7 @@ export default function Grades() {
       {/* Empty states */}
       {(!selectedClassId || !selectedPeriodId) && (
         <div className="bg-white rounded-xl shadow-lg p-12 text-center text-gray-500">
-          <FileText size={48} className="mx-auto mb-4 opacity-50" /><p>Sélectionnez une classe et une période</p>
+          <FileText size={48} className="mx-auto mb-4 opacity-50" /><p>{t('selectClassAndPeriod')}</p>
         </div>
       )}
       {selectedClassId && selectedPeriodId && subjects.length > 0 && classStudents.length === 0 && (

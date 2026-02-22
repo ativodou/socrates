@@ -1,13 +1,15 @@
 import React from 'react';
 import { BookOpen, Plus, Edit, Trash2, Calendar, ClipboardList, Users, GraduationCap } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function Classes({ onOpenModal, onViewClass }) {
   const { classes, teachers, students, gradingPeriods, deleteClass, isPrescolaireOnly, isAdultSchool, isUpperCycle } = useSchool();
+  const { t } = useLang();
 
   const prescoOnly = isPrescolaireOnly();
   const adult = isAdultSchool();
-  const entityLabel = prescoOnly ? 'Sections' : 'Classes';
+  const entityLabel = prescoOnly ? t('sections') : t('classes');
   const studentLabel = adult ? 'Étudiants inscrits' : 'Élèves inscrits';
   const teacherLabel = adult ? 'Professeurs' : 'Enseignants';
 

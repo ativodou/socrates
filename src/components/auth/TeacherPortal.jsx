@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { BookOpen, Users, FileText, Calendar, CheckSquare, DollarSign, LogOut, Plus, Trash2, Edit, ChevronDown, Clock, AlertTriangle, GraduationCap, ClipboardList } from 'lucide-react';
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function TeacherPortal({ school, teacher, allClasses, onLogout }) {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [students, setStudents] = useState([]);
   const [homework, setHomework] = useState([]);
@@ -135,12 +137,12 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
 
   // ── Tab Config ─────────────────────────────────
   const tabs = [
-    { id: 'dashboard', label: 'Accueil', icon: BookOpen },
-    { id: 'homework', label: 'Devoirs', icon: FileText },
-    { id: 'exams', label: 'Examens', icon: ClipboardList },
-    { id: 'attendance', label: 'Présence', icon: CheckSquare },
-    { id: 'grades', label: 'Notes', icon: GraduationCap },
-    { id: 'salary', label: 'Salaire', icon: DollarSign },
+    { id: 'dashboard', label: t('tabDashboard'), icon: BookOpen },
+    { id: 'homework', label: t('homeworkTab'), icon: FileText },
+    { id: 'exams', label: t('examsTab'), icon: ClipboardList },
+    { id: 'attendance', label: t('attendanceTab'), icon: CheckSquare },
+    { id: 'grades', label: t('gradesTab'), icon: GraduationCap },
+    { id: 'salary', label: t('salaryTab'), icon: DollarSign },
   ];
 
   const inputCls = "w-full px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400";
@@ -155,10 +157,10 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
             {school?.logo && school.logo.length > 10 ? <img src={school.logo} alt="" className="w-10 h-10 rounded-full object-contain bg-white/20" /> : <img src="/owl-icon.svg" alt="" className="w-10 h-10 rounded-full" />}
             <div>
               <h1 className="font-display text-lg">{school?.name || 'SOCRATES'}</h1>
-              <p className="text-xs text-blue-200">Portail Enseignant — {teacher.firstName} {teacher.lastName}</p>
+              <p className="text-xs text-blue-200">{t('teacherPortal')} — {teacher.firstName} {teacher.lastName}</p>
             </div>
           </div>
-          <button onClick={onLogout} className="bg-white/20 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"><LogOut size={14} />Sortir</button>
+          <button onClick={onLogout} className="bg-white/20 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"><LogOut size={14} />{t('logout')}</button>
         </div>
       </header>
 
@@ -186,11 +188,11 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl shadow-lg p-4 text-center">
                 <p className="text-2xl font-bold text-socrates-navy">{myClasses.length}</p>
-                <p className="text-xs text-gray-500">Mes classes</p>
+                <p className="text-xs text-gray-500">{t('myClasses')}</p>
               </div>
               <div className="bg-white rounded-xl shadow-lg p-4 text-center">
                 <p className="text-2xl font-bold text-blue-600">{myStudents.length}</p>
-                <p className="text-xs text-gray-500">Mes élèves</p>
+                <p className="text-xs text-gray-500">{t('myStudents')}</p>
               </div>
               <div className="bg-white rounded-xl shadow-lg p-4 text-center">
                 <p className="text-2xl font-bold text-purple-600">{myHomework.length}</p>
@@ -247,7 +249,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">📝 Devoirs</h2>
-              <button onClick={() => { setShowForm('homework'); setEditItem(null); setFormData({ subject: teacher.subject || '' }); }} className="bg-socrates-blue text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus size={16} />Nouveau Devoir</button>
+              <button onClick={() => { setShowForm('homework'); setEditItem(null); setFormData({ subject: teacher.subject || '' }); }} className="bg-socrates-blue text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus size={16} />{t('newHomework')}</button>
             </div>
             {showForm === 'homework' && (
               <div className="bg-white rounded-2xl shadow-lg p-5 space-y-3 border-2 border-blue-200">
@@ -265,7 +267,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                   <div><label className={labelCls}>Date limite</label><input type="date" value={formData.dueDate || ''} onChange={e => set('dueDate', e.target.value)} className={inputCls} /></div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={onSaveHomework} className="flex-1 bg-socrates-blue text-white py-3 rounded-xl font-medium">Enregistrer</button>
+                  <button onClick={onSaveHomework} className="flex-1 bg-socrates-blue text-white py-3 rounded-xl font-medium">{t("save")}</button>
                   <button onClick={() => { setShowForm(null); setEditItem(null); }} className="px-4 py-3 bg-gray-100 rounded-xl text-gray-600">Annuler</button>
                 </div>
               </div>
@@ -303,7 +305,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">📋 Examens</h2>
-              <button onClick={() => { setShowForm('exam'); setEditItem(null); setFormData({ subject: teacher.subject || '', totalPoints: '100' }); }} className="bg-orange-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus size={16} />Nouvel Examen</button>
+              <button onClick={() => { setShowForm('exam'); setEditItem(null); setFormData({ subject: teacher.subject || '', totalPoints: '100' }); }} className="bg-orange-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus size={16} />{t('newExam')}</button>
             </div>
             {showForm === 'exam' && (
               <div className="bg-white rounded-2xl shadow-lg p-5 space-y-3 border-2 border-orange-200">
@@ -330,7 +332,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                 )}
                 <div><label className={labelCls}>Description</label><textarea value={formData.description || ''} onChange={e => set('description', e.target.value)} className={`${inputCls} h-20`} /></div>
                 <div className="flex gap-2">
-                  <button onClick={onSaveExam} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-medium">Enregistrer</button>
+                  <button onClick={onSaveExam} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-medium">{t("save")}</button>
                   <button onClick={() => { setShowForm(null); setEditItem(null); }} className="px-4 py-3 bg-gray-100 rounded-xl text-gray-600">Annuler</button>
                 </div>
               </div>
@@ -407,7 +409,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                   ))}
                 </div>
                 <div className="p-4">
-                  <button onClick={saveAttendanceRecord} className="w-full bg-socrates-blue text-white py-3 rounded-xl font-medium">Enregistrer la Présence</button>
+                  <button onClick={saveAttendanceRecord} className="w-full bg-socrates-blue text-white py-3 rounded-xl font-medium">{t('saveAttendance')}</button>
                 </div>
               </div>
             )}

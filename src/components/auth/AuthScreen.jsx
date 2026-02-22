@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 import SchoolPublicProfile from './SchoolPublicProfile';
 import TeacherPortal from './TeacherPortal';
 
 export default function AuthScreen() {
   const { handleRegister, handleLogin } = useSchool();
+  const { lang: parentLang, toggleLang: toggleParentLang, t: gt } = useLang();
 
   const [authMode, setAuthMode] = useState('login'); // login, register, parent, directory
   const [error, setError] = useState('');
@@ -18,7 +20,6 @@ export default function AuthScreen() {
   const [parentView, setParentView] = useState(null); // null | { school, student }
   const [teacherView, setTeacherView] = useState(null); // null | { school, teacher, classes }
   const [viewingProfile, setViewingProfile] = useState(null); // school public profile
-  const [parentLang, setParentLang] = useState('fr'); // 'fr' | 'ht'
 
   // Load schools list for parent login & directory
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function AuthScreen() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setParentLang(parentLang === 'fr' ? 'ht' : 'fr')} className="bg-white/20 px-2.5 py-1.5 rounded-lg text-xs font-bold">{parentLang === 'fr' ? 'KR' : 'FR'}</button>
+              <button onClick={toggleParentLang} className="bg-white/20 px-2.5 py-1.5 rounded-lg text-xs font-bold">{parentLang === 'fr' ? 'KR' : 'FR'}</button>
               <button onClick={() => setParentView(null)} className="bg-white/20 px-3 py-1.5 rounded-lg text-sm">{L.logout}</button>
             </div>
           </div>
@@ -336,16 +337,17 @@ export default function AuthScreen() {
           </div>
           <h1 className="text-3xl font-display">SOCRATES</h1>
           <p className="text-blue-200 text-sm italic mt-1">Vers la lumiere</p>
+          <button onClick={toggleParentLang} className="mt-3 bg-white/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/30 transition">🌐 {parentLang === 'fr' ? 'Kreyòl' : 'Français'}</button>
         </div>
 
         <div className="p-6">
           {/* Mode switcher */}
           <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
             {[
-              { id: 'login', label: 'Connexion' },
-              { id: 'register', label: 'Inscription' },
-              { id: 'parent', label: 'Parent' },
-              { id: 'teacher', label: 'Enseignant' },
+              { id: 'login', label: gt('authLogin') },
+              { id: 'register', label: gt('authRegister') },
+              { id: 'parent', label: gt('authParent') },
+              { id: 'teacher', label: gt('authTeacher') },
             ].map(mode => (
               <button key={mode.id} onClick={() => { setAuthMode(mode.id); setError(''); }} className={`flex-1 py-2 rounded-lg text-xs sm:text-sm font-medium transition ${authMode === mode.id ? 'bg-white shadow text-socrates-navy' : 'text-gray-500'}`}>{mode.label}</button>
             ))}
@@ -356,21 +358,21 @@ export default function AuthScreen() {
           {/* Login Form */}
           {authMode === 'login' && (
             <form onSubmit={onLogin} className="space-y-4">
-              <input type="email" placeholder="Email" required value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <input type="password" placeholder="Mot de passe" required value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <button type="submit" className="w-full bg-socrates-blue text-white py-3 rounded-xl font-semibold">Se connecter</button>
+              <input type="email" placeholder={gt('email')} required value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="password" placeholder={gt('password')} required value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <button type="submit" className="w-full bg-socrates-blue text-white py-3 rounded-xl font-semibold">{gt('login')}</button>
             </form>
           )}
 
           {/* Register Form */}
           {authMode === 'register' && (
             <form onSubmit={onRegister} className="space-y-4">
-              <input type="text" placeholder="Nom de l'ecole" required value={formData.schoolName || ''} onChange={e => setFormData({ ...formData, schoolName: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <input type="email" placeholder="Email" required value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <input type="tel" placeholder="Telephone" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <input type="password" placeholder="Mot de passe" required value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <input type="password" placeholder="Confirmer mot de passe" required value={formData.confirmPassword || ''} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
-              <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold">Creer le compte</button>
+              <input type="text" placeholder={gt('schoolNameReg')} required value={formData.schoolName || ''} onChange={e => setFormData({ ...formData, schoolName: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="email" placeholder={gt('email')} required value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="tel" placeholder={gt('phone')} value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="password" placeholder={gt('password')} required value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="password" placeholder={gt('confirmPassword')} required value={formData.confirmPassword || ''} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold">{gt('registerSchool')}</button>
             </form>
           )}
 
@@ -378,12 +380,12 @@ export default function AuthScreen() {
           {authMode === 'parent' && (
             <form onSubmit={onParentLogin} className="space-y-4">
               <select value={parentSchoolId} onChange={e => setParentSchoolId(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base">
-                <option value="">Selectionnez l'ecole</option>
+                <option value="">{gt('schoolSelect')}</option>
                 {allSchoolsList.filter(s => !['Technique', 'Universitaire'].includes(s.schoolType)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <input type="text" placeholder="Email ou Telephone" required value={formData.parentContact || ''} onChange={e => setFormData({ ...formData, parentContact: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="text" placeholder={gt('emailOrPhone')} required value={formData.parentContact || ''} onChange={e => setFormData({ ...formData, parentContact: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
               <input type="text" placeholder="PIN" required maxLength={6} value={formData.parentPin || ''} onChange={e => setFormData({ ...formData, parentPin: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base text-center text-xl tracking-widest" />
-              <button type="submit" className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold">Acceder au portail</button>
+              <button type="submit" className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold">{gt('accessPortal')}</button>
             </form>
           )}
 
@@ -391,19 +393,19 @@ export default function AuthScreen() {
           {authMode === 'teacher' && (
             <form onSubmit={onTeacherLogin} className="space-y-4">
               <select value={parentSchoolId} onChange={e => setParentSchoolId(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base">
-                <option value="">Selectionnez l'ecole</option>
+                <option value="">{gt('schoolSelect')}</option>
                 {allSchoolsList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <input type="text" placeholder="Email ou Telephone" required value={formData.teacherContact || ''} onChange={e => setFormData({ ...formData, teacherContact: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="text" placeholder={gt('emailOrPhone')} required value={formData.teacherContact || ''} onChange={e => setFormData({ ...formData, teacherContact: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
               <input type="text" placeholder="PIN" required maxLength={6} value={formData.teacherPin || ''} onChange={e => setFormData({ ...formData, teacherPin: e.target.value.replace(/\D/g, '') })} className="w-full px-4 py-3 border rounded-xl text-base text-center text-xl tracking-widest" />
-              <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold">Acceder au portail enseignant</button>
+              <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold">{gt('accessTeacherPortal')}</button>
             </form>
           )}
 
           {/* Directory link */}
           <div className="mt-6 pt-4 border-t border-gray-200">
             <button onClick={() => setAuthMode('directory')} className="w-full bg-gradient-to-r from-socrates-navy to-socrates-blue text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition">
-              📚 Voir l'Annuaire des Ecoles
+              📚 {gt('seeDirectory') || "Voir l'Annuaire des Écoles"}
             </button>
           </div>
         </div>

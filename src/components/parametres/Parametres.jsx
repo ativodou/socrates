@@ -3,6 +3,7 @@ import { Plus, X, Check, ChevronRight, MapPin, Phone, User, School, BookOpen, Us
 import { db } from '../../firebase';
 import { doc, updateDoc, addDoc, deleteDoc, collection } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 const SECTIONS = [
   { id: 'checklist', label: 'Annuaire', icon: ClipboardCheck, color: 'text-green-600' },
@@ -24,6 +25,7 @@ export default function Parametres() {
     loadAllData, getGradeLevels, isCustomGradeType,
     FEE_CYCLES, HAITI_DEPARTEMENTS_COMMUNES, updateSchoolSettings,
   } = useSchool();
+  const { t } = useLang();
 
   const [activeSection, setActiveSection] = useState('checklist');
   const [formData, setFormData] = useState({});

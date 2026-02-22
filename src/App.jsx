@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SchoolProvider, useSchool } from './contexts/SchoolContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 
 // Layout
 import Sidebar from './components/layout/Sidebar';
@@ -67,7 +68,7 @@ function AppContent() {
   // Super Admin
   if (isSuperAdmin) return <SuperAdmin />;
 
-  // No school doc yet (shouldn't happen after register, but safety check)
+  // No school doc yet
   if (!school) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -116,11 +117,13 @@ function AppContent() {
   );
 }
 
-// ─── Root App (wraps provider) ──────────────────────────────────────
+// ─── Root App (wraps providers) ──────────────────────────────────────
 export default function App() {
   return (
-    <SchoolProvider>
-      <AppContent />
-    </SchoolProvider>
+    <LanguageProvider>
+      <SchoolProvider>
+        <AppContent />
+      </SchoolProvider>
+    </LanguageProvider>
   );
 }

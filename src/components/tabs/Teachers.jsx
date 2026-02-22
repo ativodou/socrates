@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { GraduationCap, Search, Plus, Edit, Trash2, FileText, DollarSign, Filter, ChevronDown } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function Teachers({ onOpenModal }) {
   const { teachers, school, classes, teacherPayments, deleteTeacher, getTeacherBalance, getMonthlySalary, isAdultSchool } = useSchool();
+  const { t } = useLang();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -134,11 +136,11 @@ export default function Teachers({ onOpenModal }) {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-white rounded-xl shadow-lg p-4 text-center">
           <p className="text-2xl font-bold text-green-600">{totalTeachers}</p>
-          <p className="text-xs text-gray-500">{adult ? 'Professeurs' : 'Enseignants'}</p>
+          <p className="text-xs text-gray-500">{adult ? t('teachersAdult') : t('teachers')}</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center">
           <p className="text-lg font-bold text-gray-700">HTG {(totalPayroll / 1000).toFixed(0)}K</p>
-          <p className="text-xs text-gray-500">Masse salariale</p>
+          <p className="text-xs text-gray-500">{t('payroll') || 'Masse salariale'}</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center">
           <p className="text-2xl font-bold text-green-500">{paidThisMonth}/{totalTeachers}</p>

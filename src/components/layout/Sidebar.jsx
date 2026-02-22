@@ -1,21 +1,23 @@
 import React from 'react';
 import { BarChart3, Users, GraduationCap, BookOpen, FileText, DollarSign, Settings, LogOut } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function Sidebar({ isOpen, onClose }) {
   const { activeTab, setActiveTab, handleLogout, isPrescolaireOnly, isAdultSchool } = useSchool();
+  const { t } = useLang();
 
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
 
   const NAV_ITEMS = [
-    { id: 'dashboard', icon: BarChart3,     label: 'Tableau de bord' },
-    { id: 'students',  icon: Users,         label: adult ? 'Étudiants' : 'Élèves' },
-    { id: 'teachers',  icon: GraduationCap, label: adult ? 'Professeurs' : 'Enseignants' },
-    { id: 'classes',   icon: BookOpen,       label: prescoOnly ? 'Sections' : 'Classes' },
-    ...(!prescoOnly ? [{ id: 'grades', icon: FileText, label: 'Notes' }] : []),
-    { id: 'payments',  icon: DollarSign,     label: 'Paiements' },
-    { id: 'settings',  icon: Settings,       label: 'Paramètres' },
+    { id: 'dashboard', icon: BarChart3,     label: t('tabDashboard') },
+    { id: 'students',  icon: Users,         label: adult ? t('studentsAdult') : t('students') },
+    { id: 'teachers',  icon: GraduationCap, label: adult ? t('teachersAdult') : t('teachers') },
+    { id: 'classes',   icon: BookOpen,       label: prescoOnly ? t('sections') : t('classes') },
+    ...(!prescoOnly ? [{ id: 'grades', icon: FileText, label: t('grades') }] : []),
+    { id: 'payments',  icon: DollarSign,     label: t('tabPayments') },
+    { id: 'settings',  icon: Settings,       label: t('tabSettings') },
   ];
 
   return (
@@ -49,7 +51,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="p-4 border-t border-white/10">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-blue-100 hover:bg-white/10 rounded-lg transition">
             <LogOut size={20} />
-            <span>Deconnexion</span>
+            <span>{t('logout')}</span>
           </button>
         </div>
       </aside>

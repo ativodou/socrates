@@ -1,9 +1,11 @@
 import React from 'react';
 import { X, Users, ClipboardList, Book, GraduationCap, MapPin } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
   const { students, teachers, getStudentBalance, isAdultSchool, isPrescolaireOnly, isUpperCycle } = useSchool();
+  const { t } = useLang();
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
   const classStudents = students.filter(s => s.enrolledClasses?.includes(viewClass.id));

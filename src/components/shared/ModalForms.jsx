@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, User, BookOpen, DollarSign, Users as UsersIcon, Camera, Phone } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 import Modal from '../shared/Modal';
 
 export default function ModalForms({ modalType, editItem, onClose, initialData }) {
@@ -12,6 +13,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
     getGradeLevels, isCustomGradeType, isUpperCycle, FEE_CYCLES,
     isAdultSchool, isPrescolaireOnly,
   } = useSchool();
+  const { t } = useLang();
 
   const [formData, setFormData] = useState({});
   const [studentTab, setStudentTab] = useState('info');

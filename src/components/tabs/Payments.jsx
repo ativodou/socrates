@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DollarSign, Plus, Download, Trash2, Search, Filter, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Receipt, BarChart3, X } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
 const PAYMENT_TYPE_LABELS = {
   scolarite: '📚 Scolarité',

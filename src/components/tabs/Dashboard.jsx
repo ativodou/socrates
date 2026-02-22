@@ -1,15 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Users, GraduationCap, BookOpen, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Flag, ArrowUpRight, ArrowDownRight, Plus, ChevronRight, Clock, Percent, Wallet, PiggyBank, RefreshCw } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
-
-const FLAG_LABELS = {
-  financial: { label: 'Financier', icon: '💰', color: 'text-red-600' },
-  disciplinary: { label: 'Disciplinaire', icon: '⚠️', color: 'text-orange-600' },
-  attendance: { label: 'Assiduité', icon: '📅', color: 'text-yellow-600' },
-  academic: { label: 'Académique', icon: '📚', color: 'text-purple-600' },
-  medical: { label: 'Médical', icon: '🏥', color: 'text-blue-600' },
-  other: { label: 'Autre', icon: '🚩', color: 'text-gray-600' },
-};
+import { useLang } from '../../i18n/LanguageContext';
 
 export default function Dashboard({ onOpenModal }) {
   const {
@@ -18,14 +10,15 @@ export default function Dashboard({ onOpenModal }) {
     isAdultSchool, isPrescolaireOnly,
     setActiveTab, autoFlagOverdue,
   } = useSchool();
+  const { t } = useLang();
 
   const [flagMessage, setFlagMessage] = useState(null);
 
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
-  const studentLabel = adult ? 'Étudiants' : 'Élèves';
-  const teacherLabel = adult ? 'Professeurs' : 'Enseignants';
-  const classLabel = prescoOnly ? 'Sections' : 'Classes';
+  const studentLabel = adult ? t('studentsAdult') : t('students');
+  const teacherLabel = adult ? t('teachersAdult') : t('teachers');
+  const classLabel = prescoOnly ? t('sections') : t('classes');
 
   // ── Financial calculations ──
   const finance = useMemo(() => {
@@ -34,48 +27,43 @@ export default function Dashboard({ onOpenModal }) {
     const totalExpenses = (expenses || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     const totalOut = totalTeacherPaid + totalExpenses;
     const net = totalIn - totalOut;
-
     const expectedRevenue = students.reduce((sum, s) => sum + (parseFloat(s.annualTuition) || 0) + (parseFloat(s.fraisDivers) || 0), 0);
     const collectionRate = expectedRevenue > 0 ? Math.round((totalIn / expectedRevenue) * 100) : 0;
-
     const totalStudentDue = students.reduce((sum, s) => sum + Math.max(0, getStudentBalance(s.id)), 0);
-    const totalTeacherDue = teachers.reduce((sum, t) => sum + Math.max(0, getTeacherBalance(t.id)), 0);
-    const totalAnnualSalary = teachers.reduce((sum, t) => sum + (parseFloat(t.annualSalary) || 0), 0);
-
+    const totalTeacherDue = teachers.reduce((sum, tc) => sum + Math.max(0, getTeacherBalance(tc.id)), 0);
+    const totalAnnualSalary = teachers.reduce((sum, tc) => sum + (parseFloat(tc.annualSalary) || 0), 0);
     return { totalIn, totalOut, totalTeacherPaid, totalExpenses, net, expectedRevenue, collectionRate, totalStudentDue, totalTeacherDue, totalAnnualSalary };
   }, [payments, teacherPayments, expenses, students, teachers, getStudentBalance, getTeacherBalance]);
 
-  // ── People stats ──
   const maleStudents = students.filter(s => s.gender === 'M').length;
   const femaleStudents = students.filter(s => s.gender === 'F').length;
   const unpaidStudents = students.filter(s => getStudentBalance(s.id) > 0).length;
   const noDeposit = students.filter(s => !s.depositPaid).length;
   const flaggedStudents = students.filter(s => s.flag);
-  const unpaidTeachers = teachers.filter(t => getTeacherBalance(t.id) > 0).length;
-  const coaches = teachers.filter(t => t.isCoach);
+  const unpaidTeachers = teachers.filter(tc => getTeacherBalance(tc.id) > 0).length;
+  const coaches = teachers.filter(tc => tc.isCoach);
 
-  // ── Recent transactions (last 5) ──
   const recentActivity = useMemo(() => {
     const all = [];
     payments.slice(0, 10).forEach(p => {
       const s = students.find(st => st.id === p.studentId);
-      all.push({ type: 'in', amount: parseFloat(p.amount) || 0, name: s ? `${s.firstName} ${s.lastName}` : '?', date: p.date, label: p.paymentType === 'scolarite' ? (p.month ? `Scolarité ${p.month}` : 'Scolarité') : p.paymentType === 'inscription' ? 'Inscription' : p.paymentType === 'deposit' ? 'Dépôt' : p.isDeposit ? 'Dépôt' : (p.paymentType || 'Scolarité') });
+      all.push({ type: 'in', amount: parseFloat(p.amount) || 0, name: s ? `${s.firstName} ${s.lastName}` : '?', date: p.date, label: p.paymentType === 'scolarite' ? (p.month ? `${t('tuition')} ${p.month}` : t('tuition')) : p.paymentType === 'inscription' ? t('inscription') : p.paymentType === 'deposit' ? t('deposit') : p.isDeposit ? t('deposit') : (p.paymentType || t('tuition')) });
     });
     teacherPayments.slice(0, 10).forEach(p => {
-      const t = teachers.find(tc => tc.id === p.teacherId);
-      all.push({ type: 'out', amount: parseFloat(p.amount) || 0, name: t ? `${t.firstName} ${t.lastName}` : '?', date: p.date, label: 'Salaire' });
+      const tc = teachers.find(x => x.id === p.teacherId);
+      all.push({ type: 'out', amount: parseFloat(p.amount) || 0, name: tc ? `${tc.firstName} ${tc.lastName}` : '?', date: p.date, label: t('salary') });
     });
     (expenses || []).slice(0, 10).forEach(p => {
-      all.push({ type: 'out', amount: parseFloat(p.amount) || 0, name: p.personName || p.category, date: p.date, label: 'Dépense' });
+      all.push({ type: 'out', amount: parseFloat(p.amount) || 0, name: p.personName || p.category, date: p.date, label: t('expense') });
     });
     return all.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
-  }, [payments, teacherPayments, expenses, students, teachers]);
+  }, [payments, teacherPayments, expenses, students, teachers, t]);
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return 'Bonjour';
-    if (h < 18) return 'Bon après-midi';
-    return 'Bonsoir';
+    if (h < 12) return t('goodMorning');
+    if (h < 18) return t('goodAfternoon');
+    return t('goodEvening');
   };
 
   const formatDate = (d) => {
@@ -92,9 +80,7 @@ export default function Dashboard({ onOpenModal }) {
         <p className="text-blue-200 text-sm">{greeting()}</p>
         <h2 className="text-xl sm:text-2xl font-bold mt-1">{school?.name || 'SOCRATES'}</h2>
         <p className="text-blue-200 text-sm mt-1">
-          {school?.schoolType || ''}
-          {school?.methodePedagogique ? ` • ${school.methodePedagogique}` : ''}
-          {school?.city ? ` • ${school.city}` : ''}
+          {school?.schoolType || ''}{school?.methodePedagogique ? ` • ${school.methodePedagogique}` : ''}{school?.city ? ` • ${school.city}` : ''}
         </p>
         <div className="flex gap-4 mt-4 flex-wrap">
           <div className="bg-white/10 rounded-xl px-4 py-2 text-center min-w-[80px]">
@@ -121,19 +107,19 @@ export default function Dashboard({ onOpenModal }) {
       {/* ── Financial Overview ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-green-500">
-          <div className="flex items-center gap-2 mb-1"><TrendingUp size={16} className="text-green-500" /><span className="text-xs text-gray-500">Entrées</span></div>
+          <div className="flex items-center gap-2 mb-1"><TrendingUp size={16} className="text-green-500" /><span className="text-xs text-gray-500">{t('revenue')}</span></div>
           <p className="text-xl font-bold text-green-600">HTG {finance.totalIn.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-red-400">
-          <div className="flex items-center gap-2 mb-1"><TrendingDown size={16} className="text-red-400" /><span className="text-xs text-gray-500">Sorties</span></div>
+          <div className="flex items-center gap-2 mb-1"><TrendingDown size={16} className="text-red-400" /><span className="text-xs text-gray-500">{t('outflows')}</span></div>
           <p className="text-xl font-bold text-red-500">HTG {finance.totalOut.toLocaleString()}</p>
         </div>
         <div className={`bg-white rounded-xl shadow-lg p-4 border-l-4 ${finance.net >= 0 ? 'border-emerald-500' : 'border-red-600'}`}>
-          <div className="flex items-center gap-2 mb-1"><Wallet size={16} className={finance.net >= 0 ? 'text-emerald-500' : 'text-red-600'} /><span className="text-xs text-gray-500">Solde net</span></div>
+          <div className="flex items-center gap-2 mb-1"><Wallet size={16} className={finance.net >= 0 ? 'text-emerald-500' : 'text-red-600'} /><span className="text-xs text-gray-500">{t('totalBalance')}</span></div>
           <p className={`text-xl font-bold ${finance.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>HTG {finance.net.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-blue-400">
-          <div className="flex items-center gap-2 mb-1"><Percent size={16} className="text-blue-400" /><span className="text-xs text-gray-500">Taux collecte</span></div>
+          <div className="flex items-center gap-2 mb-1"><Percent size={16} className="text-blue-400" /><span className="text-xs text-gray-500">{t('collectionRate') || 'Taux collecte'}</span></div>
           <p className="text-xl font-bold text-blue-600">{finance.collectionRate}%</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2"><div className={`h-1.5 rounded-full ${finance.collectionRate >= 75 ? 'bg-green-500' : finance.collectionRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${Math.min(finance.collectionRate, 100)}%` }} /></div>
         </div>
@@ -144,35 +130,35 @@ export default function Dashboard({ onOpenModal }) {
         <div className="flex flex-wrap gap-2">
           {unpaidStudents > 0 && (
             <button onClick={() => setActiveTab('students')} className="flex items-center gap-2 bg-red-50 text-red-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-100 transition">
-              <AlertTriangle size={16} />{unpaidStudents} {adult ? 'étudiant' : 'élève'}{unpaidStudents > 1 ? 's' : ''} impayé{unpaidStudents > 1 ? 's' : ''}
+              <AlertTriangle size={16} />{unpaidStudents} {adult ? t('studentAdultPlural') : t('studentPlural')} {t('unpaidAlert') || 'impayé(s)'}
               <ChevronRight size={14} />
             </button>
           )}
           {noDeposit > 0 && (
             <button onClick={() => setActiveTab('students')} className="flex items-center gap-2 bg-yellow-50 text-yellow-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-yellow-100 transition">
-              <DollarSign size={16} />{noDeposit} sans dépôt
+              <DollarSign size={16} />{noDeposit} {t('noDepositAlert') || 'sans dépôt'}
               <ChevronRight size={14} />
             </button>
           )}
           {unpaidTeachers > 0 && (
             <button onClick={() => setActiveTab('teachers')} className="flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-orange-100 transition">
-              <AlertTriangle size={16} />{unpaidTeachers} {adult ? 'prof' : 'enseignant'}{unpaidTeachers > 1 ? 's' : ''} à payer
+              <AlertTriangle size={16} />{unpaidTeachers} {adult ? t('teacherAdultPlural') || 'prof(s)' : t('teacherPlural') || 'enseignant(s)'} {t('toPayAlert') || 'à payer'}
               <ChevronRight size={14} />
             </button>
           )}
           {flaggedStudents.length > 0 && (
             <button onClick={() => setActiveTab('students')} className="flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-orange-100 transition">
-              <Flag size={16} />{flaggedStudents.length} signalé{flaggedStudents.length > 1 ? 's' : ''}
+              <Flag size={16} />{flaggedStudents.length} {t('flaggedAlert') || 'signalé(s)'}
               <ChevronRight size={14} />
             </button>
           )}
           {unpaidStudents > 0 && (
             <button onClick={async () => {
               const count = await autoFlagOverdue();
-              setFlagMessage(count > 0 ? `${count} ${adult ? 'étudiant' : 'élève'}${count > 1 ? 's' : ''} signalé${count > 1 ? 's' : ''} automatiquement` : 'Aucun nouveau signalement');
+              setFlagMessage(count > 0 ? t('flagResult', { n: count }) : t('flagNone'));
               setTimeout(() => setFlagMessage(null), 4000);
             }} className="flex items-center gap-2 bg-socrates-navy text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-900 transition">
-              <RefreshCw size={16} />Signaler impayés
+              <RefreshCw size={16} />{t('flagOverdue')}
             </button>
           )}
         </div>
@@ -181,43 +167,42 @@ export default function Dashboard({ onOpenModal }) {
         <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-xl text-sm font-medium animate-pulse">{flagMessage}</div>
       )}
 
-      {/* ── Middle row: Receivables + Payables + Recent Activity ── */}
+      {/* ── Middle row ── */}
       <div className="grid sm:grid-cols-3 gap-4">
-
         {/* Receivables */}
         <div className="bg-white rounded-xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><PiggyBank size={18} className="text-green-500" /> À recevoir</h3>
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><PiggyBank size={18} className="text-green-500" /> {t('receivables') || 'À recevoir'}</h3>
           <div className="space-y-3">
             <div>
-              <div className="flex justify-between text-sm"><span className="text-gray-500">Attendu</span><span className="font-bold text-gray-700">HTG {finance.expectedRevenue.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-gray-500">Reçu</span><span className="font-bold text-green-600">HTG {finance.totalIn.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm border-t mt-2 pt-2"><span className="text-gray-500 font-medium">Restant dû</span><span className="font-bold text-red-500">HTG {finance.totalStudentDue.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">{t('expected') || 'Attendu'}</span><span className="font-bold text-gray-700">HTG {finance.expectedRevenue.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">{t('received')}</span><span className="font-bold text-green-600">HTG {finance.totalIn.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm border-t mt-2 pt-2"><span className="text-gray-500 font-medium">{t('remainingDue') || 'Restant dû'}</span><span className="font-bold text-red-500">HTG {finance.totalStudentDue.toLocaleString()}</span></div>
             </div>
           </div>
           <button onClick={() => setActiveTab('students')} className="w-full mt-3 text-socrates-blue text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-blue-50 transition">
-            Voir {studentLabel.toLowerCase()} <ChevronRight size={14} />
+            {t('see') || 'Voir'} {studentLabel.toLowerCase()} <ChevronRight size={14} />
           </button>
         </div>
 
         {/* Payables */}
         <div className="bg-white rounded-xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><Wallet size={18} className="text-red-400" /> À payer</h3>
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><Wallet size={18} className="text-red-400" /> {t('payables') || 'À payer'}</h3>
           <div className="space-y-3">
             <div>
-              <div className="flex justify-between text-sm"><span className="text-gray-500">Salaires annuels</span><span className="font-bold text-gray-700">HTG {finance.totalAnnualSalary.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-gray-500">Salaires versés</span><span className="font-bold text-green-600">HTG {finance.totalTeacherPaid.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-gray-500">Dépenses</span><span className="font-bold text-orange-500">HTG {finance.totalExpenses.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm border-t mt-2 pt-2"><span className="text-gray-500 font-medium">Salaires dus</span><span className="font-bold text-red-500">HTG {finance.totalTeacherDue.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">{t('annualSalaries') || 'Salaires annuels'}</span><span className="font-bold text-gray-700">HTG {finance.totalAnnualSalary.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">{t('salariesPaid') || 'Salaires versés'}</span><span className="font-bold text-green-600">HTG {finance.totalTeacherPaid.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">{t('expenses')}</span><span className="font-bold text-orange-500">HTG {finance.totalExpenses.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm border-t mt-2 pt-2"><span className="text-gray-500 font-medium">{t('salariesDue') || 'Salaires dus'}</span><span className="font-bold text-red-500">HTG {finance.totalTeacherDue.toLocaleString()}</span></div>
             </div>
           </div>
           <button onClick={() => setActiveTab('teachers')} className="w-full mt-3 text-socrates-blue text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-blue-50 transition">
-            Voir {teacherLabel.toLowerCase()} <ChevronRight size={14} />
+            {t('see') || 'Voir'} {teacherLabel.toLowerCase()} <ChevronRight size={14} />
           </button>
         </div>
 
         {/* Recent Activity */}
         <div className="bg-white rounded-xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><Clock size={18} className="text-gray-400" /> Activité récente</h3>
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><Clock size={18} className="text-gray-400" /> {t('recentActivity') || 'Activité récente'}</h3>
           {recentActivity.length > 0 ? (
             <div className="space-y-2">
               {recentActivity.map((a, i) => (
@@ -236,10 +221,10 @@ export default function Dashboard({ onOpenModal }) {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400 text-sm text-center py-4">Aucune transaction</p>
+            <p className="text-gray-400 text-sm text-center py-4">{t('noTransactions') || 'Aucune transaction'}</p>
           )}
           <button onClick={() => setActiveTab('payments')} className="w-full mt-3 text-socrates-blue text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-blue-50 transition">
-            Voir tout <ChevronRight size={14} />
+            {t('seeAll') || 'Voir tout'} <ChevronRight size={14} />
           </button>
         </div>
       </div>
@@ -247,10 +232,11 @@ export default function Dashboard({ onOpenModal }) {
       {/* ── Flagged Students ── */}
       {flaggedStudents.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><Flag size={18} className="text-orange-500" /> {studentLabel} signalés ({flaggedStudents.length})</h3>
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3"><Flag size={18} className="text-orange-500" /> {studentLabel} {t('flaggedAlert') || 'signalé(s)'} ({flaggedStudents.length})</h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {flaggedStudents.slice(0, 6).map(s => {
-              const fi = FLAG_LABELS[s.flag] || FLAG_LABELS.other;
+              const flagType = t('flagTypes')?.[s.flag] || s.flag;
+              const icons = { financial: '💰', disciplinary: '⚠️', attendance: '📅', academic: '📚', medical: '🏥', other: '🚩' };
               return (
                 <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition cursor-pointer" onClick={() => setActiveTab('students')}>
                   {s.photo ? <img src={s.photo} alt="" className="w-9 h-9 rounded-full object-cover" /> : (
@@ -258,7 +244,7 @@ export default function Dashboard({ onOpenModal }) {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{s.firstName} {s.lastName}</p>
-                    <p className={`text-xs ${fi.color}`}>{fi.icon} {fi.label}{s.flagNote ? ` — ${s.flagNote}` : ''}</p>
+                    <p className="text-xs text-gray-500">{icons[s.flag] || '🚩'} {flagType}{s.flagNote ? ` — ${s.flagNote}` : ''}</p>
                   </div>
                 </div>
               );
@@ -266,7 +252,7 @@ export default function Dashboard({ onOpenModal }) {
           </div>
           {flaggedStudents.length > 6 && (
             <button onClick={() => setActiveTab('students')} className="w-full mt-3 text-orange-600 text-sm font-medium flex items-center justify-center gap-1 py-2">
-              Voir les {flaggedStudents.length - 6} autres <ChevronRight size={14} />
+              {t('seeAll') || 'Voir'} {flaggedStudents.length - 6} {t('othersLabel') || 'autres'} <ChevronRight size={14} />
             </button>
           )}
         </div>
@@ -275,7 +261,7 @@ export default function Dashboard({ onOpenModal }) {
       {/* ── Demographics ── */}
       {students.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">Répartition {studentLabel.toLowerCase()}</h3>
+          <h3 className="text-sm font-semibold text-gray-800 mb-3">{t('demographics') || 'Répartition'} {studentLabel.toLowerCase()}</h3>
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="flex h-4 rounded-full overflow-hidden bg-gray-200">
@@ -285,8 +271,8 @@ export default function Dashboard({ onOpenModal }) {
               </div>
             </div>
             <div className="flex gap-4 text-sm flex-shrink-0">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500" />{maleStudents} M</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-pink-500" />{femaleStudents} F</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500" />{maleStudents} {t('male')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-pink-500" />{femaleStudents} {t('female')}</span>
               {(students.length - maleStudents - femaleStudents) > 0 && (
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gray-400" />{students.length - maleStudents - femaleStudents} N/D</span>
               )}
@@ -298,16 +284,16 @@ export default function Dashboard({ onOpenModal }) {
       {/* ── Quick Actions ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button onClick={() => { setActiveTab('students'); onOpenModal('student'); }} className="bg-socrates-blue text-white p-4 rounded-xl font-medium flex flex-col items-center gap-2 hover:bg-blue-700 transition">
-          <Users size={22} /><span className="text-sm">+ {adult ? 'Étudiant' : 'Élève'}</span>
+          <Users size={22} /><span className="text-sm">+ {adult ? t('studentAdult') : t('student')}</span>
         </button>
         <button onClick={() => { setActiveTab('teachers'); onOpenModal('teacher'); }} className="bg-green-600 text-white p-4 rounded-xl font-medium flex flex-col items-center gap-2 hover:bg-green-700 transition">
-          <GraduationCap size={22} /><span className="text-sm">+ {adult ? 'Professeur' : 'Enseignant'}</span>
+          <GraduationCap size={22} /><span className="text-sm">+ {adult ? t('teacherAdult') : t('teacher')}</span>
         </button>
         <button onClick={() => { setActiveTab('classes'); onOpenModal('class'); }} className="bg-purple-600 text-white p-4 rounded-xl font-medium flex flex-col items-center gap-2 hover:bg-purple-700 transition">
-          <BookOpen size={22} /><span className="text-sm">+ {classLabel.slice(0, -1)}</span>
+          <BookOpen size={22} /><span className="text-sm">+ {prescoOnly ? t('section') : t('classe')}</span>
         </button>
         <button onClick={() => { setActiveTab('payments'); onOpenModal('expense'); }} className="bg-orange-500 text-white p-4 rounded-xl font-medium flex flex-col items-center gap-2 hover:bg-orange-600 transition">
-          <DollarSign size={22} /><span className="text-sm">+ Dépense</span>
+          <DollarSign size={22} /><span className="text-sm">+ {t('expense')}</span>
         </button>
       </div>
 

@@ -3,18 +3,21 @@ import { Users, Search, Plus, Edit, Trash2, FileText, Download, CheckCircle, XCi
 import { db } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
 
-const FLAG_TYPES = [
-  { value: 'financial', label: 'Financier', color: 'bg-red-100 text-red-700', icon: '💰' },
-  { value: 'disciplinary', label: 'Disciplinaire', color: 'bg-orange-100 text-orange-700', icon: '⚠️' },
-  { value: 'attendance', label: 'Assiduité', color: 'bg-yellow-100 text-yellow-700', icon: '📅' },
-  { value: 'academic', label: 'Académique', color: 'bg-purple-100 text-purple-700', icon: '📚' },
-  { value: 'medical', label: 'Médical', color: 'bg-blue-100 text-blue-700', icon: '🏥' },
-  { value: 'other', label: 'Autre', color: 'bg-gray-100 text-gray-700', icon: '🚩' },
+const FLAG_TYPES_BASE = [
+  { value: 'financial', color: 'bg-red-100 text-red-700', icon: '💰' },
+  { value: 'disciplinary', color: 'bg-orange-100 text-orange-700', icon: '⚠️' },
+  { value: 'attendance', color: 'bg-yellow-100 text-yellow-700', icon: '📅' },
+  { value: 'academic', color: 'bg-purple-100 text-purple-700', icon: '📚' },
+  { value: 'medical', color: 'bg-blue-100 text-blue-700', icon: '🏥' },
+  { value: 'other', color: 'bg-gray-100 text-gray-700', icon: '🚩' },
 ];
 
 export default function Students({ onOpenModal }) {
   const { students, school, classes, payments, deleteStudent, getStudentBalance, getMonthlyTuition, getStudentTotal, loadAllData, isAdultSchool } = useSchool();
+  const { t } = useLang();
+  const FLAG_TYPES = FLAG_TYPES_BASE.map(f => ({ ...f, label: t('flagTypes')?.[f.value] || f.value }));
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -243,7 +246,7 @@ export default function Students({ onOpenModal }) {
       {showFilters && (
         <div className="flex flex-wrap gap-2 bg-white rounded-xl shadow p-3">
           <select value={filterLevel} onChange={e => setFilterLevel(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-            <option value="">Tous les niveaux</option>
+            <option value="">{t("allLevels")}</option>
             {uniqueLevels.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
