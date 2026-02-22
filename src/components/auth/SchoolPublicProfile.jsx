@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Phone, Mail, Globe, MapPin, Users, GraduationCap, BookOpen, DollarSign, Heart } from 'lucide-react';
 import { db } from '../../firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { useLang } from '../../i18n/LanguageContext';
 
 const FEE_LABELS = {
   prescolaire: 'Préscolaire',
@@ -13,6 +14,8 @@ const FEE_LABELS = {
 };
 
 export default function SchoolPublicProfile({ school, onBack }) {
+  const { t, lang } = useLang();
+  const ht = lang === 'ht';
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loadingExtra, setLoadingExtra] = useState(true);
@@ -45,7 +48,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
       <header className="bg-gradient-to-r from-socrates-navy to-socrates-blue text-white">
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-6">
           <button onClick={onBack} className="flex items-center gap-2 text-blue-200 mb-4 hover:text-white text-sm">
-            <ArrowLeft size={18} /> Retour à l'annuaire
+            <ArrowLeft size={18} /> ${ht?'Retounen nan anyè a':"Retour à l'annuaire"}
           </button>
           <div className="flex items-center gap-4">
             {school.logo && school.logo.length > 10
@@ -58,7 +61,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {school.schoolType && <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">{school.schoolType}</span>}
                 {school.typeEcole && <span className="bg-white/10 text-blue-200 text-xs px-3 py-1 rounded-full">{school.typeEcole}</span>}
-                {school.foundedYear && <span className="text-blue-200 text-xs">Fondée en {school.foundedYear}</span>}
+                {school.foundedYear && <span className="text-blue-200 text-xs">${ht?'Fonde an ':'Fondée en '}{school.foundedYear}</span>}
               </div>
               {(school.sige || school.methodePedagogique) && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -75,12 +78,12 @@ export default function SchoolPublicProfile({ school, onBack }) {
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-around text-center">
             <div>
               <p className="text-xl font-bold">{teachers.length}</p>
-              <p className="text-xs text-blue-200">Enseignants</p>
+              <p className="text-xs text-blue-200">{ht?'Anseyan':'Enseignants'}</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div>
               <p className="text-xl font-bold">{classes.length}</p>
-              <p className="text-xs text-blue-200">Classes</p>
+              <p className="text-xs text-blue-200">{ht?'Klas':'Classes'}</p>
             </div>
             {school.capacity && <>
               <div className="w-px h-8 bg-white/20" />
@@ -125,7 +128,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
         {/* ── Contact & Réseaux ── */}
         {hasContact && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Phone size={18} className="text-green-500" /> Contact</h3>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Phone size={18} className="text-green-500" />{ht?' Kontak':' Contact'}</h3>
             <div className="space-y-2">
               {school.phone && <p className="flex items-center gap-2 text-sm text-gray-700"><Phone size={15} className="text-gray-400" /> {school.phone}</p>}
               {school.whatsapp && <p className="flex items-center gap-2 text-sm text-gray-700"><span className="text-gray-400">💬</span> WhatsApp: {school.whatsapp}</p>}
@@ -151,7 +154,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
               </div>
               <div>
                 <p className="font-semibold text-gray-800">{school.directorName}</p>
-                <p className="text-xs text-gray-500">{school.directorTitle || 'Directeur'}</p>
+                <p className="text-xs text-gray-500">{school.directorTitle || ht?'Direktè':'Directeur'}</p>
               </div>
             </div>
             {(school.directorPhone || school.directorEmail) && (
@@ -202,19 +205,19 @@ export default function SchoolPublicProfile({ school, onBack }) {
           </div>
         )}
 
-        {/* ── Corps Enseignant ── */}
+        {/* ── {ht?'Kò Anseyan':'Corps Enseignant'} ── */}
         {teachers.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} className="text-teal-500" /> Corps Enseignant <span className="ml-auto text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded-full">{teachers.length} enseignant{teachers.length > 1 ? 's' : ''}</span></h3>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} className="text-teal-500" /> {ht?'Kò Anseyan':'Corps Enseignant'} <span className="ml-auto text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded-full">{teachers.length} ht?'anseyan':'enseignant' + (teachers.length > 1 ? 's' : '')</span></h3>
             <div className="grid grid-cols-2 gap-2">
-              {teachers.map(t => (
-                <div key={t.id} className="flex items-center gap-2.5 p-3 bg-gray-50 rounded-xl">
+              {teachers.map(tc => (
+                <div key={tc.id} className="flex items-center gap-2.5 p-3 bg-gray-50 rounded-xl">
                   <div className="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {t.firstName?.[0]}{t.lastName?.[0]}
+                    {tc.firstName?.[0]}{tc.lastName?.[0]}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-sm text-gray-800 truncate">{t.firstName} {t.lastName}</p>
-                    <p className="text-xs text-gray-500 truncate">{t.subject || 'Enseignant'}</p>
+                    <p className="font-medium text-sm text-gray-800 truncate">{tc.firstName} {tc.lastName}</p>
+                    <p className="text-xs text-gray-500 truncate">{tc.subject || (ht?'Anseyan':'Enseignant')}</p>
                   </div>
                 </div>
               ))}
@@ -225,7 +228,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
         {/* ── Classes ── */}
         {classes.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} className="text-cyan-500" /> Classes <span className="ml-auto text-xs bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">{classes.length} classe{classes.length > 1 ? 's' : ''}</span></h3>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} className="text-cyan-500" />{ht?' Klas ':' Classes '}<span className="ml-auto text-xs bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">{classes.length} ht?'klas':'classe' + (classes.length > 1 ? 's' : '')</span></h3>
             <div className="flex flex-wrap gap-2">
               {classes.map(c => (
                 <span key={c.id} className="bg-cyan-50 text-cyan-800 px-3 py-1.5 rounded-full text-sm font-medium">

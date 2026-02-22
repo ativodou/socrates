@@ -25,7 +25,14 @@ export default function Parametres() {
     loadAllData, getGradeLevels, isCustomGradeType,
     FEE_CYCLES, HAITI_DEPARTEMENTS_COMMUNES, updateSchoolSettings,
   } = useSchool();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const ht = lang === 'ht';
+  const SECTION_LABELS = ht ? {
+    checklist: 'Anyè', identite: 'Idantite', directeur: 'Direktè', structure: 'Estrikti',
+    enseignants: 'Anseyan', classes: 'Klas', matieres: 'Matyè', eleves: 'Elèv',
+    personnel: 'Pèsonèl', viescolaire: 'Lavi Lekòl', finances: 'Finans',
+  } : {};
+  const getSectionLabel = (s) => SECTION_LABELS[s.id] || s.label;
 
   const [activeSection, setActiveSection] = useState('checklist');
   const [formData, setFormData] = useState({});
@@ -70,21 +77,21 @@ export default function Parametres() {
         promotionThreshold: parseInt(val('promotionThreshold', 'promotionThreshold', 50)) || 50,
       };
       await updateSchoolSettings(updateData);
-      alert('Sauvegardé !');
-    } catch (err) { alert('Erreur: ' + err.message); }
+      alert(ht ? 'Anrejistre!' : 'Sauvegardé !');
+    } catch (err) { alert((ht?'Erè: ':'Erreur: ') + err.message); }
   };
 
   // ─── Checklist ────────────────────────────────────────────────────
   const checks = [
-    { label: "Nom de l'école", done: !!val('schoolName', 'name'), section: 'identite' },
-    { label: 'Logo téléchargé', done: !!(school?.logo && school.logo.length > 10), section: 'identite' },
-    { label: 'Département & Commune', done: !!val('departement', 'departement') && !!val('commune', 'commune'), section: 'identite' },
-    { label: 'Adresse', done: !!val('address', 'address'), section: 'identite' },
-    { label: 'Coordonnées GPS', done: !!val('gpsLat', 'gpsLat'), section: 'identite' },
-    { label: 'Téléphone', done: !!val('schoolPhone', 'phone'), section: 'identite' },
-    { label: 'Au moins 1 cycle académique', done: !!val('schoolType', 'schoolType'), section: 'structure' },
-    { label: 'Au moins 1 classe créée', done: classes.length > 0, section: 'classes' },
-    { label: 'Directeur renseigné', done: !!val('directorName', 'directorName'), section: 'directeur' },
+    { label: ht ? "Non lekòl la" : "Nom de l'école", done: !!val('schoolName', 'name'), section: 'identite' },
+    { label: ht ? 'Logo telechaje' : 'Logo téléchargé', done: !!(school?.logo && school.logo.length > 10), section: 'identite' },
+    { label: ht ? 'Depatman & Komun' : 'Département & Commune', done: !!val('departement', 'departement') && !!val('commune', 'commune'), section: 'identite' },
+    { label: ht ? 'Adrès' : 'Adresse', done: !!val('address', 'address'), section: 'identite' },
+    { label: ht ? 'Kowòdone GPS' : 'Coordonnées GPS', done: !!val('gpsLat', 'gpsLat'), section: 'identite' },
+    { label: ht ? 'Telefòn' : 'Téléphone', done: !!val('schoolPhone', 'phone'), section: 'identite' },
+    { label: ht?'Omwen 1 sik akademik':'Au moins 1 cycle académique', done: !!val('schoolType', 'schoolType'), section: 'structure' },
+    { label: ht?'Omwen 1 klas kreye':'Au moins 1 classe créée', done: classes.length > 0, section: 'classes' },
+    { label: ht?'Direktè ranseye':'Directeur renseigné', done: !!val('directorName', 'directorName'), section: 'directeur' },
     { label: 'No. SIGE', done: !!val('sige', 'sige'), optional: true, section: 'identite' },
   ];
   const requiredChecks = checks.filter(c => !c.optional);
@@ -92,6 +99,13 @@ export default function Parametres() {
   const total = requiredChecks.length;
   const percent = Math.round((completed / total) * 100);
   const getMessage = () => {
+    if (ht) {
+      if (percent === 100) return "✅ Lekòl ou pibliye nan Anyè a!";
+      if (percent >= 75) return "Ekselan! Fini dènye detay yo.";
+      if (percent >= 50) return "Ou prèske rive! Kèk etap ankò...";
+      if (percent >= 25) return "Bon kòmansman! Kontinye pou lekòl ou vizib.";
+      return "Kòmanse ranpli pwofil ou pou rejwenn Anyè a!";
+    }
     if (percent === 100) return "✅ Votre école est publiée dans l'Annuaire !";
     if (percent >= 75) return "Excellent ! Finalisez les derniers détails.";
     if (percent >= 50) return "Vous y êtes presque ! Quelques étapes de plus...";
@@ -113,7 +127,7 @@ export default function Parametres() {
             <button key={s.id} onClick={() => setActiveSection(s.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${activeSection === s.id ? 'bg-blue-50 text-socrates-blue' : 'text-gray-600 hover:bg-gray-50'}`}>
               <s.icon size={18} className={activeSection === s.id ? 'text-socrates-blue' : s.color} />
-              {s.label}
+              {getSectionLabel(s)}
               {s.id === 'checklist' && <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${percent === 100 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{percent === 100 ? '✓' : `${percent}%`}</span>}
             </button>
           ))}
@@ -125,7 +139,7 @@ export default function Parametres() {
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setActiveSection(s.id)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition ${activeSection === s.id ? 'bg-socrates-blue text-white' : 'bg-gray-100 text-gray-600'}`}>
-              <s.icon size={14} />{s.label}
+              <s.icon size={14} />{getSectionLabel(s)}
             </button>
           ))}
         </div>
@@ -194,12 +208,12 @@ export default function Parametres() {
           {/* Infos Générales */}
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
             <h3 className="font-semibold text-gray-800">Informations Générales</h3>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'école <span className="text-red-400">*</span></label><input type="text" value={val('schoolName', 'name')} onChange={e => set('schoolName', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht ? "Non lekòl la" : "Nom de l'école"} <span className="text-red-400">*</span></label><input type="text" value={val('schoolName', 'name')} onChange={e => set('schoolName', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Devise / Slogan</label><input type="text" value={val('slogan', 'slogan')} onChange={e => set('slogan', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Savoir, Discipline, Excellence" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Mission</label><textarea value={val('mission', 'mission')} onChange={e => set('mission', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base h-24 resize-none" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Année de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={val('foundedYear', 'foundedYear')} onChange={e => set('foundedYear', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="1985" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'école</label>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Tip lekòl":"Type d'école"}</label>
                 <select value={val('typeEcole', 'typeEcole')} onChange={e => set('typeEcole', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base">
                   <option value="">Sélectionner</option>
                   {['Publique', 'Privée Laïque', 'Privée Religieuse', 'Congréganiste', 'Communautaire'].map(t => <option key={t} value={t}>{t}</option>)}
@@ -207,7 +221,7 @@ export default function Parametres() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Méthode pédagogique</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Metòd pedagojik":"Méthode pédagogique"}</label>
               <select value={val('methodePedagogique', 'methodePedagogique')} onChange={e => set('methodePedagogique', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base">
                 <option value="">Sélectionner</option>
                 {['Traditionnelle', 'Montessori', 'Mixte (Montessori + Traditionnelle)', 'Bilingue', 'Autre'].map(m => <option key={m} value={m}>{m}</option>)}
@@ -219,20 +233,20 @@ export default function Parametres() {
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2"><MapPin size={18} className="text-blue-500" />Localisation</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Département <span className="text-red-400">*</span></label>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Depatman":"Département"} <span className="text-red-400">*</span></label>
                 <select value={selectedDept} onChange={e => { set('departement', e.target.value); set('commune', ''); }} className="w-full px-4 py-3 border rounded-xl text-base">
                   <option value="">Sélectionner</option>
                   {HAITI_DEPARTEMENTS_COMMUNES && Object.keys(HAITI_DEPARTEMENTS_COMMUNES).sort().map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Commune <span className="text-red-400">*</span></label>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Komun":"Commune"} <span className="text-red-400">*</span></label>
                 <select value={val('commune', 'commune')} onChange={e => set('commune', e.target.value)} disabled={!selectedDept} className="w-full px-4 py-3 border rounded-xl text-base disabled:bg-gray-100">
-                  <option value="">{selectedDept ? 'Sélectionner' : "Département d'abord"}</option>
+                  <option value="">{selectedDept ? (ht ? 'Chwazi' : 'Sélectionner') : (ht ? 'Depatman an premye' : "Département d'abord")}</option>
                   {communes.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Adresse <span className="text-red-400">*</span></label><input type="text" value={val('address', 'address')} onChange={e => set('address', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Rue, quartier, repère" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Adrès":"Adresse"} <span className="text-red-400">*</span></label><input type="text" value={val('address', 'address')} onChange={e => set('address', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="Rue, quartier, repère" /></div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Coordonnées GPS</label>
               <div className="flex items-center gap-2 flex-wrap">
@@ -263,17 +277,17 @@ export default function Parametres() {
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Phone size={18} className="text-green-500" />Contact & Réseaux</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Téléphone <span className="text-red-400">*</span></label><input type="tel" value={val('schoolPhone', 'phone')} onChange={e => set('schoolPhone', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="+509 XXXX XXXX" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Telefòn":"Téléphone"} <span className="text-red-400">*</span></label><input type="tel" value={val('schoolPhone', 'phone')} onChange={e => set('schoolPhone', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="+509 XXXX XXXX" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={val('schoolEmail', 'email', user?.email || '')} onChange={e => set('schoolEmail', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" /></div>
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label><input type="tel" value={val('whatsapp', 'whatsapp')} onChange={e => set('whatsapp', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="+509 XXXX XXXX" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Site web</label><input type="url" value={val('website', 'website')} onChange={e => set('website', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="https://" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Sit entènèt":"Site web"}</label><input type="url" value={val('website', 'website')} onChange={e => set('website', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="https://" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label><input type="text" value={val('facebook', 'facebook')} onChange={e => set('facebook', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="@monecole" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label><input type="text" value={val('instagram', 'instagram')} onChange={e => set('instagram', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="@monecole" /></div>
             </div>
           </div>
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ 3. DIRECTEUR ═══ */}
@@ -290,11 +304,11 @@ export default function Parametres() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label><input type="tel" value={val('directorPhone', 'directorPhone')} onChange={e => set('directorPhone', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="+509 XXXX XXXX" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{ht?"Telefòn":"Téléphone"}</label><input type="tel" value={val('directorPhone', 'directorPhone')} onChange={e => set('directorPhone', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" placeholder="+509 XXXX XXXX" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={val('directorEmail', 'directorEmail')} onChange={e => set('directorEmail', e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base" /></div>
             </div>
           </div>
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ 4. STRUCTURE ACADÉMIQUE ═══ */}
@@ -345,14 +359,14 @@ export default function Parametres() {
                     <select value={formData.newProgDuration || '1'} onChange={e => set('newProgDuration', e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm">{[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} an{n>1?'s':''}</option>)}</select>
                   </div>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => { if (!formData.newProgName) { alert('Nom requis.'); return; } setFormData({...formData, programs: [...val('programs','programs',[]), {name:formData.newProgName,domain:formData.newProgDomain||'',duration:parseInt(formData.newProgDuration||1)}], showAddProgram:false, newProgName:'', newProgDomain:'', newProgDuration:'1'}); }} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                    <button type="button" onClick={() => { if (!formData.newProgName) { alert('{ht?"Non obligatwa.":"Nom requis."}'); return; } setFormData({...formData, programs: [...val('programs','programs',[]), {name:formData.newProgName,domain:formData.newProgDomain||'',duration:parseInt(formData.newProgDuration||1)}], showAddProgram:false, newProgName:'', newProgDomain:'', newProgDuration:'1'}); }} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
                     <button type="button" onClick={() => set('showAddProgram', false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                   </div>
                 </div>
-              ) : <button type="button" onClick={() => set('showAddProgram', true)} className="w-full border-2 border-dashed border-blue-200 text-socrates-blue py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />Ajouter un programme</button>}
+              ) : <button type="button" onClick={() => set('showAddProgram', true)} className="w-full border-2 border-dashed border-blue-200 text-socrates-blue py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />{ht?"Ajoute yon pwogram":"Ajouter un programme"}</button>}
             </div>)}
           </div>
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ 5. ENSEIGNANTS ═══ */}
@@ -377,7 +391,7 @@ export default function Parametres() {
                 </div>
                 <input type="text" placeholder="Matière" value={formData.newTeacherSubject || ''} onChange={e => set('newTeacherSubject', e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm" />
                 <div className="flex gap-2">
-                  <button type="button" onClick={async () => { if (!formData.newTeacherFirst||!formData.newTeacherLast) {alert('Requis.');return;} await addDoc(collection(db,'schools',school.id,'teachers'),{firstName:formData.newTeacherFirst,lastName:formData.newTeacherLast,subject:formData.newTeacherSubject||''}); setFormData({...formData,showAddTeacher:false,newTeacherFirst:'',newTeacherLast:'',newTeacherSubject:''}); loadAllData(); }} className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                  <button type="button" onClick={async () => { if (!formData.newTeacherFirst||!formData.newTeacherLast) {alert('Requis.');return;} await addDoc(collection(db,'schools',school.id,'teachers'),{firstName:formData.newTeacherFirst,lastName:formData.newTeacherLast,subject:formData.newTeacherSubject||''}); setFormData({...formData,showAddTeacher:false,newTeacherFirst:'',newTeacherLast:'',newTeacherSubject:''}); loadAllData(); }} className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
                   <button type="button" onClick={() => set('showAddTeacher', false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
@@ -407,7 +421,7 @@ export default function Parametres() {
                   <select value={formData.newClassTeacher || ''} onChange={e => set('newClassTeacher', e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Enseignant</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={async () => { if (!formData.newClassName) {alert('Nom requis.');return;} await addDoc(collection(db,'schools',school.id,'classes'),{name:formData.newClassName,gradeLevel:formData.newClassGrade||'',teacherId:formData.newClassTeacher||'',room:''}); setFormData({...formData,showAddClass:false,newClassName:'',newClassGrade:'',newClassTeacher:''}); loadAllData(); }} className="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                  <button type="button" onClick={async () => { if (!formData.newClassName) {alert('{ht?"Non obligatwa.":"Nom requis."}');return;} await addDoc(collection(db,'schools',school.id,'classes'),{name:formData.newClassName,gradeLevel:formData.newClassGrade||'',teacherId:formData.newClassTeacher||'',room:''}); setFormData({...formData,showAddClass:false,newClassName:'',newClassGrade:'',newClassTeacher:''}); loadAllData(); }} className="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
                   <button type="button" onClick={() => set('showAddClass', false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
@@ -417,7 +431,7 @@ export default function Parametres() {
 
         {/* ═══ MATIÈRES ═══ */}
         {activeSection === 'matieres' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Matières & Coefficients</h2>
+          <h2 className="text-xl font-bold text-gray-800">Matières & {ht?"Koefisyan":"Coefficient"}s</h2>
           <p className="text-sm text-gray-500">Définissez les matières enseignées et leur poids pour le calcul des moyennes et bulletins.</p>
 
           {/* Current subjects */}
@@ -429,7 +443,7 @@ export default function Parametres() {
                   <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm font-bold">{subj.coefficient || 1}</div>
                   <div className="flex-1">
                     <p className="font-medium text-sm">{subj.name}</p>
-                    <p className="text-xs text-gray-400">Coefficient: {subj.coefficient || 1}</p>
+                    <p className="text-xs text-gray-400">{ht?"Koefisyan":"Coefficient"}: {subj.coefficient || 1}</p>
                   </div>
                   <input type="number" min="1" max="10" value={subj.coefficient || 1} onChange={e => {
                     const subs = [...(val('subjects','subjects',[]) || [])];
@@ -480,9 +494,9 @@ export default function Parametres() {
 
           {/* Custom add */}
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">➕ Ajouter une matière personnalisée</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">➕ {ht?"Ajoute yon matyè":"Ajouter une matière"} personnalisée</h3>
             <div className="flex gap-2">
-              <input type="text" value={formData.newSubjectName || ''} onChange={e => set('newSubjectName', e.target.value)} className="flex-1 px-3 py-2.5 border rounded-xl text-sm" placeholder="Nom de la matière" />
+              <input type="text" value={formData.newSubjectName || ''} onChange={e => set('newSubjectName', e.target.value)} className="flex-1 px-3 py-2.5 border rounded-xl text-sm" placeholder={ht ? "Non matyè a" : "Nom de la matière"} />
               <input type="number" min="1" max="10" value={formData.newSubjectCoeff || ''} onChange={e => set('newSubjectCoeff', e.target.value)} className="w-20 px-3 py-2.5 border rounded-xl text-sm text-center" placeholder="Coeff" />
               <button type="button" onClick={() => {
                 if (!formData.newSubjectName?.trim()) return;
@@ -496,7 +510,7 @@ export default function Parametres() {
 
           {/* Promotion threshold */}
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">🎓 Seuil de promotion</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">🎓 {ht?"Sèy pwomosyon":"Seuil de promotion"}</h3>
             <p className="text-xs text-gray-400 mb-3">Moyenne annuelle minimum pour passer à la classe supérieure</p>
             <div className="flex items-center gap-3">
               <input type="number" min="0" max="100" value={val('promotionThreshold', 'promotionThreshold', 50)} onChange={e => set('promotionThreshold', parseInt(e.target.value) || 50)} className="w-24 px-3 py-2.5 border rounded-xl text-center text-lg font-bold" />
@@ -504,7 +518,7 @@ export default function Parametres() {
             </div>
           </div>
 
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ 7. ÉLÈVES ═══ */}
@@ -539,13 +553,13 @@ export default function Parametres() {
                 </div>
                 <select value={formData.newStaffRole || ''} onChange={e => set('newStaffRole', e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"><option value="">Fonction</option>{['Secrétaire','Comptable','Surveillant(e)','Agent de sécurité',"Personnel d'entretien",'Bibliothécaire','Infirmier(ère)','Chauffeur','Autre'].map(r => <option key={r} value={r}>{r}</option>)}</select>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { if (!formData.newStaffFirst||!formData.newStaffLast||!formData.newStaffRole) {alert('Requis.');return;} setFormData({...formData, adminStaff:[...val('adminStaff','adminStaff',[]),{firstName:formData.newStaffFirst,lastName:formData.newStaffLast,role:formData.newStaffRole}], showAddStaff:false, newStaffFirst:'', newStaffLast:'', newStaffRole:''}); }} className="flex-1 bg-violet-600 text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                  <button type="button" onClick={() => { if (!formData.newStaffFirst||!formData.newStaffLast||!formData.newStaffRole) {alert('Requis.');return;} setFormData({...formData, adminStaff:[...val('adminStaff','adminStaff',[]),{firstName:formData.newStaffFirst,lastName:formData.newStaffLast,role:formData.newStaffRole}], showAddStaff:false, newStaffFirst:'', newStaffLast:'', newStaffRole:''}); }} className="flex-1 bg-violet-600 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
                   <button type="button" onClick={() => set('showAddStaff', false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
-            ) : <button type="button" onClick={() => set('showAddStaff', true)} className="w-full border-2 border-dashed border-violet-200 text-violet-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />Ajouter</button>}
+            ) : <button type="button" onClick={() => set('showAddStaff', true)} className="w-full border-2 border-dashed border-violet-200 text-violet-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />{ht?"Ajoute":"Ajouter"}</button>}
           </div>
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ 9. VIE SCOLAIRE ═══ */}
@@ -594,11 +608,11 @@ export default function Parametres() {
                 <input type="text" placeholder="Nom" value={formData.newActivityName||''} onChange={e => set('newActivityName', e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm" />
                 <input type="text" placeholder="Description" value={formData.newActivityDesc||''} onChange={e => set('newActivityDesc', e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm" />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { if (!formData.newActivityName) {alert('Nom requis.');return;} setFormData({...formData, activities:[...val('activities','activities',[]),{name:formData.newActivityName,description:formData.newActivityDesc||''}], showAddActivity:false, newActivityName:'', newActivityDesc:''}); }} className="flex-1 bg-orange-500 text-white py-2 rounded-xl text-sm font-medium">Ajouter</button>
+                  <button type="button" onClick={() => { if (!formData.newActivityName) {alert('{ht?"Non obligatwa.":"Nom requis."}');return;} setFormData({...formData, activities:[...val('activities','activities',[]),{name:formData.newActivityName,description:formData.newActivityDesc||''}], showAddActivity:false, newActivityName:'', newActivityDesc:''}); }} className="flex-1 bg-orange-500 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
                   <button type="button" onClick={() => set('showAddActivity', false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
-            ) : <button type="button" onClick={() => set('showAddActivity', true)} className="w-full border-2 border-dashed border-orange-200 text-orange-500 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />Ajouter</button>}
+            ) : <button type="button" onClick={() => set('showAddActivity', true)} className="w-full border-2 border-dashed border-orange-200 text-orange-500 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16} />{ht?"Ajoute":"Ajouter"}</button>}
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="font-semibold text-gray-800 mb-3">Contrôle Accès Parent</h3>
@@ -607,7 +621,7 @@ export default function Parametres() {
               <div className={`w-14 h-7 rounded-full transition ${val('blockParentOnDebt','blockParentOnDebt',false) ? 'bg-red-500' : 'bg-gray-300'}`}><div className={`w-7 h-7 bg-white rounded-full shadow transition transform ${val('blockParentOnDebt','blockParentOnDebt',false) ? 'translate-x-7' : 'translate-x-0'}`} /></div>
             </label>
           </div>
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ 10. FINANCES ═══ */}
@@ -663,7 +677,7 @@ export default function Parametres() {
             </div>
           </div>
 
-          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
+          <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
       </div>

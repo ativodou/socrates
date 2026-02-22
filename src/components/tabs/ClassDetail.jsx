@@ -5,7 +5,8 @@ import { useLang } from '../../i18n/LanguageContext';
 
 export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
   const { students, teachers, getStudentBalance, isAdultSchool, isPrescolaireOnly, isUpperCycle } = useSchool();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const ht = lang === 'ht';
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
   const classStudents = students.filter(s => s.enrolledClasses?.includes(viewClass.id));
@@ -23,7 +24,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
           <div className="flex-1">
             <h1 className="font-bold text-lg">{viewClass.name}</h1>
             <p className="text-xs text-blue-200">
-              {teacher ? `${teacher.firstName} ${teacher.lastName}` : `Aucun ${adult ? 'professeur' : 'enseignant'}`}
+              {teacher ? `${teacher.firstName} ${teacher.lastName}` : `${ht?'Pa gen':'Aucun'} ${adult ? (ht?'pwofesè':'professeur') : (ht?'anseyan':'enseignant')}`}
               {isUpper && assignedTeachers.length > 1 ? ` + ${assignedTeachers.length - 1}` : ''}
               {viewClass.gradeLevel && ` • ${viewClass.gradeLevel}`}
               {viewClass.room && ` • ${viewClass.room}`}
@@ -31,7 +32,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
           </div>
           <div className="text-right">
             <p className="text-xl font-bold">{classStudents.length}</p>
-            <p className="text-xs text-blue-200">{adult ? 'étudiants' : 'élèves'}</p>
+            <p className="text-xs text-blue-200">{adult ? (ht?'etidyan':'étudiants') : (ht?'elèv':'élèves')}</p>
           </div>
         </div>
       </header>
@@ -41,15 +42,15 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white rounded-xl shadow p-4 text-center">
             <p className="text-xl font-bold text-socrates-navy">{classStudents.length}</p>
-            <p className="text-xs text-gray-500">{adult ? 'Étudiants' : 'Élèves'}</p>
+            <p className="text-xs text-gray-500">{adult ? (ht?'Etidyan':t('studentsAdult')) : (ht?'Elèv':t('students'))}</p>
           </div>
           <div className="bg-white rounded-xl shadow p-4 text-center">
             <p className="text-xl font-bold text-green-600">{classStudents.filter(s => getStudentBalance(s.id) <= 0).length}</p>
-            <p className="text-xs text-gray-500">À jour</p>
+            <p className="text-xs text-gray-500">{ht?'Ajou':'À jour'}</p>
           </div>
           <div className="bg-white rounded-xl shadow p-4 text-center">
             <p className="text-xl font-bold text-red-500">{classStudents.filter(s => getStudentBalance(s.id) > 0).length}</p>
-            <p className="text-xs text-gray-500">Impayés</p>
+            <p className="text-xs text-gray-500">{ht?'Pa peye':'Impayés'}</p>
           </div>
         </div>
 
@@ -57,7 +58,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
         {capacityPct !== null && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Capacité</span>
+              <span className="text-sm font-medium text-gray-700">{ht?'Kapasite':'Capacité'}</span>
               <span className={`text-sm font-bold ${capacityPct >= 90 ? 'text-red-500' : capacityPct >= 70 ? 'text-orange-500' : 'text-green-600'}`}>{classStudents.length}/{viewClass.maxCapacity} ({capacityPct}%)</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
@@ -69,7 +70,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
         {/* Assigned Teachers (upper cycles) */}
         {isUpper && assignedTeachers.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} />{adult ? 'Professeurs' : 'Enseignants'} assignés</h3>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} />{adult ? (ht?'Pwofesè asiye':'Professeurs assignés') : (ht?'Anseyan asiye':'Enseignants assignés')}</h3>
             <div className="space-y-2">
               {assignedTeachers.map(t => (
                 <div key={t.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
@@ -80,7 +81,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
                       <p className="text-xs text-gray-400">{t.subject || ''}</p>
                     </div>
                   </div>
-                  {t.id === viewClass.teacherId && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Titulaire</span>}
+                  {t.id === viewClass.teacherId && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{ht?'Titilè':'Titulaire'}</span>}
                 </div>
               ))}
             </div>
@@ -90,7 +91,7 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
         {/* Teacher info */}
         {teacher && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} className="text-green-500" /> {adult ? 'Professeur' : 'Enseignant'} titulaire</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} className="text-green-500" /> {adult ? (ht?'Pwofesè titilè':'Professeur titulaire') : (ht?'Anseyan titilè':'Enseignant titulaire')}</h3>
             <div className="flex items-center gap-3">
               {teacher.photo ? (
                 <img src={teacher.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
@@ -107,14 +108,14 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
 
         {/* Curriculum */}
         <div className="bg-white rounded-2xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><ClipboardList size={18} className="text-socrates-blue" /> Programme / Curriculum</h3>
-          {viewClass.curriculum ? <p className="text-gray-700 whitespace-pre-wrap text-sm">{viewClass.curriculum}</p> : <p className="text-gray-400 italic text-sm">Aucun programme défini</p>}
-          <button onClick={() => onOpenModal('class', viewClass)} className="mt-3 text-socrates-blue font-medium text-sm">Modifier</button>
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><ClipboardList size={18} className="text-socrates-blue" /> {ht?'Pwogram / Kourikoulòm':'Programme / Curriculum'}</h3>
+          {viewClass.curriculum ? <p className="text-gray-700 whitespace-pre-wrap text-sm">{viewClass.curriculum}</p> : <p className="text-gray-400 italic text-sm">{ht?'Pa gen pwogram defini':'Aucun programme défini'}</p>}
+          <button onClick={() => onOpenModal('class', viewClass)} className="mt-3 text-socrates-blue font-medium text-sm">{ht?'Modifye':'Modifier'}</button>
         </div>
 
         {/* Books */}
         <div className="bg-white rounded-2xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><Book size={18} className="text-purple-500" /> Livres Requis</h3>
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><Book size={18} className="text-purple-500" /> {ht?'Liv Obligatwa':'Livres Requis'}</h3>
           {viewClass.books?.length > 0 ? (
             <div className="space-y-2">
               {viewClass.books.map((book, i) => (
@@ -122,18 +123,18 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
                   <div className="w-9 h-9 rounded-lg bg-purple-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{i + 1}</div>
                   <div>
                     <p className="font-medium text-sm text-gray-800">{book.title}</p>
-                    {book.author && <p className="text-xs text-gray-500">Auteur: {book.author}</p>}
+                    {book.author && <p className="text-xs text-gray-500">{ht?'Otè':'Auteur'}: {book.author}</p>}
                   </div>
                 </div>
               ))}
             </div>
-          ) : <p className="text-gray-400 italic text-sm">Aucun livre défini</p>}
-          <button onClick={() => onOpenModal('class', viewClass)} className="mt-3 text-socrates-blue font-medium text-sm">Modifier</button>
+          ) : <p className="text-gray-400 italic text-sm">{ht?'Pa gen liv defini':'Aucun livre défini'}</p>}
+          <button onClick={() => onOpenModal('class', viewClass)} className="mt-3 text-socrates-blue font-medium text-sm">{ht?'Modifye':'Modifier'}</button>
         </div>
 
         {/* Students */}
         <div className="bg-white rounded-2xl shadow-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} className="text-socrates-blue" /> {adult ? 'Étudiants' : 'Élèves'} ({classStudents.length})</h3>
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} className="text-socrates-blue" /> {adult ? (ht?'Etidyan':t('studentsAdult')) : (ht?'Elèv':t('students'))} ({classStudents.length})</h3>
           <div className="space-y-2">
             {classStudents.map(student => {
               const balance = getStudentBalance(student.id);
@@ -151,12 +152,12 @@ export default function ClassDetail({ viewClass, onClose, onOpenModal }) {
                     <p className="text-xs text-gray-500">{student.gradeLevel}{student.gender && ` • ${student.gender === 'M' ? '♂' : '♀'}`}</p>
                   </div>
                   <span className={`text-sm font-bold ${balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                    {balance > 0 ? `${balance.toLocaleString()} dû` : '✓'}
+                    {balance > 0 ? `${balance.toLocaleString()} ${ht?'dwe':'dû'}` : '✓'}
                   </span>
                 </div>
               );
             })}
-            {classStudents.length === 0 && <p className="text-gray-400 text-center py-4 text-sm">Aucun {adult ? 'étudiant' : 'élève'} inscrit</p>}
+            {classStudents.length === 0 && <p className="text-gray-400 text-center py-4 text-sm">{ht?'Pa gen':'Aucun'} {adult ? (ht?'etidyan':'étudiant') : (ht?'elèv':'élève')} {ht?'enskri':'inscrit'}</p>}
           </div>
         </div>
       </div>

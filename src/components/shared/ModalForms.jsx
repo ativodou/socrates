@@ -13,7 +13,8 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
     getGradeLevels, isCustomGradeType, isUpperCycle, FEE_CYCLES,
     isAdultSchool, isPrescolaireOnly,
   } = useSchool();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const ht = lang === 'ht';
 
   const [formData, setFormData] = useState({});
   const [studentTab, setStudentTab] = useState('info');
@@ -88,7 +89,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
   const removeBook = (i) => { const books = [...(formData.books || [])]; books.splice(i, 1); set('books', books); };
 
   const entityLabel = adult ? 'Étudiant' : 'Élève';
-  const title = `${editItem ? 'Modifier' : 'Ajouter'} ${
+  const title = `${editItem ? (ht?'Modifye':'Modifier') : (ht?'Ajoute':'Ajouter')} ${
     modalType === 'student' ? entityLabel :
     modalType === 'teacher' ? (adult ? 'Professeur' : 'Enseignant') :
     modalType === 'class' ? (prescoOnly ? 'Section' : 'Classe') :
@@ -140,23 +141,23 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
                   <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-socrates-blue text-white rounded-full flex items-center justify-center cursor-pointer shadow"><Camera size={14} /><input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" /></label>
                 </div>
                 <div className="flex-1 grid grid-cols-2 gap-3">
-                  <div><label className={labelCls}>Prénom <span className="text-red-400">*</span></label><input type="text" required value={formData.firstName || ''} onChange={e => set('firstName', e.target.value)} className={inputCls} /></div>
+                  <div><label className={labelCls}>{ht?'Prenon ':'Prénom '}<span className="text-red-400">*</span></label><input type="text" required value={formData.firstName || ''} onChange={e => set('firstName', e.target.value)} className={inputCls} /></div>
                   <div><label className={labelCls}>Nom <span className="text-red-400">*</span></label><input type="text" required value={formData.lastName || ''} onChange={e => set('lastName', e.target.value)} className={inputCls} /></div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={labelCls}>Sexe</label><select value={formData.gender || ''} onChange={e => set('gender', e.target.value)} className={inputCls}><option value="">Sélectionner</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
-                <div><label className={labelCls}>Date de naissance</label><input type="date" value={formData.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} /></div>
+                <div><label className={labelCls}>{ht?'Dat nesans':'Date de naissance'}</label><input type="date" value={formData.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Lieu de naissance</label><input type="text" value={formData.birthPlace || ''} onChange={e => set('birthPlace', e.target.value)} className={inputCls} placeholder="Port-au-Prince" /></div>
-                <div><label className={labelCls}>Nationalité</label><input type="text" value={formData.nationality || ''} onChange={e => set('nationality', e.target.value)} className={inputCls} placeholder="Haïtienne" /></div>
+                <div><label className={labelCls}>{ht?'Kote ou fèt':'Lieu de naissance'}</label><input type="text" value={formData.birthPlace || ''} onChange={e => set('birthPlace', e.target.value)} className={inputCls} placeholder="Port-au-Prince" /></div>
+                <div><label className={labelCls}>{ht?'Nasyonalite':'Nationalité'}</label><input type="text" value={formData.nationality || ''} onChange={e => set('nationality', e.target.value)} className={inputCls} placeholder="Haïtienne" /></div>
               </div>
               <div><label className={labelCls}>Adresse</label><input type="text" value={formData.address || ''} onChange={e => set('address', e.target.value)} className={inputCls} /></div>
               {!adult && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className={labelCls}>Groupe sanguin</label><select value={formData.bloodType || ''} onChange={e => set('bloodType', e.target.value)} className={inputCls}><option value="">—</option>{['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                  <div><label className={labelCls}>Allergies / Conditions</label><input type="text" value={formData.medicalNotes || ''} onChange={e => set('medicalNotes', e.target.value)} className={inputCls} placeholder="Aucune" /></div>
+                  <div><label className={labelCls}>{ht?'Gwoup sangen':'Groupe sanguin'}</label><select value={formData.bloodType || ''} onChange={e => set('bloodType', e.target.value)} className={inputCls}><option value="">—</option>{['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                  <div><label className={labelCls}>{ht?'Alèji / Kondisyon':'Allergies / Conditions'}</label><input type="text" value={formData.medicalNotes || ''} onChange={e => set('medicalNotes', e.target.value)} className={inputCls} placeholder="Aucune" /></div>
                 </div>
               )}
               {adult && (
@@ -225,10 +226,10 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
                 </div>
               </div>
 
-              <div><label className={labelCls}>Année d'inscription</label><input type="text" value={formData.enrollmentYear || ''} onChange={e => set('enrollmentYear', e.target.value)} className={inputCls} placeholder={`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`} /></div>
+              <div><label className={labelCls}>{ht?'Ane enskripsyon':'Année d\'inscription'}</label><input type="text" value={formData.enrollmentYear || ''} onChange={e => set('enrollmentYear', e.target.value)} className={inputCls} placeholder={`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`} /></div>
 
               {!adult && (
-                <div><label className={labelCls}>Message aux parents</label><textarea value={formData.notes || ''} onChange={e => set('notes', e.target.value)} className={`${inputCls} h-20 resize-none`} placeholder="Visible dans le portail parent" /></div>
+                <div><label className={labelCls}>{ht?'Mesaj pou paran':'Message aux parents'}</label><textarea value={formData.notes || ''} onChange={e => set('notes', e.target.value)} className={`${inputCls} h-20 resize-none`} placeholder="ht?'Vizib nan pòtay paran':'Visible dans le portail parent'" /></div>
               )}
             </div>
           )}
@@ -238,7 +239,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
             <div className="space-y-4">
               {formData.gradeLevel && <div className="bg-blue-50 rounded-xl p-3 flex items-center gap-2"><BookOpen size={16} className="text-blue-500" /><p className="text-sm text-blue-700">{adult ? 'Programme' : 'Niveau'}: <strong>{formData.gradeLevel}</strong></p></div>}
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Scolarité annuelle (HTG)</label><input type="number" min="0" value={formData.annualTuition || ''} onChange={e => set('annualTuition', e.target.value)} className={`${inputCls} text-lg font-semibold`} /></div>
+                <div><label className={labelCls}>{ht?'Ekolaj anyèl (HTG)':'Scolarité annuelle (HTG)'}</label><input type="number" min="0" value={formData.annualTuition || ''} onChange={e => set('annualTuition', e.target.value)} className={`${inputCls} text-lg font-semibold`} /></div>
                 <div><label className={labelCls}>Mensuel (÷10)</label><div className="px-4 py-3 border rounded-xl bg-gray-50 text-lg font-semibold text-gray-600">{(parseFloat(formData.annualTuition) || 0) > 0 ? `HTG ${((parseFloat(formData.annualTuition) || 0) / 10).toLocaleString()}` : '—'}</div></div>
               </div>
               <div><label className={labelCls}>Frais d'inscription (HTG)</label><input type="number" min="0" value={formData.fraisDivers || ''} onChange={e => set('fraisDivers', e.target.value)} className={inputCls} /></div>
@@ -258,15 +259,15 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
           {studentTab === 'parent' && !adult && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Nom du père</label><input type="text" value={formData.fatherName || ''} onChange={e => set('fatherName', e.target.value)} className={inputCls} /></div>
-                <div><label className={labelCls}>Nom de la mère</label><input type="text" value={formData.motherName || ''} onChange={e => set('motherName', e.target.value)} className={inputCls} /></div>
+                <div><label className={labelCls}>{ht?'Non papa':'Nom du père'}</label><input type="text" value={formData.fatherName || ''} onChange={e => set('fatherName', e.target.value)} className={inputCls} /></div>
+                <div><label className={labelCls}>{ht?'Non manman':'Nom de la mère'}</label><input type="text" value={formData.motherName || ''} onChange={e => set('motherName', e.target.value)} className={inputCls} /></div>
               </div>
-              <div><label className={labelCls}>Tuteur / Responsable</label><input type="text" value={formData.guardianName || ''} onChange={e => set('guardianName', e.target.value)} className={inputCls} placeholder="Si différent des parents" /></div>
+              <div><label className={labelCls}>{ht?'Titè / Responsab':'Tuteur / Responsable'}</label><input type="text" value={formData.guardianName || ''} onChange={e => set('guardianName', e.target.value)} className={inputCls} placeholder="Si différent des parents" /></div>
               <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Accès Portail Parent</p>
                 <div className="space-y-3">
                   <div><label className={labelCls}>Email parent</label><input type="email" value={formData.parentEmail || ''} onChange={e => set('parentEmail', e.target.value)} className={inputCls} /></div>
                   <div><label className={labelCls}>Téléphone parent</label><input type="tel" value={formData.parentPhone || ''} onChange={e => set('parentPhone', e.target.value)} className={inputCls} /></div>
-                  <div><label className={labelCls}>Code PIN (accès portail)</label><input type="text" maxLength={6} value={formData.parentPin || ''} onChange={e => set('parentPin', e.target.value)} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
+                  <div><label className={labelCls}>{ht?'Kòd PIN (aksè pòtay)':'Code PIN (accès portail)'}</label><input type="text" maxLength={6} value={formData.parentPin || ''} onChange={e => set('parentPin', e.target.value)} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
                 </div>
               </div>
               <div className="border-t pt-4"><label className={labelCls}>Contact d'urgence</label>
@@ -309,13 +310,13 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
               <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow"><Camera size={14} /><input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" /></label>
             </div>
             <div className="flex-1 grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Prénom <span className="text-red-400">*</span></label><input type="text" required value={formData.firstName || ''} onChange={e => set('firstName', e.target.value)} className={inputCls} /></div>
+              <div><label className={labelCls}>{ht?'Prenon ':'Prénom '}<span className="text-red-400">*</span></label><input type="text" required value={formData.firstName || ''} onChange={e => set('firstName', e.target.value)} className={inputCls} /></div>
               <div><label className={labelCls}>Nom <span className="text-red-400">*</span></label><input type="text" required value={formData.lastName || ''} onChange={e => set('lastName', e.target.value)} className={inputCls} /></div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={labelCls}>Sexe</label><select value={formData.gender || ''} onChange={e => set('gender', e.target.value)} className={inputCls}><option value="">Sélectionner</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
-            <div><label className={labelCls}>Date de naissance</label><input type="date" value={formData.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>{ht?'Dat nesans':'Date de naissance'}</label><input type="date" value={formData.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={labelCls}>Matière</label><input type="text" value={formData.subject || ''} onChange={e => set('subject', e.target.value)} className={inputCls} /></div>
@@ -338,7 +339,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
               <div><span className="text-sm font-medium">Également coach / moniteur</span><p className="text-xs text-gray-400">Supervise une activité parascolaire</p></div>
             </label>
             {formData.isCoach && (
-              <div className="mt-3"><label className={labelCls}>Activité coachée</label><input type="text" value={formData.coachActivity || ''} onChange={e => set('coachActivity', e.target.value)} className={inputCls} placeholder="Ex: Football, Musique, Danse..." /></div>
+              <div className="mt-3"><label className={labelCls}>{ht?'Aktivite koache':'Activité coachée'}</label><input type="text" value={formData.coachActivity || ''} onChange={e => set('coachActivity', e.target.value)} className={inputCls} placeholder="Ex: Football, Musique, Danse..." /></div>
             )}
           </div>
           <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">Rémunération</p>
@@ -348,7 +349,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
             </div>
           </div>
           <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">🔐 Accès Portail Enseignant</p>
-            <div><label className={labelCls}>Code PIN (accès portail)</label><input type="text" maxLength={6} value={formData.teacherPin || ''} onChange={e => set('teacherPin', e.target.value.replace(/\D/g, ''))} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
+            <div><label className={labelCls}>{ht?'Kòd PIN (aksè pòtay)':'Code PIN (accès portail)'}</label><input type="text" maxLength={6} value={formData.teacherPin || ''} onChange={e => set('teacherPin', e.target.value.replace(/\D/g, ''))} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
             <p className="text-xs text-gray-400 mt-1">L'enseignant utilisera ce PIN pour accéder au portail et gérer ses classes, devoirs, et notes.</p>
           </div>
         </>)}
@@ -407,7 +408,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
             </>
           )}
 
-          <div><label className={labelCls}>Capacité maximale</label><input type="number" min="1" value={formData.maxCapacity || ''} onChange={e => set('maxCapacity', e.target.value)} className={inputCls} placeholder="45" /></div>
+          <div><label className={labelCls}>{ht?'Kapasite maksimòm':'Capacité maximale'}</label><input type="number" min="1" value={formData.maxCapacity || ''} onChange={e => set('maxCapacity', e.target.value)} className={inputCls} placeholder="45" /></div>
           <div><label className={labelCls}>Programme / Curriculum</label><textarea value={formData.curriculum || ''} onChange={e => set('curriculum', e.target.value)} className={`${inputCls} h-24 resize-none`} /></div>
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-3"><label className="text-sm font-medium text-gray-700">Livres requis</label><button type="button" onClick={addBook} className="text-socrates-blue text-sm font-medium flex items-center gap-1"><Plus size={16} />Ajouter</button></div>

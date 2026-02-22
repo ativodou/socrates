@@ -14,7 +14,8 @@ export default function Grades() {
   const [viewMode, setViewMode] = useState('entry'); // 'entry' | 'summary'
 
   const adult = isAdultSchool();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const ht = lang === 'ht';
   const subjects = school?.subjects || [];
   const selectedClass = classes.find(c => c.id === selectedClassId);
   const selectedPeriod = gradingPeriods.find(p => p.id === selectedPeriodId);
@@ -116,37 +117,37 @@ export default function Grades() {
     const totalRanked = withAvg.length;
 
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bulletin — ${student.firstName} ${student.lastName}</title>
+    w.document.write(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${ht?'Bilten':'Bulletin'} — ${student.firstName} ${student.lastName}</title>
     <style>body{font-family:'Inter',sans-serif;padding:20px;max-width:900px;margin:0 auto;color:#1f2937;font-size:14px;}table{width:100%;border-collapse:collapse;}@media print{.no-print{display:none!important;}body{padding:0;}}</style></head><body>
       <div style="text-align:center;margin-bottom:20px;">
         ${school?.logo && school.logo.length > 10 ? `<img src="${school.logo}" style="width:60px;height:60px;object-fit:contain;margin:0 auto 8px;" />` : ''}
         <h1 style="color:#1e3a5f;margin:0;font-size:1.6em;">${school?.name || 'SOCRATES'}</h1>
         ${school?.address ? `<p style="color:#6b7280;margin:4px 0;font-size:0.85em;">${school.address}${school.city ? ', ' + school.city : ''}</p>` : ''}
-        ${school?.phone ? `<p style="color:#6b7280;margin:2px 0;font-size:0.85em;">Tél: ${school.phone}</p>` : ''}
+        ${school?.phone ? `<p style="color:#6b7280;margin:2px 0;font-size:0.85em;">${ht?'Tel':'Tél'}: ${school.phone}</p>` : ''}
       </div>
-      <h2 style="text-align:center;color:#1e3a5f;border-bottom:2px solid #1e3a5f;padding-bottom:8px;font-size:1.3em;">BULLETIN SCOLAIRE${selectedPeriod ? ' — ' + selectedPeriod.name : ''}</h2>
+      <h2 style="text-align:center;color:#1e3a5f;border-bottom:2px solid #1e3a5f;padding-bottom:8px;font-size:1.3em;">${ht?'BILTEN LEKÒL':'BULLETIN SCOLAIRE'}${selectedPeriod ? ' — ' + selectedPeriod.name : ''}</h2>
       <div style="display:flex;justify-content:space-between;margin:15px 0;flex-wrap:wrap;gap:8px;font-size:0.9em;">
         <div>
-          <p style="margin:3px 0;"><strong>${adult ? 'Étudiant(e)' : 'Élève'}:</strong> ${student.firstName} ${student.lastName}</p>
-          <p style="margin:3px 0;"><strong>Classe:</strong> ${selectedClass?.name || ''} ${selectedClass?.gradeLevel ? '(' + selectedClass.gradeLevel + ')' : ''}</p>
+          <p style="margin:3px 0;"><strong>${adult ? (ht?'Etidyan':'Étudiant(e)') : (ht?'Elèv':'Élève')}:</strong> ${student.firstName} ${student.lastName}</p>
+          <p style="margin:3px 0;"><strong>${ht?'Klas':'Classe'}:</strong> ${selectedClass?.name || ''} ${selectedClass?.gradeLevel ? '(' + selectedClass.gradeLevel + ')' : ''}</p>
         </div>
         <div style="text-align:right;">
-          <p style="margin:3px 0;"><strong>Année:</strong> ${new Date().getFullYear()}-${new Date().getFullYear() + 1}</p>
-          <p style="margin:3px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('fr-HT', { day:'numeric', month:'long', year:'numeric' })}</p>
+          <p style="margin:3px 0;"><strong>${ht?'Ane':'Année'}:</strong> ${new Date().getFullYear()}-${new Date().getFullYear() + 1}</p>
+          <p style="margin:3px 0;"><strong>${t('date')}:</strong> ${new Date().toLocaleDateString('fr-HT', { day:'numeric', month:'long', year:'numeric' })}</p>
         </div>
       </div>
       <table style="margin-top:10px;">
         <thead><tr>
-          <th style="padding:8px 12px;background:#1e3a5f;color:white;text-align:left;">Matière</th>
-          <th style="padding:8px 12px;background:#1e3a5f;color:white;text-align:center;">Coeff</th>
+          <th style="padding:8px 12px;background:#1e3a5f;color:white;text-align:left;">${ht?'Matyè':'Matière'}</th>
+          <th style="padding:8px 12px;background:#1e3a5f;color:white;text-align:center;">${ht?'Koef':'Coeff'}</th>
           ${periodHeaders}
-          <th style="padding:8px 12px;background:#1e3a5f;color:white;text-align:center;">Moy. Annuelle</th>
+          <th style="padding:8px 12px;background:#1e3a5f;color:white;text-align:center;">${ht?'Mwayèn Anyèl':'Moy. Annuelle'}</th>
         </tr></thead>
         <tbody>${subjectRows}</tbody>
       </table>
       <div style="display:flex;gap:12px;margin:20px 0;flex-wrap:wrap;">
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
-          <p style="color:#6b7280;font-size:0.8em;margin:0;">Moyenne Générale</p>
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">${ht?'Mwayèn Jeneral':'Moyenne Générale'}</p>
           <p style="font-size:1.5em;font-weight:700;color:${sData?.average !== null && sData.average >= 50 ? '#16a34a' : '#dc2626'};margin:4px 0;">${sData?.average !== null ? sData.average.toFixed(2) : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
@@ -154,7 +155,7 @@ export default function Grades() {
           <p style="font-size:1.5em;font-weight:700;color:#1e3a5f;margin:4px 0;">${sData?.rank ? sData.rank + '/' + totalRanked : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
-          <p style="color:#6b7280;font-size:0.8em;margin:0;">Moy. Annuelle</p>
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">${ht?'Mwayèn Anyèl':'Moy. Annuelle'}</p>
           <p style="font-size:1.5em;font-weight:700;color:${annualAvg !== null && annualAvg >= 50 ? '#16a34a' : '#dc2626'};margin:4px 0;">${annualAvg !== null ? annualAvg.toFixed(2) : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
@@ -163,16 +164,16 @@ export default function Grades() {
         </div>
       </div>
       <div style="margin:15px 0;border:1px solid #e5e7eb;border-radius:10px;padding:15px;">
-        <p style="font-weight:600;margin:0 0 8px;">Appréciation du Directeur:</p>
+        <p style="font-weight:600;margin:0 0 8px;">${ht?'Apresyasyon Direktè a:':'Appréciation du Directeur:'}</p>
         <div style="border-bottom:1px dotted #ccc;height:25px;margin-bottom:5px;"></div>
         <div style="border-bottom:1px dotted #ccc;height:25px;"></div>
       </div>
       <div style="margin-top:30px;display:flex;justify-content:space-between;">
-        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">Cachet de l'école</div>
-        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">Signature du Directeur</div>
+        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">${t('schoolStamp')}</div>
+        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">${t('directorSignature')}</div>
       </div>
-      <p style="text-align:center;color:#9ca3af;font-size:0.7em;margin-top:25px;">Document généré par SOCRATES — ${new Date().toLocaleString('fr-HT')}</p>
-      <button onclick="window.print()" class="no-print" style="margin-top:15px;padding:12px;width:100%;background:#1e3a5f;color:white;border:none;border-radius:8px;cursor:pointer;font-size:1em;">Imprimer</button>
+      <p style="text-align:center;color:#9ca3af;font-size:0.7em;margin-top:25px;">${t('generatedBy')} — ${new Date().toLocaleString('fr-HT')}</p>
+      <button onclick="window.print()" class="no-print" style="margin-top:15px;padding:12px;width:100%;background:#1e3a5f;color:white;border:none;border-radius:8px;cursor:pointer;font-size:1em;">${t('print')}</button>
     </body></html>`);
     w.document.close();
   };
@@ -216,7 +217,7 @@ export default function Grades() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl shadow-lg p-4 text-center">
             <p className="text-2xl font-bold text-socrates-navy">{classStudents.length}</p>
-            <p className="text-xs text-gray-500">{adult ? 'Étudiants' : 'Élèves'}</p>
+            <p className="text-xs text-gray-500">{adult ? (ht?'Etidyan':t('studentsAdult')) : (ht?'Elèv':t('students'))}</p>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-4 text-center">
             <p className="text-2xl font-bold text-blue-600">{classAvg}</p>
@@ -283,7 +284,7 @@ export default function Grades() {
                 <thead>
                   <tr className="bg-socrates-navy text-white">
                     <th className="px-3 py-3 text-left">#</th>
-                    <th className="px-3 py-3 text-left">{adult ? 'Étudiant(e)' : 'Élève'}</th>
+                    <th className="px-3 py-3 text-left">{adult ? (ht?'Etidyan':'Étudiant(e)') : (ht?'Elèv':'Élève')}</th>
                     {subjects.map(s => <th key={s.name} className="px-2 py-3 text-center text-xs whitespace-nowrap" title={`${s.name} (coeff ${s.coefficient})`}>{s.name.length > 5 ? s.name.substring(0, 4) + '.' : s.name}</th>)}
                     <th className="px-3 py-3 text-center">{t('average')}</th>
                     <th className="px-3 py-3 text-center">{t('rank')}</th>
@@ -329,35 +330,35 @@ export default function Grades() {
         const incomplete = promotionData.filter(p => p.status === 'incomplete').length;
 
         const applyPromotions = async () => {
-          if (!window.confirm(`Appliquer les décisions de promotion pour ${classStudents.length} ${adult ? 'étudiants' : 'élèves'}?`)) return;
+          if (!window.confirm(ht ? `Aplike desizyon pwomosyon pou ${classStudents.length} elèv?` : `Appliquer les décisions de promotion pour ${classStudents.length} ${adult ? 'étudiants' : 'élèves'}?`)) return;
           for (const p of promotionData) {
             if (p.status !== 'incomplete') {
               await saveStudent({ ...p.student, promotionStatus: p.status, promotionAverage: p.annualAverage?.toFixed(2) || '' }, p.student.id);
             }
           }
-          alert(`Promotion appliquée: ${admis} admis, ${redoublants} redoublant${redoublants > 1 ? 's' : ''}`);
+          alert(ht ? `Pwomosyon aplike: ${admis} admis, ${redoublants} redoublan` : `Promotion appliquée: ${admis} admis, ${redoublants} redoublant${redoublants > 1 ? 's' : ''}`);
         };
 
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-500">{t('promotion')} — {selectedClass?.name} — {t('promotionThreshold')}: {threshold}/100</p>
-              <button onClick={applyPromotions} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><CheckCircle size={16} />Appliquer les décisions</button>
+              <button onClick={applyPromotions} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2"><CheckCircle size={16} />{ht?'Aplike desizyon yo':'Appliquer les décisions'}</button>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-green-50 rounded-xl shadow-lg p-4 text-center border border-green-200">
                 <p className="text-2xl font-bold text-green-600">{admis}</p>
-                <p className="text-xs text-gray-500">Admis</p>
+                <p className="text-xs text-gray-500">{ht?'Admis':'Admis'}</p>
               </div>
               <div className="bg-red-50 rounded-xl shadow-lg p-4 text-center border border-red-200">
                 <p className="text-2xl font-bold text-red-500">{redoublants}</p>
-                <p className="text-xs text-gray-500">Redoublants</p>
+                <p className="text-xs text-gray-500">{ht?'Redoublan':'Redoublants'}</p>
               </div>
               <div className="bg-gray-50 rounded-xl shadow-lg p-4 text-center border border-gray-200">
                 <p className="text-2xl font-bold text-gray-400">{incomplete}</p>
-                <p className="text-xs text-gray-500">Incomplets</p>
+                <p className="text-xs text-gray-500">{ht?'Enkonplè':'Incomplets'}</p>
               </div>
             </div>
 
@@ -368,18 +369,18 @@ export default function Grades() {
                   <span className="text-sm font-bold text-gray-400 w-6">{i + 1}</span>
                   <div className="flex-1">
                     <p className="font-medium text-sm">{row.student.firstName} {row.student.lastName}</p>
-                    {row.currentStatus && <p className="text-xs text-gray-400">Statut actuel: {row.currentStatus}</p>}
+                    {row.currentStatus && <p className="text-xs text-gray-400">{ht?'Estati aktyèl':'Statut actuel'}: {row.currentStatus}</p>}
                   </div>
                   <div className="text-right">
                     {row.annualAverage !== null ? (
                       <p className={`text-lg font-bold ${row.annualAverage >= threshold ? 'text-green-600' : 'text-red-500'}`}>{row.annualAverage.toFixed(1)}</p>
                     ) : (
-                      <p className="text-sm text-gray-400">Notes manquantes</p>
+                      <p className="text-sm text-gray-400">{ht?'Nòt ki manke':'Notes manquantes'}</p>
                     )}
                   </div>
                   <div className="w-28 text-center">
-                    {row.status === 'admis' && <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><CheckCircle size={14} />Admis</span>}
-                    {row.status === 'redoublant' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold"><XCircle size={14} />Redoublant</span>}
+                    {row.status === 'admis' && <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><CheckCircle size={14} />{ht?'Admis':'Admis'}</span>}
+                    {row.status === 'redoublant' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold"><XCircle size={14} />{ht?'Redoublan':'Redoublant'}</span>}
                     {row.status === 'incomplete' && <span className="text-xs text-gray-400">—</span>}
                   </div>
                 </div>
@@ -397,7 +398,7 @@ export default function Grades() {
       )}
       {selectedClassId && selectedPeriodId && subjects.length > 0 && classStudents.length === 0 && (
         <div className="bg-white rounded-xl shadow-lg p-12 text-center text-gray-500">
-          <p>Aucun {adult ? 'étudiant' : 'élève'} dans cette classe</p>
+          <p>{ht?'Pa gen':'Aucun'} {adult ? (ht?'etidyan':'étudiant') : (ht?'elèv':'élève')} {ht?'nan klas sa a':'dans cette classe'}</p>
         </div>
       )}
     </div>
