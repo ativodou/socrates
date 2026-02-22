@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 import SchoolPublicProfile from './SchoolPublicProfile';
@@ -20,6 +20,52 @@ export default function AuthScreen() {
   const [parentView, setParentView] = useState(null); // null | { school, student }
   const [teacherView, setTeacherView] = useState(null); // null | { school, teacher, classes }
   const [viewingProfile, setViewingProfile] = useState(null); // school public profile
+  const [submittingHW, setSubmittingHW] = useState(null); // homeworkId currently submitting
+  const [submitData, setSubmitData] = useState({ text: '', photoBase64: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  // ── Image compression utility (for mobile photo uploads) ───────
+  const compressImage = (file, maxWidth = 800, quality = 0.6) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // ── Submit homework from parent portal ──────────────────────────
+  const onSubmitHomework = async (homeworkId, studentId) => {
+    if (!submitData.text && !submitData.photoBase64) return;
+    setSubmitting(true);
+    try {
+      await addDoc(collection(db, 'schools', parentView.school.id, 'submissions'), {
+        homeworkId,
+        studentId,
+        textContent: submitData.text || '',
+        photoBase64: submitData.photoBase64 || '',
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+        submittedBy: 'parent',
+      });
+      // Reload submissions
+      const subSnap = await getDocs(collection(db, 'schools', parentView.school.id, 'submissions'));
+      setParentView(prev => ({ ...prev, submissions: subSnap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+      setSubmittingHW(null);
+      setSubmitData({ text: '', photoBase64: '' });
+    } catch (err) { console.error(err); }
+    setSubmitting(false);
+  };
 
   // Load schools list for parent login & directory
   useEffect(() => {
@@ -70,15 +116,17 @@ export default function AuthScreen() {
         const accessible = allMatching.filter(s => s.parentAccessEnabled !== false);
         if (accessible.length === 0) { setError('Accès au portail bloqué. Voir direction.'); return; }
         // Load homework, exams & payments for parent view
-        const [hwSnap, examSnap, paymentsSnap] = await Promise.all([
+        const [hwSnap, examSnap, paymentsSnap, subSnap] = await Promise.all([
           getDocs(collection(db, 'schools', parentSchoolId, 'homework')),
           getDocs(collection(db, 'schools', parentSchoolId, 'exams')),
           getDocs(collection(db, 'schools', parentSchoolId, 'payments')),
+          getDocs(collection(db, 'schools', parentSchoolId, 'submissions')),
         ]);
         const hw = hwSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const ex = examSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const pay = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setParentView({ school, student: accessible[0], allStudents: accessible, homework: hw, exams: ex, payments: pay });
+        const subs = subSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setParentView({ school, student: accessible[0], allStudents: accessible, homework: hw, exams: ex, payments: pay, submissions: subs });
       } else { setError('Identifiants invalides.'); }
     } catch (err) { setError(err.message); }
   };
@@ -126,6 +174,18 @@ export default function AuthScreen() {
       moreExams: (n) => `+ ${n} autre${n > 1 ? 's' : ''} examen${n > 1 ? 's' : ''}`,
       schoolMessage: "Message de l'école:",
       schoolInfo: "Informations de l'école",
+      submit: 'Soumettre',
+      submitted: 'Soumis ✓',
+      graded: 'Corrigé',
+      viewSubmission: 'Voir soumission',
+      typeResponse: 'Écrire une réponse...',
+      takePhoto: '📷 Photo du cahier',
+      sending: 'Envoi...',
+      sendWork: 'Envoyer le travail',
+      teacherFeedback: 'Commentaire du professeur',
+      score: 'Note',
+      photoSelected: 'Photo prête',
+      changePhoto: 'Changer',
       address: 'Adresse',
       phone: 'Téléphone',
       director: 'Directeur',
@@ -148,6 +208,18 @@ export default function AuthScreen() {
       moreExams: (n) => `+ ${n} lòt egzamen`,
       schoolMessage: 'Mesaj lekòl la:',
       schoolInfo: 'Enfòmasyon lekòl la',
+      submit: 'Soumèt',
+      submitted: 'Soumèt ✓',
+      graded: 'Korije',
+      viewSubmission: 'Wè soumisyon',
+      typeResponse: 'Ekri yon repons...',
+      takePhoto: '📷 Foto kaye a',
+      sending: 'Ap voye...',
+      sendWork: 'Voye travay la',
+      teacherFeedback: 'Kòmantè pwofesè a',
+      score: 'Nòt',
+      photoSelected: 'Foto pare',
+      changePhoto: 'Chanje',
       address: 'Adrès',
       phone: 'Telefòn',
       director: 'Direktè',
@@ -158,7 +230,7 @@ export default function AuthScreen() {
   };
 
   if (parentView) {
-    const { school, allStudents, homework: parentHW = [], exams: parentExams = [], payments: parentPayments = [] } = parentView;
+    const { school, allStudents, homework: parentHW = [], exams: parentExams = [], payments: parentPayments = [], submissions: parentSubs = [] } = parentView;
     const L = t[parentLang];
     return (
       <div className="min-h-screen bg-gray-50">
@@ -184,7 +256,8 @@ export default function AuthScreen() {
             const total = scolarite + frais;
             const paid = parentPayments.filter(p => p.studentId === student.id && !p.isDeposit).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
             const balance = total - paid;
-            const studentHW = parentHW.filter(h => h.classId === student.classId && (!h.dueDate || new Date(h.dueDate) >= new Date())).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+            const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const studentHW = parentHW.filter(h => h.classId === student.classId && (!h.dueDate || new Date(h.dueDate) >= thirtyDaysAgo)).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
             const studentExams = parentExams.filter(e => e.classId === student.classId && (!e.examDate || new Date(e.examDate) >= new Date())).sort((a, b) => (a.examDate || '').localeCompare(b.examDate || ''));
             return (
               <div key={student.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -218,23 +291,83 @@ export default function AuthScreen() {
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">{L.homework}</h4>
                       <div className="space-y-2">
-                        {studentHW.slice(0, 5).map(hw => (
-                          <div key={hw.id} className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-800">{hw.title}</p>
-                                {hw.subject && <p className="text-xs text-gray-500">{hw.subject}</p>}
-                                {hw.description && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{hw.description}</p>}
+                        {studentHW.slice(0, 8).map(hw => {
+                          const existingSub = parentSubs.find(s => s.homeworkId === hw.id && s.studentId === student.id);
+                          const isSubmitting = submittingHW === `${hw.id}_${student.id}`;
+                          return (
+                            <div key={hw.id} className={`rounded-xl p-3 ${existingSub ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-100'}`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-800">{hw.title}</p>
+                                  {hw.subject && <p className="text-xs text-gray-500">{hw.subject}</p>}
+                                  {hw.description && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{hw.description}</p>}
+                                </div>
+                                <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                  {hw.dueDate && (
+                                    <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                      {new Date(hw.dueDate).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              {hw.dueDate && (
-                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full whitespace-nowrap ml-2 flex-shrink-0">
-                                  {new Date(hw.dueDate).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short' })}
-                                </span>
+
+                              {/* Submission status & actions */}
+                              {existingSub ? (
+                                <div className="mt-2 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${existingSub.status === 'graded' ? 'bg-green-200 text-green-800' : 'bg-green-100 text-green-700'}`}>
+                                      {existingSub.status === 'graded' ? `✅ ${L.graded}` : `📥 ${L.submitted}`}
+                                    </span>
+                                    <span className="text-xs text-gray-400">{new Date(existingSub.submittedAt).toLocaleDateString('fr-HT', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
+                                  </div>
+                                  {/* Show teacher feedback */}
+                                  {existingSub.status === 'graded' && (existingSub.teacherFeedback || existingSub.score) && (
+                                    <div className="bg-white border border-green-300 rounded-lg p-2.5">
+                                      <p className="text-xs font-semibold text-green-700 mb-1">{L.teacherFeedback}</p>
+                                      {existingSub.score && <p className="text-sm font-bold text-green-800">{L.score}: {existingSub.score}</p>}
+                                      {existingSub.teacherFeedback && <p className="text-sm text-gray-700">{existingSub.teacherFeedback}</p>}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="mt-2">
+                                  {isSubmitting ? (
+                                    <div className="space-y-2 bg-white rounded-lg p-3 border border-blue-200">
+                                      <textarea value={submitData.text} onChange={e => setSubmitData(prev => ({ ...prev, text: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm h-20 resize-none" placeholder={L.typeResponse} />
+                                      <div className="flex items-center gap-2">
+                                        <label className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium cursor-pointer hover:bg-gray-200 transition">
+                                          {submitData.photoBase64 ? `✅ ${L.photoSelected}` : L.takePhoto}
+                                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const compressed = await compressImage(file);
+                                              setSubmitData(prev => ({ ...prev, photoBase64: compressed }));
+                                            }
+                                          }} />
+                                        </label>
+                                        {submitData.photoBase64 && (
+                                          <button onClick={() => setSubmitData(prev => ({ ...prev, photoBase64: '' }))} className="text-xs text-red-500">{L.changePhoto}</button>
+                                        )}
+                                      </div>
+                                      {submitData.photoBase64 && <img src={submitData.photoBase64} alt="" className="rounded-lg max-h-32 w-auto" />}
+                                      <div className="flex gap-2">
+                                        <button disabled={submitting || (!submitData.text && !submitData.photoBase64)} onClick={() => onSubmitHomework(hw.id, student.id)} className="flex-1 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+                                          {submitting ? L.sending : `📤 ${L.sendWork}`}
+                                        </button>
+                                        <button onClick={() => { setSubmittingHW(null); setSubmitData({ text: '', photoBase64: '' }); }} className="px-3 py-2.5 bg-gray-100 rounded-lg text-gray-600 text-sm">✕</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => { setSubmittingHW(`${hw.id}_${student.id}`); setSubmitData({ text: '', photoBase64: '' }); }} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition">
+                                      📤 {L.submit}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          </div>
-                        ))}
-                        {studentHW.length > 5 && <p className="text-xs text-gray-400 text-center">{L.moreHW(studentHW.length - 5)}</p>}
+                          );
+                        })}
+                        {studentHW.length > 8 && <p className="text-xs text-gray-400 text-center">{L.moreHW(studentHW.length - 8)}</p>}
                       </div>
                     </div>
                   )}
