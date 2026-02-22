@@ -135,6 +135,9 @@ export function SchoolProvider({ children }) {
   const [teacherPayments, setTeacherPayments] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [gradingPeriods, setGradingPeriods] = useState([]);
+  const [homework, setHomework] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [attendance, setAttendance] = useState([]);
 
   // Super admin data
   const [allSchools, setAllSchools] = useState([]);
@@ -198,7 +201,7 @@ export function SchoolProvider({ children }) {
   const loadAllData = useCallback(async () => {
     if (!school) return;
     try {
-      const [studentsSnap, teachersSnap, classesSnap, periodsSnap, gradesSnap, paymentsSnap, tpSnap, expSnap] = await Promise.all([
+      const [studentsSnap, teachersSnap, classesSnap, periodsSnap, gradesSnap, paymentsSnap, tpSnap, expSnap, hwSnap, examSnap, attSnap] = await Promise.all([
         getDocs(query(collection(db, 'schools', school.id, 'students'), orderBy('lastName'))),
         getDocs(collection(db, 'schools', school.id, 'teachers')),
         getDocs(collection(db, 'schools', school.id, 'classes')),
@@ -207,6 +210,9 @@ export function SchoolProvider({ children }) {
         getDocs(query(collection(db, 'schools', school.id, 'payments'), orderBy('date', 'desc'))),
         getDocs(query(collection(db, 'schools', school.id, 'teacherPayments'), orderBy('date', 'desc'))),
         getDocs(query(collection(db, 'schools', school.id, 'expenses'), orderBy('date', 'desc'))),
+        getDocs(collection(db, 'schools', school.id, 'homework')),
+        getDocs(collection(db, 'schools', school.id, 'exams')),
+        getDocs(collection(db, 'schools', school.id, 'attendance')),
       ]);
       setStudents(studentsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setTeachers(teachersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -216,6 +222,9 @@ export function SchoolProvider({ children }) {
       setPayments(paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setTeacherPayments(tpSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setExpenses(expSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setHomework(hwSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setExams(examSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setAttendance(attSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (error) { console.error('Error loading data:', error); }
   }, [school]);
 
@@ -404,6 +413,7 @@ export function SchoolProvider({ children }) {
       photo: data.photo || '',
       isCoach: data.isCoach || false,
       coachActivity: data.coachActivity || '',
+      teacherPin: data.teacherPin || '',
       updatedAt: serverTimestamp()
     };
     if (editId) await updateDoc(doc(db, 'schools', school.id, 'teachers', editId), payload);
@@ -506,9 +516,90 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
+  // ── Homework CRUD ──────────────────────────────────────────────────
+  const saveHomework = async (data, editId = null) => {
+    const payload = {
+      classId: data.classId || '',
+      teacherId: data.teacherId || '',
+      title: data.title || '',
+      description: data.description || '',
+      subject: data.subject || '',
+      dueDate: data.dueDate || '',
+      postedDate: data.postedDate || new Date().toISOString().split('T')[0],
+    };
+    if (editId) await updateDoc(doc(db, 'schools', school.id, 'homework', editId), { ...payload, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db, 'schools', school.id, 'homework'), { ...payload, createdAt: serverTimestamp() });
+    loadAllData();
+  };
+
+  const deleteHomework = async (id) => {
+    if (!confirm('Supprimer ce devoir?')) return;
+    await deleteDoc(doc(db, 'schools', school.id, 'homework', id));
+    loadAllData();
+  };
+
+  // ── Exams CRUD ─────────────────────────────────────────────────────
+  const saveExam = async (data, editId = null) => {
+    const payload = {
+      classId: data.classId || '',
+      teacherId: data.teacherId || '',
+      title: data.title || '',
+      subject: data.subject || '',
+      examDate: data.examDate || '',
+      periodId: data.periodId || '',
+      totalPoints: parseFloat(data.totalPoints) || 100,
+      description: data.description || '',
+    };
+    if (editId) await updateDoc(doc(db, 'schools', school.id, 'exams', editId), { ...payload, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db, 'schools', school.id, 'exams'), { ...payload, createdAt: serverTimestamp() });
+    loadAllData();
+  };
+
+  const deleteExam = async (id) => {
+    if (!confirm('Supprimer cet examen?')) return;
+    await deleteDoc(doc(db, 'schools', school.id, 'exams', id));
+    loadAllData();
+  };
+
+  // ── Attendance CRUD ────────────────────────────────────────────────
+  const saveAttendance = async (data) => {
+    // data: { classId, teacherId, date, records: [{ studentId, status: 'present'|'absent'|'late' }] }
+    const key = `${data.classId}_${data.date}`;
+    const existing = attendance.find(a => a.classId === data.classId && a.date === data.date);
+    const payload = {
+      classId: data.classId,
+      teacherId: data.teacherId || '',
+      date: data.date,
+      records: data.records || [],
+    };
+    if (existing) await updateDoc(doc(db, 'schools', school.id, 'attendance', existing.id), { ...payload, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db, 'schools', school.id, 'attendance'), { ...payload, createdAt: serverTimestamp() });
+    loadAllData();
+  };
+
   const updateSchoolSettings = async (updateData) => {
     await updateDoc(doc(db, 'schools', school.id), updateData);
     setSchool({ ...school, ...updateData });
+  };
+
+  const autoFlagOverdue = async () => {
+    const threshold = parseInt(school?.overdueThreshold) || 2;
+    let flagged = 0;
+    for (const student of students) {
+      const monthly = (parseFloat(student.annualTuition) || 0) / 10;
+      if (monthly <= 0) continue;
+      const balance = getStudentBalance(student.id);
+      const monthsBehind = Math.floor(balance / monthly);
+      if (monthsBehind >= threshold && student.flag !== 'financial') {
+        await updateDoc(doc(db, 'schools', school.id, 'students', student.id), {
+          flag: 'financial',
+          flagNote: `Retard de ${monthsBehind} mois (auto)`
+        });
+        flagged++;
+      }
+    }
+    if (flagged > 0) loadAllData();
+    return flagged;
   };
 
   // ── Computed helpers ───────────────────────────────────────────────
@@ -576,6 +667,7 @@ export function SchoolProvider({ children }) {
 
     // School data
     students, teachers, classes, grades, payments, teacherPayments, expenses, gradingPeriods,
+    homework, exams, attendance,
     loadAllData,
 
     // CRUD
@@ -587,7 +679,11 @@ export function SchoolProvider({ children }) {
     savePayment, deletePayment,
     saveTeacherPayment, deleteTeacherPayment,
     saveExpense, deleteExpense,
+    saveHomework, deleteHomework,
+    saveExam, deleteExam,
+    saveAttendance,
     updateSchoolSettings,
+    autoFlagOverdue,
 
     // Super admin
     allSchools, subscriptionPayments,

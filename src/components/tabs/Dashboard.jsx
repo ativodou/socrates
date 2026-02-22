@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Users, GraduationCap, BookOpen, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Flag, ArrowUpRight, ArrowDownRight, Plus, ChevronRight, Clock, Percent, Wallet, PiggyBank } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Users, GraduationCap, BookOpen, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Flag, ArrowUpRight, ArrowDownRight, Plus, ChevronRight, Clock, Percent, Wallet, PiggyBank, RefreshCw } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 
 const FLAG_LABELS = {
@@ -16,8 +16,10 @@ export default function Dashboard({ onOpenModal }) {
     school, students, teachers, classes, payments, teacherPayments, expenses,
     getStudentBalance, getTeacherBalance,
     isAdultSchool, isPrescolaireOnly,
-    setActiveTab,
+    setActiveTab, autoFlagOverdue,
   } = useSchool();
+
+  const [flagMessage, setFlagMessage] = useState(null);
 
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
@@ -164,7 +166,19 @@ export default function Dashboard({ onOpenModal }) {
               <ChevronRight size={14} />
             </button>
           )}
+          {unpaidStudents > 0 && (
+            <button onClick={async () => {
+              const count = await autoFlagOverdue();
+              setFlagMessage(count > 0 ? `${count} ${adult ? 'étudiant' : 'élève'}${count > 1 ? 's' : ''} signalé${count > 1 ? 's' : ''} automatiquement` : 'Aucun nouveau signalement');
+              setTimeout(() => setFlagMessage(null), 4000);
+            }} className="flex items-center gap-2 bg-socrates-navy text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-900 transition">
+              <RefreshCw size={16} />Signaler impayés
+            </button>
+          )}
         </div>
+      )}
+      {flagMessage && (
+        <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-xl text-sm font-medium animate-pulse">{flagMessage}</div>
       )}
 
       {/* ── Middle row: Receivables + Payables + Recent Activity ── */}

@@ -345,6 +345,10 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
               <div><label className="block text-sm text-gray-600 mb-1">Mensuel (÷10)</label><div className="px-4 py-3 border rounded-xl bg-gray-50 text-lg font-semibold text-gray-600">{formData.annualSalary ? `HTG ${(parseFloat(formData.annualSalary) / 10).toLocaleString()}` : '—'}</div></div>
             </div>
           </div>
+          <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-3">🔐 Accès Portail Enseignant</p>
+            <div><label className={labelCls}>Code PIN (accès portail)</label><input type="text" maxLength={6} value={formData.teacherPin || ''} onChange={e => set('teacherPin', e.target.value.replace(/\D/g, ''))} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
+            <p className="text-xs text-gray-400 mt-1">L'enseignant utilisera ce PIN pour accéder au portail et gérer ses classes, devoirs, et notes.</p>
+          </div>
         </>)}
 
         {/* ═══ CLASS ═══ */}

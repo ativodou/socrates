@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, Plus, Download, Trash2, Search, Filter, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Receipt } from 'lucide-react';
+import { DollarSign, Plus, Download, Trash2, Search, Filter, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Receipt, BarChart3, X } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 
 const PAYMENT_TYPE_LABELS = {
@@ -39,6 +39,8 @@ export default function Payments({ onOpenModal }) {
   const [filterMethod, setFilterMethod] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showBilan, setShowBilan] = useState(false);
+  const [bilanMonth, setBilanMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const adult = isAdultSchool();
   const studentLabel = adult ? 'Étudiants' : 'Élèves';
@@ -118,6 +120,184 @@ export default function Payments({ onOpenModal }) {
     if (entry.subType === 'student') deletePayment(entry.id);
     else if (entry.subType === 'teacher') deleteTeacherPayment(entry.id);
     else if (entry.subType === 'expense') deleteExpense(entry.id);
+  };
+
+  const generateBilan = () => {
+    const [year, month] = bilanMonth.split('-');
+    const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    const monthName = monthNames[parseInt(month) - 1];
+    const prevMonth = parseInt(month) === 1 ? `${parseInt(year) - 1}-12` : `${year}-${String(parseInt(month) - 1).padStart(2, '0')}`;
+
+    // Filter by month
+    const mPayments = payments.filter(p => (p.date || '').startsWith(bilanMonth));
+    const mTeacherPay = teacherPayments.filter(p => (p.date || '').startsWith(bilanMonth));
+    const mExpenses = (expenses || []).filter(p => (p.date || '').startsWith(bilanMonth));
+
+    // Previous month for comparison
+    const pmPayments = payments.filter(p => (p.date || '').startsWith(prevMonth));
+    const pmTeacherPay = teacherPayments.filter(p => (p.date || '').startsWith(prevMonth));
+    const pmExpenses = (expenses || []).filter(p => (p.date || '').startsWith(prevMonth));
+
+    // Revenue by type
+    const revenueByType = {};
+    mPayments.forEach(p => {
+      const type = p.paymentType || (p.isDeposit ? 'deposit' : 'scolarite');
+      revenueByType[type] = (revenueByType[type] || 0) + (parseFloat(p.amount) || 0);
+    });
+
+    // Expenses by category
+    const expenseByCategory = {};
+    mExpenses.forEach(p => {
+      const cat = p.category || 'other';
+      expenseByCategory[cat] = (expenseByCategory[cat] || 0) + (parseFloat(p.amount) || 0);
+    });
+
+    const totalRevenue = mPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const totalSalaries = mTeacherPay.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const totalExpenses = mExpenses.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const totalOut = totalSalaries + totalExpenses;
+    const net = totalRevenue - totalOut;
+
+    const prevRevenue = pmPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const prevOut = pmTeacherPay.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) + pmExpenses.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const prevNet = prevRevenue - prevOut;
+
+    const arrow = (current, previous) => {
+      if (previous === 0) return '';
+      const pct = Math.round(((current - previous) / previous) * 100);
+      if (pct > 0) return `<span style="color:#16a34a;">↑ +${pct}%</span>`;
+      if (pct < 0) return `<span style="color:#dc2626;">↓ ${pct}%</span>`;
+      return '<span style="color:#6b7280;">= 0%</span>';
+    };
+
+    const revenueRows = Object.entries(revenueByType).sort((a, b) => b[1] - a[1]).map(([type, amount]) => {
+      const label = PAYMENT_TYPE_LABELS[type] || type;
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${label}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#16a34a;">HTG ${amount.toLocaleString()}</td></tr>`;
+    }).join('');
+
+    const salaryRows = mTeacherPay.map(p => {
+      const t = teachers.find(tc => tc.id === p.teacherId);
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${t ? t.firstName + ' ' + t.lastName : 'Inconnu'}${p.month ? ' — ' + p.month : ''}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#dc2626;">HTG ${(parseFloat(p.amount) || 0).toLocaleString()}</td></tr>`;
+    }).join('');
+
+    const expenseRows = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([cat, amount]) => {
+      const info = EXPENSE_CATEGORIES[cat] || EXPENSE_CATEGORIES.other;
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${info.icon} ${info.label}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#dc2626;">HTG ${amount.toLocaleString()}</td></tr>`;
+    }).join('');
+
+    const totalStudentDue = students.reduce((sum, s) => sum + Math.max(0, getStudentBalance(s.id)), 0);
+    const totalTeacherDue = teachers.reduce((sum, t) => sum + Math.max(0, getTeacherBalance(t.id)), 0);
+    const unpaidStudents = students.filter(s => getStudentBalance(s.id) > 0);
+    const top5Debtors = [...unpaidStudents].sort((a, b) => getStudentBalance(b.id) - getStudentBalance(a.id)).slice(0, 5);
+
+    const debtorRows = top5Debtors.map(s => {
+      const bal = getStudentBalance(s.id);
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${s.firstName} ${s.lastName}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${s.gradeLevel || 'N/A'}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#dc2626;">HTG ${bal.toLocaleString()}</td></tr>`;
+    }).join('');
+
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bilan ${monthName} ${year}</title>
+    <style>
+      body { font-family: 'Inter', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1f2937; font-size: 14px; }
+      @media print { .no-print { display: none !important; } body { padding: 0; } }
+      table { width: 100%; border-collapse: collapse; }
+      .section { margin: 25px 0; }
+      .section h3 { color: #1e3a5f; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 10px; }
+      .card { display: inline-block; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center; margin: 5px; }
+    </style></head><body>
+
+      <div style="text-align:center;margin-bottom:30px;">
+        <h1 style="color:#1e3a5f;margin:0;font-size:1.8em;">${school?.name || 'SOCRATES'}</h1>
+        ${school?.address ? `<p style="color:#6b7280;margin:4px 0;">${school.address}${school.city ? ', ' + school.city : ''}</p>` : ''}
+        ${school?.phone ? `<p style="color:#6b7280;margin:4px 0;">Tél: ${school.phone}</p>` : ''}
+      </div>
+
+      <h2 style="text-align:center;color:#1e3a5f;border-bottom:3px solid #1e3a5f;padding-bottom:10px;">BILAN MENSUEL — ${monthName.toUpperCase()} ${year}</h2>
+
+      <!-- Summary Cards -->
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:25px 0;">
+        <div class="card" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">Entrées</p>
+          <p style="font-size:1.5em;font-weight:700;color:#16a34a;margin:5px 0;">HTG ${totalRevenue.toLocaleString()}</p>
+          <p style="font-size:0.75em;margin:0;">${arrow(totalRevenue, prevRevenue)} vs mois préc.</p>
+        </div>
+        <div class="card" style="background:#fef2f2;border:1px solid #fecaca;">
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">Sorties</p>
+          <p style="font-size:1.5em;font-weight:700;color:#dc2626;margin:5px 0;">HTG ${totalOut.toLocaleString()}</p>
+          <p style="font-size:0.75em;margin:0;">${arrow(totalOut, prevOut)} vs mois préc.</p>
+        </div>
+        <div class="card" style="background:${net >= 0 ? '#f0fdf4' : '#fef2f2'};border:1px solid ${net >= 0 ? '#bbf7d0' : '#fecaca'};">
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">Résultat Net</p>
+          <p style="font-size:1.5em;font-weight:700;color:${net >= 0 ? '#16a34a' : '#dc2626'};margin:5px 0;">${net >= 0 ? '' : '-'}HTG ${Math.abs(net).toLocaleString()}</p>
+          <p style="font-size:0.75em;margin:0;">${arrow(net, prevNet)} vs mois préc.</p>
+        </div>
+      </div>
+
+      <!-- Revenue Breakdown -->
+      <div class="section">
+        <h3>📈 Entrées — Détail par type</h3>
+        ${revenueRows ? `<table>${revenueRows}
+          <tr style="background:#f0fdf4;font-weight:700;"><td style="padding:10px 12px;">TOTAL ENTRÉES</td><td style="padding:10px 12px;text-align:right;color:#16a34a;">HTG ${totalRevenue.toLocaleString()}</td></tr>
+        </table>` : '<p style="color:#9ca3af;">Aucune entrée ce mois</p>'}
+        <p style="color:#6b7280;font-size:0.85em;margin-top:8px;">${mPayments.length} paiement${mPayments.length !== 1 ? 's' : ''} reçu${mPayments.length !== 1 ? 's' : ''}</p>
+      </div>
+
+      <!-- Salaries -->
+      <div class="section">
+        <h3>👥 Salaires ${adult ? 'Professeurs' : 'Enseignants'}</h3>
+        ${salaryRows ? `<table>${salaryRows}
+          <tr style="background:#fef2f2;font-weight:700;"><td style="padding:10px 12px;">TOTAL SALAIRES</td><td style="padding:10px 12px;text-align:right;color:#dc2626;">HTG ${totalSalaries.toLocaleString()}</td></tr>
+        </table>` : '<p style="color:#9ca3af;">Aucun salaire versé ce mois</p>'}
+      </div>
+
+      <!-- Expenses -->
+      <div class="section">
+        <h3>📋 Dépenses par catégorie</h3>
+        ${expenseRows ? `<table>${expenseRows}
+          <tr style="background:#fef2f2;font-weight:700;"><td style="padding:10px 12px;">TOTAL DÉPENSES</td><td style="padding:10px 12px;text-align:right;color:#dc2626;">HTG ${totalExpenses.toLocaleString()}</td></tr>
+        </table>` : '<p style="color:#9ca3af;">Aucune dépense ce mois</p>'}
+      </div>
+
+      <!-- Outstanding balances -->
+      <div class="section">
+        <h3>⚠️ Situation des Impayés</h3>
+        <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:15px;">
+          <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;">
+            <p style="margin:0;font-size:0.8em;color:#6b7280;">${adult ? 'Étudiants' : 'Élèves'} avec solde</p>
+            <p style="margin:4px 0;font-size:1.3em;font-weight:700;color:#ea580c;">${unpaidStudents.length} / ${students.length}</p>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;">
+            <p style="margin:0;font-size:0.8em;color:#6b7280;">Total dû ${adult ? 'étudiants' : 'élèves'}</p>
+            <p style="margin:4px 0;font-size:1.3em;font-weight:700;color:#ea580c;">HTG ${totalStudentDue.toLocaleString()}</p>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;">
+            <p style="margin:0;font-size:0.8em;color:#6b7280;">Salaires restants à verser</p>
+            <p style="margin:4px 0;font-size:1.3em;font-weight:700;color:#ea580c;">HTG ${totalTeacherDue.toLocaleString()}</p>
+          </div>
+        </div>
+        ${debtorRows ? `<p style="font-weight:600;margin-bottom:5px;">Top 5 — ${adult ? 'Étudiants' : 'Élèves'} les plus endettés:</p>
+        <table>
+          <thead><tr style="background:#1e3a5f;color:white;">
+            <th style="padding:8px 12px;text-align:left;">Nom</th>
+            <th style="padding:8px 12px;text-align:left;">Niveau</th>
+            <th style="padding:8px 12px;text-align:right;">Solde dû</th>
+          </tr></thead>
+          <tbody>${debtorRows}</tbody>
+        </table>` : ''}
+      </div>
+
+      <!-- Signatures -->
+      <div style="margin-top:40px;display:flex;justify-content:space-between;">
+        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">Cachet de l'école</div>
+        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">Signature du Directeur</div>
+      </div>
+
+      <p style="text-align:center;color:#9ca3af;font-size:0.75em;margin-top:30px;">Rapport généré par SOCRATES — ${new Date().toLocaleString('fr-HT')}</p>
+
+      <button onclick="window.print()" class="no-print" style="margin-top:20px;padding:15px 30px;font-size:1em;width:100%;background:#1e3a5f;color:white;border:none;border-radius:8px;cursor:pointer;">Imprimer</button>
+    </body></html>`);
+    w.document.close();
+    setShowBilan(false);
   };
 
   const formatDate = (d) => {
@@ -211,6 +391,7 @@ export default function Payments({ onOpenModal }) {
           <button onClick={() => setShowFilters(!showFilters)} className={`px-3 py-2.5 border rounded-xl flex items-center gap-1 ${showFilters ? 'bg-socrates-blue text-white' : ''}`}><Filter size={16} /><ChevronDown size={12} /></button>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowBilan(true)} className="flex-1 sm:flex-none bg-socrates-navy text-white px-4 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"><BarChart3 size={16} />Bilan</button>
           <button onClick={() => onOpenModal('expense')} className="flex-1 sm:flex-none bg-orange-500 text-white px-4 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"><Receipt size={16} />Dépense</button>
         </div>
       </div>
@@ -274,6 +455,31 @@ export default function Payments({ onOpenModal }) {
               <p>Aucune transaction{filterMethod || filterMonth || searchTerm ? ' pour ces filtres' : ''}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Bilan Month Picker */}
+      {showBilan && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBilan(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-socrates-navy">Bilan Mensuel</h3>
+              <button onClick={() => setShowBilan(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Sélectionnez le mois pour générer le rapport financier.</p>
+            <input
+              type="month"
+              value={bilanMonth}
+              onChange={e => setBilanMonth(e.target.value)}
+              className="w-full px-4 py-3 border rounded-xl text-base mb-4 focus:ring-2 focus:ring-socrates-blue/20 focus:border-socrates-blue"
+            />
+            <button
+              onClick={generateBilan}
+              className="w-full bg-socrates-navy text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-900 transition"
+            >
+              <BarChart3 size={18} />Générer le Bilan
+            </button>
+          </div>
         </div>
       )}
     </div>

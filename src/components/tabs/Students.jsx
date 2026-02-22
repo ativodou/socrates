@@ -14,7 +14,7 @@ const FLAG_TYPES = [
 ];
 
 export default function Students({ onOpenModal }) {
-  const { students, school, classes, deleteStudent, getStudentBalance, getMonthlyTuition, loadAllData, isAdultSchool } = useSchool();
+  const { students, school, classes, payments, deleteStudent, getStudentBalance, getMonthlyTuition, getStudentTotal, loadAllData, isAdultSchool } = useSchool();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -54,6 +54,121 @@ export default function Students({ onOpenModal }) {
   const generateReportCard = (student) => {
     const w = window.open('', '_blank');
     w.document.write(`<html><head><title>Bulletin</title></head><body style="font-family:sans-serif;padding:20px;"><h1>${school?.name || 'SOCRATES'}</h1><h2>Bulletin Scolaire</h2><p><strong>${adult ? 'Étudiant' : 'Élève'}:</strong> ${student.firstName} ${student.lastName}</p><p><strong>Niveau:</strong> ${student.gradeLevel || 'N/A'}</p><p style="color:#999;">Les notes détaillées sont disponibles dans l'onglet Notes.</p><button onclick="window.print()" style="margin-top:20px;padding:15px 30px;width:100%;">Imprimer</button></body></html>`);
+    w.document.close();
+  };
+
+  const PAYMENT_TYPE_LABELS = {
+    scolarite: 'Scolarité', inscription: 'Inscription', deposit: 'Dépôt',
+    examen: 'Examen', uniforme: 'Uniforme', transport: 'Transport',
+    cantine: 'Cantine', activite: 'Activité', autre: 'Autre',
+  };
+
+  const generateStatement = (student) => {
+    const studentPayments = payments
+      .filter(p => p.studentId === student.id)
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    const scolarite = parseFloat(student.annualTuition) || 0;
+    const fraisDivers = parseFloat(student.fraisDivers) || 0;
+    const totalOwed = scolarite + fraisDivers;
+    const totalPaid = studentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const balance = totalOwed - totalPaid;
+    const cls = classes.find(c => c.id === student.classId);
+
+    let runningPaid = 0;
+    const rows = studentPayments.map(p => {
+      const amt = parseFloat(p.amount) || 0;
+      runningPaid += amt;
+      const runningBalance = totalOwed - runningPaid;
+      const typeLabel = PAYMENT_TYPE_LABELS[p.paymentType] || (p.isDeposit ? 'Dépôt' : 'Scolarité');
+      const dateStr = p.date ? new Date(p.date).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+      return `<tr>
+        <td style="padding:10px;border:1px solid #e5e7eb;">${dateStr}</td>
+        <td style="padding:10px;border:1px solid #e5e7eb;">${typeLabel}${p.month ? ' — ' + p.month : ''}</td>
+        <td style="padding:10px;border:1px solid #e5e7eb;">${p.method || 'Espèces'}</td>
+        <td style="padding:10px;border:1px solid #e5e7eb;text-align:right;color:#16a34a;font-weight:600;">HTG ${amt.toLocaleString()}</td>
+        <td style="padding:10px;border:1px solid #e5e7eb;text-align:right;color:${runningBalance > 0 ? '#dc2626' : '#16a34a'};font-weight:600;">HTG ${runningBalance.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Relevé de Compte</title>
+    <style>
+      body { font-family: 'Inter', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1f2937; }
+      @media print { .no-print { display: none !important; } body { padding: 0; } }
+    </style></head><body>
+      <div style="text-align:center;margin-bottom:30px;">
+        <h1 style="color:#1e3a5f;margin:0;font-size:1.8em;">${school?.name || 'SOCRATES'}</h1>
+        ${school?.address ? `<p style="color:#6b7280;margin:4px 0;">${school.address}${school.city ? ', ' + school.city : ''}</p>` : ''}
+        ${school?.phone ? `<p style="color:#6b7280;margin:4px 0;">Tél: ${school.phone}</p>` : ''}
+      </div>
+
+      <h2 style="text-align:center;color:#1e3a5f;border-bottom:2px solid #1e3a5f;padding-bottom:10px;">RELEVÉ DE COMPTE</h2>
+
+      <div style="display:flex;justify-content:space-between;margin:20px 0;flex-wrap:wrap;gap:10px;">
+        <div>
+          <p style="margin:4px 0;"><strong>${adult ? 'Étudiant(e)' : 'Élève'}:</strong> ${student.firstName} ${student.lastName}</p>
+          <p style="margin:4px 0;"><strong>Niveau:</strong> ${student.gradeLevel || 'N/A'}</p>
+          ${cls ? `<p style="margin:4px 0;"><strong>Classe:</strong> ${cls.name}</p>` : ''}
+        </div>
+        <div style="text-align:right;">
+          <p style="margin:4px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('fr-HT', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p style="margin:4px 0;"><strong>Réf:</strong> ${student.id.slice(0, 8).toUpperCase()}</p>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:15px;margin:20px 0;flex-wrap:wrap;">
+        <div style="flex:1;min-width:150px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:15px;text-align:center;">
+          <p style="color:#6b7280;font-size:0.85em;margin:0;">Total Dû</p>
+          <p style="font-size:1.4em;font-weight:700;color:#1f2937;margin:5px 0;">HTG ${totalOwed.toLocaleString()}</p>
+        </div>
+        <div style="flex:1;min-width:150px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:15px;text-align:center;">
+          <p style="color:#6b7280;font-size:0.85em;margin:0;">Total Payé</p>
+          <p style="font-size:1.4em;font-weight:700;color:#16a34a;margin:5px 0;">HTG ${totalPaid.toLocaleString()}</p>
+        </div>
+        <div style="flex:1;min-width:150px;background:${balance > 0 ? '#fef2f2' : '#f0fdf4'};border:1px solid ${balance > 0 ? '#fecaca' : '#bbf7d0'};border-radius:12px;padding:15px;text-align:center;">
+          <p style="color:#6b7280;font-size:0.85em;margin:0;">Solde</p>
+          <p style="font-size:1.4em;font-weight:700;color:${balance > 0 ? '#dc2626' : '#16a34a'};margin:5px 0;">${balance > 0 ? 'HTG ' + balance.toLocaleString() : 'SOLDÉ'}</p>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:8px;padding:12px;margin:15px 0;">
+        <p style="margin:4px 0;font-size:0.9em;"><strong>Scolarité annuelle:</strong> HTG ${scolarite.toLocaleString()} (HTG ${(scolarite / 10).toLocaleString()} / mois × 10)</p>
+        <p style="margin:4px 0;font-size:0.9em;"><strong>Frais divers:</strong> HTG ${fraisDivers.toLocaleString()}</p>
+      </div>
+
+      <h3 style="margin-top:25px;color:#1e3a5f;">Historique des Paiements</h3>
+      ${studentPayments.length > 0 ? `
+        <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:0.9em;">
+          <thead>
+            <tr style="background:#1e3a5f;color:white;">
+              <th style="padding:10px;text-align:left;border:1px solid #1e3a5f;">Date</th>
+              <th style="padding:10px;text-align:left;border:1px solid #1e3a5f;">Type</th>
+              <th style="padding:10px;text-align:left;border:1px solid #1e3a5f;">Méthode</th>
+              <th style="padding:10px;text-align:right;border:1px solid #1e3a5f;">Montant</th>
+              <th style="padding:10px;text-align:right;border:1px solid #1e3a5f;">Solde</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#f8fafc;">
+              <td style="padding:10px;border:1px solid #e5e7eb;" colspan="3"><em>Solde initial</em></td>
+              <td style="padding:10px;border:1px solid #e5e7eb;text-align:right;">—</td>
+              <td style="padding:10px;border:1px solid #e5e7eb;text-align:right;font-weight:600;color:#dc2626;">HTG ${totalOwed.toLocaleString()}</td>
+            </tr>
+            ${rows}
+          </tbody>
+        </table>
+      ` : '<p style="text-align:center;color:#9ca3af;padding:20px;">Aucun paiement enregistré</p>'}
+
+      <div style="margin-top:40px;display:flex;justify-content:space-between;">
+        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">Cachet de l'école</div>
+        <div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">Signature du Directeur</div>
+      </div>
+
+      <p style="text-align:center;color:#9ca3af;font-size:0.75em;margin-top:30px;">Document généré par SOCRATES — ${new Date().toLocaleString('fr-HT')}</p>
+
+      <button onclick="window.print()" class="no-print" style="margin-top:20px;padding:15px 30px;font-size:1em;width:100%;background:#1e3a5f;color:white;border:none;border-radius:8px;cursor:pointer;">Imprimer</button>
+    </body></html>`);
     w.document.close();
   };
 
@@ -246,6 +361,7 @@ export default function Students({ onOpenModal }) {
 
                 <div className="flex gap-2 flex-wrap mt-3">
                   <button onClick={() => { onOpenModal('payment', null, { studentId: student.id, amount: getMonthlyTuition(student), paymentType: 'scolarite' }); }} className="flex-1 bg-green-100 text-green-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><DollarSign size={16} />Payer</button>
+                  <button onClick={() => generateStatement(student)} className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><FileText size={16} />Relevé</button>
                   <button onClick={() => generateContract(student)} className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><FileText size={16} />Contrat</button>
                   <button onClick={() => generateReportCard(student)} className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg"><Download size={16} /></button>
                   {!adult && (

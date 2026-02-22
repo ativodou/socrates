@@ -3,6 +3,7 @@ import { db } from '../../firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
 import SchoolPublicProfile from './SchoolPublicProfile';
+import TeacherPortal from './TeacherPortal';
 
 export default function AuthScreen() {
   const { handleRegister, handleLogin } = useSchool();
@@ -15,7 +16,9 @@ export default function AuthScreen() {
   const [allSchoolsList, setAllSchoolsList] = useState([]);
   const [parentSchoolId, setParentSchoolId] = useState('');
   const [parentView, setParentView] = useState(null); // null | { school, student }
+  const [teacherView, setTeacherView] = useState(null); // null | { school, teacher, classes }
   const [viewingProfile, setViewingProfile] = useState(null); // school public profile
+  const [parentLang, setParentLang] = useState('fr'); // 'fr' | 'ht'
 
   // Load schools list for parent login & directory
   useEffect(() => {
@@ -65,14 +68,97 @@ export default function AuthScreen() {
         const allMatching = students.filter(s => s.parentEmail === contact || s.parentPhone === contact);
         const accessible = allMatching.filter(s => s.parentAccessEnabled !== false);
         if (accessible.length === 0) { setError('Accès au portail bloqué. Voir direction.'); return; }
-        setParentView({ school, student: accessible[0], allStudents: accessible });
+        // Load homework, exams & payments for parent view
+        const [hwSnap, examSnap, paymentsSnap] = await Promise.all([
+          getDocs(collection(db, 'schools', parentSchoolId, 'homework')),
+          getDocs(collection(db, 'schools', parentSchoolId, 'exams')),
+          getDocs(collection(db, 'schools', parentSchoolId, 'payments')),
+        ]);
+        const hw = hwSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const ex = examSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const pay = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setParentView({ school, student: accessible[0], allStudents: accessible, homework: hw, exams: ex, payments: pay });
       } else { setError('Identifiants invalides.'); }
     } catch (err) { setError(err.message); }
   };
 
+  const onTeacherLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!parentSchoolId) { setError("Selectionnez une ecole"); return; }
+    try {
+      const teachersSnap = await getDocs(collection(db, 'schools', parentSchoolId, 'teachers'));
+      const allTeachers = teachersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const contact = formData.teacherContact?.trim();
+      const pin = formData.teacherPin?.trim();
+      const found = allTeachers.find(t =>
+        (t.email === contact || t.phone === contact) && t.teacherPin === pin
+      );
+      if (found) {
+        const classesSnap = await getDocs(collection(db, 'schools', parentSchoolId, 'classes'));
+        const allClasses = classesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const school = allSchoolsList.find(s => s.id === parentSchoolId);
+        setTeacherView({ school, teacher: found, classes: allClasses });
+      } else { setError('Identifiants invalides.'); }
+    } catch (err) { setError(err.message); }
+  };
+
+  // ── Teacher Portal View ─────────────────────────────────────────────
+  if (teacherView) {
+    return <TeacherPortal school={teacherView.school} teacher={teacherView.teacher} allClasses={teacherView.classes} onLogout={() => setTeacherView(null)} />;
+  }
+
   // ── Parent Portal View ────────────────────────────────────────────
+  const t = {
+    fr: {
+      portalTitle: 'Portail Parent',
+      logout: 'Déconnexion',
+      owes: 'Doit',
+      paidUp: 'À jour ✓',
+      totalDue: 'Total dû',
+      paid: 'Payé',
+      remaining: 'Reste',
+      cleared: 'SOLDÉ',
+      homework: '📝 Devoirs à faire',
+      moreHW: (n) => `+ ${n} autre${n > 1 ? 's' : ''} devoir${n > 1 ? 's' : ''}`,
+      exams: '📋 Examens à venir',
+      moreExams: (n) => `+ ${n} autre${n > 1 ? 's' : ''} examen${n > 1 ? 's' : ''}`,
+      schoolMessage: "Message de l'école:",
+      schoolInfo: "Informations de l'école",
+      address: 'Adresse',
+      phone: 'Téléphone',
+      director: 'Directeur',
+      website: 'Site',
+      annualTuition: 'Scolarité annuelle',
+      fees: 'Frais divers',
+    },
+    ht: {
+      portalTitle: 'Pòtay Paran',
+      logout: 'Dekonekte',
+      owes: 'Dwe',
+      paidUp: 'Ajou ✓',
+      totalDue: 'Total pou peye',
+      paid: 'Peye',
+      remaining: 'Rès',
+      cleared: 'PEYE NET',
+      homework: '📝 Devwa pou fè',
+      moreHW: (n) => `+ ${n} lòt devwa`,
+      exams: '📋 Egzamen k ap vini',
+      moreExams: (n) => `+ ${n} lòt egzamen`,
+      schoolMessage: 'Mesaj lekòl la:',
+      schoolInfo: 'Enfòmasyon lekòl la',
+      address: 'Adrès',
+      phone: 'Telefòn',
+      director: 'Direktè',
+      website: 'Sit wèb',
+      annualTuition: 'Lajan lekòl pou ane a',
+      fees: 'Lòt frè',
+    },
+  };
+
   if (parentView) {
-    const { school, allStudents } = parentView;
+    const { school, allStudents, homework: parentHW = [], exams: parentExams = [], payments: parentPayments = [] } = parentView;
+    const L = t[parentLang];
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="bg-gradient-to-r from-socrates-navy to-socrates-blue text-white p-4">
@@ -81,10 +167,13 @@ export default function AuthScreen() {
               {school?.logo && school.logo.length > 10 ? <img src={school.logo} alt="" className="w-10 h-10 rounded-full object-contain bg-white/20" /> : <img src="/owl-icon.svg" alt="" className="w-10 h-10 rounded-full" />}
               <div>
                 <h1 className="font-display text-xl">{school?.name || 'SOCRATES'}</h1>
-                <p className="text-xs text-blue-200">Portail Parent</p>
+                <p className="text-xs text-blue-200">{L.portalTitle}</p>
               </div>
             </div>
-            <button onClick={() => setParentView(null)} className="bg-white/20 px-3 py-1.5 rounded-lg text-sm">Deconnexion</button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setParentLang(parentLang === 'fr' ? 'ht' : 'fr')} className="bg-white/20 px-2.5 py-1.5 rounded-lg text-xs font-bold">{parentLang === 'fr' ? 'KR' : 'FR'}</button>
+              <button onClick={() => setParentView(null)} className="bg-white/20 px-3 py-1.5 rounded-lg text-sm">{L.logout}</button>
+            </div>
           </div>
         </header>
         <div className="max-w-lg mx-auto p-4 space-y-4">
@@ -92,28 +181,90 @@ export default function AuthScreen() {
             const scolarite = parseFloat(student.annualTuition) || 0;
             const frais = parseFloat(student.fraisDivers) || 0;
             const total = scolarite + frais;
+            const paid = parentPayments.filter(p => p.studentId === student.id && !p.isDeposit).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            const balance = total - paid;
+            const studentHW = parentHW.filter(h => h.classId === student.classId && (!h.dueDate || new Date(h.dueDate) >= new Date())).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+            const studentExams = parentExams.filter(e => e.classId === student.classId && (!e.examDate || new Date(e.examDate) >= new Date())).sort((a, b) => (a.examDate || '').localeCompare(b.examDate || ''));
             return (
               <div key={student.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="bg-socrates-navy text-white p-4 flex items-center gap-3">
                   <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold">{student.firstName?.[0]}{student.lastName?.[0]}</div>
-                  <div><p className="font-bold text-lg">{student.firstName} {student.lastName}</p><p className="text-blue-200 text-sm">{student.gradeLevel || 'N/A'}</p></div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">{student.firstName} {student.lastName}</p>
+                    <p className="text-blue-200 text-sm">{student.gradeLevel || 'N/A'}</p>
+                  </div>
+                  {balance > 0 && <div className="bg-red-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold">{L.owes} HTG {balance.toLocaleString()}</div>}
+                  {balance <= 0 && <div className="bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold">{L.paidUp}</div>}
                 </div>
                 <div className="p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-blue-50 rounded-xl p-3"><p className="text-xs text-gray-500">Scolarite annuelle</p><p className="text-lg font-bold text-blue-700">HTG {scolarite.toFixed(0)}</p></div>
-                    <div className="bg-orange-50 rounded-xl p-3"><p className="text-xs text-gray-500">Frais divers</p><p className="text-lg font-bold text-orange-700">HTG {frais.toFixed(0)}</p></div>
+                  {/* Balance summary */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-gray-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-gray-500">{L.totalDue}</p>
+                      <p className="text-sm font-bold text-gray-800">HTG {total.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-gray-500">{L.paid}</p>
+                      <p className="text-sm font-bold text-green-600">HTG {paid.toLocaleString()}</p>
+                    </div>
+                    <div className={`rounded-xl p-3 text-center ${balance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                      <p className="text-xs text-gray-500">{L.remaining}</p>
+                      <p className={`text-sm font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{balance > 0 ? `HTG ${balance.toLocaleString()}` : L.cleared}</p>
+                    </div>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center">
-                    <span className="text-gray-600">Total annuel</span>
-                    <span className="text-xl font-bold text-socrates-navy">HTG {total.toFixed(0)}</span>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center">
-                    <span className="text-gray-600">Mensuel (10 mois)</span>
-                    <span className="font-bold text-socrates-blue">HTG {(scolarite / 10).toFixed(0)}</span>
-                  </div>
+                  {/* Homework for this student */}
+                  {studentHW.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">{L.homework}</h4>
+                      <div className="space-y-2">
+                        {studentHW.slice(0, 5).map(hw => (
+                          <div key={hw.id} className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800">{hw.title}</p>
+                                {hw.subject && <p className="text-xs text-gray-500">{hw.subject}</p>}
+                                {hw.description && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{hw.description}</p>}
+                              </div>
+                              {hw.dueDate && (
+                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full whitespace-nowrap ml-2 flex-shrink-0">
+                                  {new Date(hw.dueDate).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {studentHW.length > 5 && <p className="text-xs text-gray-400 text-center">{L.moreHW(studentHW.length - 5)}</p>}
+                      </div>
+                    </div>
+                  )}
+                  {/* Exams for this student */}
+                  {studentExams.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">{L.exams}</h4>
+                      <div className="space-y-2">
+                        {studentExams.slice(0, 5).map(ex => (
+                          <div key={ex.id} className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800">{ex.title}</p>
+                                {ex.subject && <p className="text-xs text-gray-500">{ex.subject}{ex.totalPoints ? ` • ${ex.totalPoints} pts` : ''}</p>}
+                                {ex.description && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{ex.description}</p>}
+                              </div>
+                              {ex.examDate && (
+                                <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full whitespace-nowrap ml-2 flex-shrink-0">
+                                  {new Date(ex.examDate).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {studentExams.length > 5 && <p className="text-xs text-gray-400 text-center">{L.moreExams(studentExams.length - 5)}</p>}
+                      </div>
+                    </div>
+                  )}
                   {student.notes && student.notes.trim() !== '' && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                      <p className="text-sm text-yellow-800"><strong>Message de l'ecole:</strong> {student.notes}</p>
+                      <p className="text-sm text-yellow-800"><strong>{L.schoolMessage}</strong> {student.notes}</p>
                     </div>
                   )}
                 </div>
@@ -122,12 +273,12 @@ export default function AuthScreen() {
           })}
           {/* School info */}
           <div className="bg-white rounded-2xl shadow-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">Informations de l'ecole</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">{L.schoolInfo}</h3>
             <div className="space-y-2 text-sm">
-              <p><span className="text-gray-500">Adresse:</span> {school?.address || 'N/A'}</p>
-              <p><span className="text-gray-500">Telephone:</span> {school?.phone || 'N/A'}</p>
-              <p><span className="text-gray-500">Directeur:</span> {school?.directorName || 'N/A'}</p>
-              {school?.website && <p><span className="text-gray-500">Site:</span> <a href={school.website} className="text-socrates-blue underline">{school.website}</a></p>}
+              <p><span className="text-gray-500">{L.address}:</span> {school?.address || 'N/A'}</p>
+              <p><span className="text-gray-500">{L.phone}:</span> {school?.phone || 'N/A'}</p>
+              <p><span className="text-gray-500">{L.director}:</span> {school?.directorName || 'N/A'}</p>
+              {school?.website && <p><span className="text-gray-500">{L.website}:</span> <a href={school.website} className="text-socrates-blue underline">{school.website}</a></p>}
             </div>
           </div>
         </div>
@@ -194,8 +345,9 @@ export default function AuthScreen() {
               { id: 'login', label: 'Connexion' },
               { id: 'register', label: 'Inscription' },
               { id: 'parent', label: 'Parent' },
+              { id: 'teacher', label: 'Enseignant' },
             ].map(mode => (
-              <button key={mode.id} onClick={() => { setAuthMode(mode.id); setError(''); }} className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${authMode === mode.id ? 'bg-white shadow text-socrates-navy' : 'text-gray-500'}`}>{mode.label}</button>
+              <button key={mode.id} onClick={() => { setAuthMode(mode.id); setError(''); }} className={`flex-1 py-2 rounded-lg text-xs sm:text-sm font-medium transition ${authMode === mode.id ? 'bg-white shadow text-socrates-navy' : 'text-gray-500'}`}>{mode.label}</button>
             ))}
           </div>
 
@@ -232,6 +384,19 @@ export default function AuthScreen() {
               <input type="text" placeholder="Email ou Telephone" required value={formData.parentContact || ''} onChange={e => setFormData({ ...formData, parentContact: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
               <input type="text" placeholder="PIN" required maxLength={6} value={formData.parentPin || ''} onChange={e => setFormData({ ...formData, parentPin: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base text-center text-xl tracking-widest" />
               <button type="submit" className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold">Acceder au portail</button>
+            </form>
+          )}
+
+          {/* Teacher Login */}
+          {authMode === 'teacher' && (
+            <form onSubmit={onTeacherLogin} className="space-y-4">
+              <select value={parentSchoolId} onChange={e => setParentSchoolId(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base">
+                <option value="">Selectionnez l'ecole</option>
+                {allSchoolsList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <input type="text" placeholder="Email ou Telephone" required value={formData.teacherContact || ''} onChange={e => setFormData({ ...formData, teacherContact: e.target.value })} className="w-full px-4 py-3 border rounded-xl text-base" />
+              <input type="text" placeholder="PIN" required maxLength={6} value={formData.teacherPin || ''} onChange={e => setFormData({ ...formData, teacherPin: e.target.value.replace(/\D/g, '') })} className="w-full px-4 py-3 border rounded-xl text-base text-center text-xl tracking-widest" />
+              <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold">Acceder au portail enseignant</button>
             </form>
           )}
 

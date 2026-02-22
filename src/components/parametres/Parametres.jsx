@@ -549,6 +549,23 @@ export default function Parametres() {
             <DollarSign size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500">Définissez d'abord la <strong>Structure Académique</strong> pour configurer les frais.</p>
           </div>)}
+
+          {/* Overdue Threshold */}
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h3 className="font-semibold text-gray-800 mb-1">⚠️ Signalement automatique — Impayés</h3>
+            <p className="text-xs text-gray-400 mb-3">Signaler automatiquement les {val('schoolType','schoolType') === 'universitaire' || val('schoolType','schoolType') === 'technique' ? 'étudiants' : 'élèves'} en retard de paiement.</p>
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-600 whitespace-nowrap">Seuil :</label>
+              <select value={val('overdueThreshold','overdueThreshold','2')} onChange={e => set('overdueThreshold', e.target.value)} className="px-3 py-2.5 border rounded-xl text-sm flex-1">
+                <option value="1">1 mois de retard</option>
+                <option value="2">2 mois de retard</option>
+                <option value="3">3 mois de retard</option>
+                <option value="4">4 mois de retard</option>
+                <option value="5">5 mois de retard</option>
+              </select>
+            </div>
+          </div>
+
           <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">Sauvegarder</button>
         </div>)}
 
