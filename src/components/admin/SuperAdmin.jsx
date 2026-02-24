@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Shield, Users, DollarSign, Search, Eye, ToggleLeft, ToggleRight, Plus, Trash2 } from 'lucide-react';
+import { Shield, Users, DollarSign, Search, Eye, ToggleLeft, ToggleRight, Plus, Trash2, BadgeCheck } from 'lucide-react';
+import { db } from '../../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
 import SchoolDetailView from './SchoolDetailView';
 
@@ -11,13 +13,18 @@ export default function SuperAdmin() {
     getSchoolBalance, isSetupFeePaid, getTotalSubscriptionRevenue,
   } = useSchool();
 
-  const [adminTab, setAdminTab] = useState('schools'); // schools, payments, revenue
+  const [adminTab, setAdminTab] = useState('schools');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingSchool, setViewingSchool] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentForm, setPaymentForm] = useState({});
 
   const filtered = allSchools.filter(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // ── Verification toggle ──────────────────────────────────────
+  const toggleVerification = async (schoolId, current) => {
+    await updateDoc(doc(db, 'schools', schoolId), { verifiedBySocrates: !current });
+  };
 
   if (viewingSchool) {
     return <SchoolDetailView schoolId={viewingSchool} onBack={() => setViewingSchool(null)} />;
@@ -63,11 +70,21 @@ export default function SuperAdmin() {
             {filtered.map(school => (
               <div key={school.id} className="bg-white rounded-xl shadow-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
-                                    {school.logo && school.logo.length > 10 ? <img src={school.logo} alt="" className="w-12 h-12 rounded-full object-contain bg-gray-100" /> : <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">{school.name?.[0]}</div>}
+                  {school.logo && school.logo.length > 10
+                    ? <img src={school.logo} alt="" className="w-12 h-12 rounded-full object-contain bg-gray-100" />
+                    : <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">{school.name?.[0]}</div>
+                  }
                   <div className="flex-1">
-                    <p className="font-semibold">{school.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{school.name}</p>
+                      {school.verifiedBySocrates && (
+                        <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                          <BadgeCheck size={12} /> Vérifié
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">{school.email}</p>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-2 mt-1 flex-wrap">
                       <span className={`text-xs px-2 py-0.5 rounded ${school.subscription === 'active' ? 'bg-green-100 text-green-700' : school.subscription === 'trial' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{school.subscription || 'trial'}</span>
                       <span className={`text-xs px-2 py-0.5 rounded ${school.status === 'disabled' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{school.status || 'active'}</span>
                       <span className="text-xs text-gray-400">{school.studentCount || 0} eleves • {school.teacherCount || 0} enseignants</span>
@@ -81,6 +98,14 @@ export default function SuperAdmin() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={() => setViewingSchool(school.id)} className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><Eye size={16} />Details</button>
+                  <button
+                    onClick={() => toggleVerification(school.id, school.verifiedBySocrates)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${school.verifiedBySocrates ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                    title={school.verifiedBySocrates ? 'Retirer vérification' : 'Marquer comme vérifié'}
+                  >
+                    <BadgeCheck size={16} />
+                    {school.verifiedBySocrates ? '✓' : '?'}
+                  </button>
                   <button onClick={() => toggleSchoolStatus(school.id, school.status)} className={`px-3 py-2 rounded-lg text-sm font-medium ${school.status === 'disabled' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {school.status === 'disabled' ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                   </button>

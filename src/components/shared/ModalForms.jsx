@@ -270,6 +270,18 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
                   <div><label className={labelCls}>{ht?'Kòd PIN (aksè pòtay)':'Code PIN (accès portail)'}</label><input type="text" maxLength={6} value={formData.parentPin || ''} onChange={e => set('parentPin', e.target.value)} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
                 </div>
               </div>
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">{ht?'Aksè Pòtay — Sponsò':'Accès Portail — Sponsor'}</p>
+                <p className="text-xs text-gray-400 mb-3">{ht?'Opsyonèl — pou moun ki finanse men ki pa paran dirèk':'Optionnel — pour un tiers qui finance la scolarité'}</p>
+                <div className="space-y-3">
+                  <div><label className={labelCls}>{ht?'Non sponsò':'Nom du sponsor'}</label><input type="text" value={formData.sponsorName || ''} onChange={e => set('sponsorName', e.target.value)} className={inputCls} placeholder={ht?'Egz: Tonton Jacques':'Ex: Oncle Jacques'} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className={labelCls}>{ht?'Email sponsò':'Email sponsor'}</label><input type="email" value={formData.sponsorEmail || ''} onChange={e => set('sponsorEmail', e.target.value)} className={inputCls} /></div>
+                    <div><label className={labelCls}>{ht?'Telefòn sponsò':'Téléphone sponsor'}</label><input type="tel" value={formData.sponsorPhone || ''} onChange={e => set('sponsorPhone', e.target.value)} className={inputCls} /></div>
+                  </div>
+                  <div><label className={labelCls}>{ht?'Kòd PIN sponsò':'Code PIN sponsor'}</label><input type="text" maxLength={6} value={formData.sponsorPin || ''} onChange={e => set('sponsorPin', e.target.value)} className={`${inputCls} text-center text-xl tracking-widest`} placeholder="• • • • • •" /></div>
+                </div>
+              </div>
               <div className="border-t pt-4"><label className={labelCls}>Contact d'urgence</label>
                 <div className="grid grid-cols-2 gap-3">
                   <input type="text" value={formData.emergencyContact || ''} onChange={e => set('emergencyContact', e.target.value)} className={inputCls} placeholder="Nom" />

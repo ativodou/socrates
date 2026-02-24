@@ -133,6 +133,7 @@ export function SchoolProvider({ children }) {
   const [grades, setGrades] = useState([]);
   const [payments, setPayments] = useState([]);
   const [teacherPayments, setTeacherPayments] = useState([]);
+  const [staffPayments, setStaffPayments] = useState([]);  // ← NEW
   const [expenses, setExpenses] = useState([]);
   const [gradingPeriods, setGradingPeriods] = useState([]);
   const [homework, setHomework] = useState([]);
@@ -201,7 +202,10 @@ export function SchoolProvider({ children }) {
   const loadAllData = useCallback(async () => {
     if (!school) return;
     try {
-      const [studentsSnap, teachersSnap, classesSnap, periodsSnap, gradesSnap, paymentsSnap, tpSnap, expSnap, hwSnap, examSnap, attSnap] = await Promise.all([
+      const [
+        studentsSnap, teachersSnap, classesSnap, periodsSnap, gradesSnap,
+        paymentsSnap, tpSnap, expSnap, hwSnap, examSnap, attSnap, spSnap  // ← spSnap added
+      ] = await Promise.all([
         getDocs(query(collection(db, 'schools', school.id, 'students'), orderBy('lastName'))),
         getDocs(collection(db, 'schools', school.id, 'teachers')),
         getDocs(collection(db, 'schools', school.id, 'classes')),
@@ -213,6 +217,7 @@ export function SchoolProvider({ children }) {
         getDocs(collection(db, 'schools', school.id, 'homework')),
         getDocs(collection(db, 'schools', school.id, 'exams')),
         getDocs(collection(db, 'schools', school.id, 'attendance')),
+        getDocs(query(collection(db, 'schools', school.id, 'staffPayments'), orderBy('date', 'desc'))),  // ← NEW
       ]);
       setStudents(studentsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setTeachers(teachersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -225,6 +230,7 @@ export function SchoolProvider({ children }) {
       setHomework(hwSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setExams(examSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setAttendance(attSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setStaffPayments(spSnap.docs.map(d => ({ id: d.id, ...d.data() })));  // ← NEW
     } catch (error) { console.error('Error loading data:', error); }
   }, [school]);
 
@@ -504,6 +510,25 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
+  // ── Staff Payment CRUD ─────────────────────────────────────────────  ← NEW
+  const saveStaffPayment = async (data, editId = null) => {
+    const payload = {
+      ...data,
+      amount: parseFloat(data.amount),
+      month: data.month || new Date().toISOString().slice(0, 7),
+      date: data.date || new Date().toISOString().split('T')[0]
+    };
+    if (editId) await updateDoc(doc(db, 'schools', school.id, 'staffPayments', editId), { ...payload, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db, 'schools', school.id, 'staffPayments'), { ...payload, createdAt: serverTimestamp() });
+    loadAllData();
+  };
+
+  const deleteStaffPayment = async (id) => {
+    if (!confirm('Supprimer ce paiement?')) return;
+    await deleteDoc(doc(db, 'schools', school.id, 'staffPayments', id));
+    loadAllData();
+  };
+
   const saveExpense = async (data, editId = null) => {
     const payload = {
       category: data.category || 'other',
@@ -573,8 +598,6 @@ export function SchoolProvider({ children }) {
 
   // ── Attendance CRUD ────────────────────────────────────────────────
   const saveAttendance = async (data) => {
-    // data: { classId, teacherId, date, records: [{ studentId, status: 'present'|'absent'|'late' }] }
-    const key = `${data.classId}_${data.date}`;
     const existing = attendance.find(a => a.classId === data.classId && a.date === data.date);
     const payload = {
       classId: data.classId,
@@ -641,6 +664,20 @@ export function SchoolProvider({ children }) {
     return (annual / 10).toFixed(2);
   };
 
+  // ── Staff helpers ──────────────────────────────────────────────────  ← NEW
+  const getStaffBalance = (staffId) => {
+    const staffList = school?.adminStaff || [];
+    const member = staffList.find(s => s.id === staffId);
+    const annual = parseFloat(member?.annualSalary) || 0;
+    const paid = staffPayments.filter(p => p.staffId === staffId).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    return annual - paid;
+  };
+
+  const getStaffMonthlySalary = (member) => {
+    const annual = parseFloat(member?.annualSalary) || 0;
+    return (annual / 10).toFixed(2);
+  };
+
   const getLetterGrade = (score) => {
     const num = parseFloat(score);
     if (num >= 90) return 'A';
@@ -662,10 +699,9 @@ export function SchoolProvider({ children }) {
   const UPPER_CYCLE_LEVELS = [...TROISIEME_CYCLE, ...SECONDAIRE_NS, ...SECONDAIRE_TRAD, ...PHILO_LEVEL];
   const isUpperCycle = (gradeLevel) => UPPER_CYCLE_LEVELS.includes(gradeLevel);
 
-  // School type helpers
   const isPrescolaireOnly = () => school?.schoolType === 'Préscolaire';
   const hasPrescolaire = () => ['Préscolaire', 'Préscolaire-Primaire', 'Complète'].includes(school?.schoolType);
-  const isAdultSchool = () => CUSTOM_GRADE_TYPES.includes(school?.schoolType); // Technique, Universitaire
+  const isAdultSchool = () => CUSTOM_GRADE_TYPES.includes(school?.schoolType);
 
   const isListedInDirectory = (s) =>
     s.schoolType && s.address && s.phone && s.directorName &&
@@ -679,8 +715,8 @@ export function SchoolProvider({ children }) {
     isNewRegistration,
 
     // School data
-    students, teachers, classes, grades, payments, teacherPayments, expenses, gradingPeriods,
-    homework, exams, attendance,
+    students, teachers, classes, grades, payments, teacherPayments, staffPayments,  // ← staffPayments added
+    expenses, gradingPeriods, homework, exams, attendance,
     loadAllData,
 
     // CRUD
@@ -691,6 +727,7 @@ export function SchoolProvider({ children }) {
     saveGrade,
     savePayment, deletePayment,
     saveTeacherPayment, deleteTeacherPayment,
+    saveStaffPayment, deleteStaffPayment,  // ← NEW
     saveExpense, deleteExpense,
     saveHomework, deleteHomework,
     saveExam, deleteExam,
@@ -710,6 +747,7 @@ export function SchoolProvider({ children }) {
     // Computed
     getStudentBalance, getMonthlyTuition, getStudentTotal,
     getTeacherBalance, getMonthlySalary,
+    getStaffBalance, getStaffMonthlySalary,  // ← NEW
     getLetterGrade, getGradeLevels, isCustomGradeType, isUpperCycle,
     isPrescolaireOnly, hasPrescolaire, isAdultSchool,
     isListedInDirectory,

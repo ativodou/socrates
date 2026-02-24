@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { BookOpen, Users, FileText, Calendar, CheckSquare, DollarSign, LogOut, Plus, Trash2, Edit, ChevronDown, Clock, AlertTriangle, GraduationCap, ClipboardList } from 'lucide-react';
+import { BookOpen, Users, FileText, Calendar, CheckSquare, DollarSign, LogOut, Plus, Trash2, Edit, ChevronDown, Clock, GraduationCap, ClipboardList, Lock } from 'lucide-react';
 import { useLang } from '../../i18n/LanguageContext';
+
+// ── Bulletin grade label helper ──────────────────────────────────
+const getGradeLabel = (score, ht) => {
+  const n = parseFloat(score);
+  if (isNaN(n)) return null;
+  if (n >= 90) return { label: ht ? 'Ekselan'   : 'Excellent',      color: 'text-green-700  bg-green-100'  };
+  if (n >= 80) return { label: ht ? 'Trè Byen'  : 'Très Bien',      color: 'text-blue-700   bg-blue-100'   };
+  if (n >= 70) return { label: ht ? 'Byen'      : 'Bien',            color: 'text-cyan-700   bg-cyan-100'   };
+  if (n >= 60) return { label: ht ? 'Pasab'     : 'Passable',        color: 'text-yellow-700 bg-yellow-100' };
+  return            { label: ht ? 'Echèk'     : 'Échec',            color: 'text-red-700    bg-red-100'    };
+};
 
 export default function TeacherPortal({ school, teacher, allClasses, onLogout }) {
   const { t, lang } = useLang();
@@ -16,7 +27,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
   const [gradingPeriods, setGradingPeriods] = useState([]);
   const [teacherPayments, setTeacherPayments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
-  const [showForm, setShowForm] = useState(null); // 'homework' | 'exam' | null
+  const [showForm, setShowForm] = useState(null);
   const [editItem, setEditItem] = useState(null);
   const [formData, setFormData] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -24,9 +35,15 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [gradeClassId, setGradeClassId] = useState('');
   const [gradePeriodId, setGradePeriodId] = useState('');
-  const [expandedHW, setExpandedHW] = useState(null); // homeworkId to expand submissions
-  const [feedbackData, setFeedbackData] = useState({}); // { submissionId: { feedback, score } }
-  // My classes = classes where I'm the teacher
+  const [expandedHW, setExpandedHW] = useState(null);
+  const [feedbackData, setFeedbackData] = useState({});
+  // Live grade display state { studentId: score }
+  const [liveScores, setLiveScores] = useState({});
+
+  // ── PIN change state ─────────────────────────────────────────
+  const [pinData, setPinData] = useState({ current: '', next: '', confirm: '' });
+  const [pinMsg, setPinMsg] = useState(null); // { ok, text }
+
   const myClasses = allClasses.filter(c => c.teacherId === teacher.id || (c.teacherIds || []).includes(teacher.id));
   const myClassIds = myClasses.map(c => c.id);
 
@@ -55,7 +72,9 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
 
   useEffect(() => { loadData(); }, []);
 
-  // ── Submission helpers ───────────────────────────
+  // Reset live scores when class/period selection changes
+  useEffect(() => { setLiveScores({}); }, [gradeClassId, gradePeriodId]);
+
   const getHWSubmissions = (hwId) => submissions.filter(s => s.homeworkId === hwId);
   const getHWClassStudents = (hw) => students.filter(s => s.classId === hw.classId || (s.enrolledClasses || []).includes(hw.classId));
 
@@ -63,11 +82,8 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
     const fb = feedbackData[submissionId];
     if (!fb) return;
     await updateDoc(doc(db, 'schools', school.id, 'submissions', submissionId), {
-      status: 'graded',
-      teacherFeedback: fb.feedback || '',
-      score: fb.score || '',
-      gradedAt: new Date().toISOString(),
-      gradedBy: teacher.id,
+      status: 'graded', teacherFeedback: fb.feedback || '', score: fb.score || '',
+      gradedAt: new Date().toISOString(), gradedBy: teacher.id,
     });
     setFeedbackData(prev => { const next = { ...prev }; delete next[submissionId]; return next; });
     loadData();
@@ -90,7 +106,6 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
   const totalPaid = teacherPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
   const salaryBalance = annual - totalPaid;
 
-  // ── Save Homework ─────────────────────────────
   const onSaveHomework = async () => {
     const payload = {
       classId: formData.classId || '', teacherId: teacher.id,
@@ -104,14 +119,12 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
     loadData();
   };
 
-  // ── Save Exam ──────────────────────────────────
   const onSaveExam = async () => {
     const payload = {
       classId: formData.classId || '', teacherId: teacher.id,
       title: formData.title || '', subject: teacher.subject || formData.subject || '',
       examDate: formData.examDate || '', periodId: formData.periodId || '',
-      totalPoints: parseFloat(formData.totalPoints) || 100,
-      description: formData.description || '',
+      totalPoints: parseFloat(formData.totalPoints) || 100, description: formData.description || '',
     };
     if (editItem) await updateDoc(doc(db, 'schools', school.id, 'exams', editItem.id), { ...payload, updatedAt: serverTimestamp() });
     else await addDoc(collection(db, 'schools', school.id, 'exams'), { ...payload, createdAt: serverTimestamp() });
@@ -119,13 +132,11 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
     loadData();
   };
 
-  const onDeleteHW = async (id) => { if (confirm('Supprimer?')) { await deleteDoc(doc(db, 'schools', school.id, 'homework', id)); loadData(); } };
+  const onDeleteHW   = async (id) => { if (confirm('Supprimer?')) { await deleteDoc(doc(db, 'schools', school.id, 'homework', id)); loadData(); } };
   const onDeleteExam = async (id) => { if (confirm('Supprimer?')) { await deleteDoc(doc(db, 'schools', school.id, 'exams', id)); loadData(); } };
 
-  // ── Attendance ─────────────────────────────────
   const loadAttendanceForDate = (classId, date) => {
-    setAttendanceClassId(classId);
-    setAttendanceDate(date);
+    setAttendanceClassId(classId); setAttendanceDate(date);
     const existing = attendance.find(a => a.classId === classId && a.date === date);
     const classStudents = students.filter(s => s.classId === classId);
     if (existing) {
@@ -154,7 +165,6 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
     setAttendanceRecords(prev => prev.map((r, i) => i === idx ? { ...r, status: order[(order.indexOf(r.status) + 1) % 3] } : r));
   };
 
-  // ── Grade Entry ────────────────────────────────
   const classStudentsForGrades = students.filter(s => s.classId === gradeClassId);
   const existingGrades = grades.filter(g => g.classId === gradeClassId && g.periodId === gradePeriodId);
 
@@ -166,14 +176,44 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
     loadData();
   };
 
-  // ── Tab Config ─────────────────────────────────
+  // ── Change PIN ───────────────────────────────────────────────
+  const onChangePIN = async () => {
+    setPinMsg(null);
+    const { current, next, confirm } = pinData;
+    if (!current || !next || !confirm) {
+      setPinMsg({ ok: false, text: ht ? 'Ranpli tout chanm yo.' : 'Remplissez tous les champs.' });
+      return;
+    }
+    if (current !== teacher.teacherPin) {
+      setPinMsg({ ok: false, text: ht ? 'Kòd aktyèl la pa kòrèk.' : 'Code actuel incorrect.' });
+      return;
+    }
+    if (next.length < 4 || next.length > 6 || !/^\d+$/.test(next)) {
+      setPinMsg({ ok: false, text: ht ? 'Nouvo kòd la dwe gen 4-6 chif.' : 'Le nouveau code doit avoir 4-6 chiffres.' });
+      return;
+    }
+    if (next !== confirm) {
+      setPinMsg({ ok: false, text: ht ? 'Kòd yo pa matche.' : 'Les codes ne correspondent pas.' });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'schools', school.id, 'teachers', teacher.id), { teacherPin: next });
+      teacher.teacherPin = next; // update local reference
+      setPinData({ current: '', next: '', confirm: '' });
+      setPinMsg({ ok: true, text: ht ? '✅ Kòd chanje avèk siksè!' : '✅ Code modifié avec succès !' });
+    } catch (err) {
+      setPinMsg({ ok: false, text: err.message });
+    }
+  };
+
   const tabs = [
-    { id: 'dashboard', label: t('tabDashboard'), icon: BookOpen },
-    { id: 'homework', label: t('homeworkTab'), icon: FileText },
-    { id: 'exams', label: t('examsTab'), icon: ClipboardList },
-    { id: 'attendance', label: t('attendanceTab'), icon: CheckSquare },
-    { id: 'grades', label: t('gradesTab'), icon: GraduationCap },
-    { id: 'salary', label: t('salaryTab'), icon: DollarSign },
+    { id: 'dashboard',  label: t('tabDashboard'),  icon: BookOpen    },
+    { id: 'homework',   label: t('homeworkTab'),    icon: FileText    },
+    { id: 'exams',      label: t('examsTab'),       icon: ClipboardList },
+    { id: 'attendance', label: t('attendanceTab'),  icon: CheckSquare },
+    { id: 'grades',     label: t('gradesTab'),      icon: GraduationCap },
+    { id: 'salary',     label: t('salaryTab'),      icon: DollarSign  },
+    { id: 'profile',    label: ht ? 'Pwofil'        : 'Profil',        icon: Lock },
   ];
 
   const inputCls = "w-full px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400";
@@ -198,10 +238,10 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
       {/* Tab bar */}
       <div className="bg-white border-b sticky top-16 z-30">
         <div className="max-w-4xl mx-auto flex overflow-x-auto">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 transition ${activeTab === t.id ? 'border-socrates-blue text-socrates-blue' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <t.icon size={16} />{t.label}
+          {tabs.map(tb => (
+            <button key={tb.id} onClick={() => setActiveTab(tb.id)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 transition ${activeTab === tb.id ? 'border-socrates-blue text-socrates-blue' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <tb.icon size={16} />{tb.label}
             </button>
           ))}
         </div>
@@ -217,28 +257,12 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
               <p className="text-gray-500 text-sm mt-1">{teacher.subject ? `${ht?'Matyè':'Matière'}: ${teacher.subject}` : ''} {teacher.isCoach ? `• Coach: ${teacher.coachActivity || '🏅'}` : ''}</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-2xl font-bold text-socrates-navy">{myClasses.length}</p>
-                <p className="text-xs text-gray-500">{t('myClasses')}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-2xl font-bold text-blue-600">{myStudents.length}</p>
-                <p className="text-xs text-gray-500">{t('myStudents')}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-2xl font-bold text-purple-600">{myHomework.length}</p>
-                <p className="text-xs text-gray-500">{ht?'Devwa poste':'Devoirs postés'}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-2xl font-bold text-orange-600">{myExams.length}</p>
-                <p className="text-xs text-gray-500">{ht?'Egzamen':'Examens'}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-2xl font-bold text-green-600">{submissions.filter(s => myHomework.some(h => h.id === s.homeworkId)).length}</p>
-                <p className="text-xs text-gray-500">{ht?'Soumisyon':'Soumissions'}</p>
-              </div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-2xl font-bold text-socrates-navy">{myClasses.length}</p><p className="text-xs text-gray-500">{t('myClasses')}</p></div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-2xl font-bold text-blue-600">{myStudents.length}</p><p className="text-xs text-gray-500">{t('myStudents')}</p></div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-2xl font-bold text-purple-600">{myHomework.length}</p><p className="text-xs text-gray-500">{ht?'Devwa poste':'Devoirs postés'}</p></div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-2xl font-bold text-orange-600">{myExams.length}</p><p className="text-xs text-gray-500">{ht?'Egzamen':'Examens'}</p></div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-2xl font-bold text-green-600">{submissions.filter(s => myHomework.some(h => h.id === s.homeworkId)).length}</p><p className="text-xs text-gray-500">{ht?'Soumisyon':'Soumissions'}</p></div>
             </div>
-            {/* Pending submissions alert */}
             {(() => {
               const mySubs = submissions.filter(s => myHomework.some(h => h.id === s.homeworkId));
               const pending = mySubs.filter(s => s.status === 'submitted' || s.status === 'viewed');
@@ -253,7 +277,6 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                 </div>
               ) : null;
             })()}
-            {/* My Classes */}
             <div className="bg-white rounded-2xl shadow-lg p-5">
               <h3 className="font-semibold text-gray-800 mb-3">📚 {ht?'Klas Mwen yo':'Mes Classes'}</h3>
               {myClasses.length > 0 ? (
@@ -262,10 +285,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                     const count = students.filter(s => s.classId === c.id).length;
                     return (
                       <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                        <div>
-                          <p className="font-medium text-sm">{c.name}</p>
-                          <p className="text-xs text-gray-400">{c.gradeLevel || ''} {c.room ? `• ${ht?'Sal':'Salle'} ${c.room}` : ''}</p>
-                        </div>
+                        <div><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-gray-400">{c.gradeLevel || ''} {c.room ? `• ${ht?'Sal':'Salle'} ${c.room}` : ''}</p></div>
                         <span className="text-sm font-bold text-socrates-navy">{count} {ht?'elèv':'élèves'}</span>
                       </div>
                     );
@@ -273,22 +293,12 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                 </div>
               ) : <p className="text-gray-400 text-sm">{ht?'Pa gen klas asiye':'Aucune classe assignée'}</p>}
             </div>
-            {/* Quick salary */}
             <div className="bg-white rounded-2xl shadow-lg p-5">
               <h3 className="font-semibold text-gray-800 mb-3">💰 {ht?'Salè Mwen':'Mon Salaire'}</h3>
               <div className="flex gap-3 flex-wrap">
-                <div className="bg-gray-50 rounded-xl px-4 py-3 text-center flex-1 min-w-[120px]">
-                  <p className="text-xs text-gray-500">{ht?'Anyèl':'Annuel'}</p>
-                  <p className="font-bold text-gray-800">HTG {annual.toLocaleString()}</p>
-                </div>
-                <div className="bg-green-50 rounded-xl px-4 py-3 text-center flex-1 min-w-[120px]">
-                  <p className="text-xs text-gray-500">{ht?'Resevwa':'Reçu'}</p>
-                  <p className="font-bold text-green-600">HTG {totalPaid.toLocaleString()}</p>
-                </div>
-                <div className={`rounded-xl px-4 py-3 text-center flex-1 min-w-[120px] ${salaryBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                  <p className="text-xs text-gray-500">{ht?'Rete':'Restant'}</p>
-                  <p className={`font-bold ${salaryBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>{salaryBalance > 0 ? `HTG ${salaryBalance.toLocaleString()}` : 'SOLDÉ'}</p>
-                </div>
+                <div className="bg-gray-50 rounded-xl px-4 py-3 text-center flex-1 min-w-[120px]"><p className="text-xs text-gray-500">{ht?'Anyèl':'Annuel'}</p><p className="font-bold text-gray-800">HTG {annual.toLocaleString()}</p></div>
+                <div className="bg-green-50 rounded-xl px-4 py-3 text-center flex-1 min-w-[120px]"><p className="text-xs text-gray-500">{ht?'Resevwa':'Reçu'}</p><p className="font-bold text-green-600">HTG {totalPaid.toLocaleString()}</p></div>
+                <div className={`rounded-xl px-4 py-3 text-center flex-1 min-w-[120px] ${salaryBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}><p className="text-xs text-gray-500">{ht?'Rete':'Restant'}</p><p className={`font-bold ${salaryBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>{salaryBalance > 0 ? `HTG ${salaryBalance.toLocaleString()}` : 'SOLDÉ'}</p></div>
               </div>
             </div>
           </div>
@@ -352,7 +362,6 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                           {isPast && <span className="ml-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs">{ht?'Pase':'Passé'}</span>}
                         </span>
                       )}
-                      {/* Submission count badge */}
                       <button onClick={() => setExpandedHW(isExpanded ? null : hw.id)} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition ${subCount > 0 ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                         📥 {subCount}/{totalStudents} {ht?'soumisyon':'soumis'}
                         {gradedCount > 0 && <span className="text-green-600">• {gradedCount} {ht?'korije':'noté'}</span>}
@@ -360,8 +369,6 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                       </button>
                     </div>
                   </div>
-
-                  {/* ── Expanded Submissions Panel ── */}
                   {isExpanded && (
                     <div className="border-t bg-gray-50 p-4 space-y-3">
                       <p className="text-sm font-semibold text-gray-700">{ht?'Soumisyon Elèv yo':'Soumissions des élèves'} ({subCount}/{totalStudents})</p>
@@ -380,20 +387,12 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                                   <p className="text-xs text-gray-400">{ht?'Pa soumèt':'Non soumis'}</p>
                                 )}
                               </div>
-                              {sub && sub.status !== 'graded' && (
-                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{ht?'Pou korije':'À noter'}</span>
-                              )}
+                              {sub && sub.status !== 'graded' && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{ht?'Pou korije':'À noter'}</span>}
                             </div>
-                            {/* Show submission content */}
                             {sub && (
                               <div className="mt-3 space-y-2" onClick={() => onMarkViewed(sub.id)}>
-                                {sub.textContent && (
-                                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-gray-700">{sub.textContent}</div>
-                                )}
-                                {sub.photoBase64 && (
-                                  <img src={sub.photoBase64} alt="Soumission" className="rounded-lg max-h-64 w-auto border" onClick={() => window.open(sub.photoBase64, '_blank')} style={{ cursor: 'pointer' }} />
-                                )}
-                                {/* Teacher feedback display or form */}
+                                {sub.textContent && <div className="bg-blue-50 rounded-lg p-3 text-sm text-gray-700">{sub.textContent}</div>}
+                                {sub.photoBase64 && <img src={sub.photoBase64} alt="Soumission" className="rounded-lg max-h-64 w-auto border cursor-pointer" onClick={() => window.open(sub.photoBase64, '_blank')} />}
                                 {sub.status === 'graded' ? (
                                   <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
                                     <p className="text-xs font-medium text-green-700">{ht?'Fidbak ou':'Votre feedback'}:</p>
@@ -403,7 +402,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                                 ) : (
                                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2 space-y-2">
                                     <div className="flex gap-2">
-                                      <input type="text" placeholder={ht?'Nòt (opsyonèl, egz: 8/10)':'Note (optionnel, ex: 8/10)'} value={fb.score || ''} onChange={e => setFeedbackData(prev => ({ ...prev, [sub.id]: { ...prev[sub.id], score: e.target.value } }))} className="w-32 px-3 py-2 border rounded-lg text-sm" />
+                                      <input type="text" placeholder={ht?'Nòt (egz: 8/10)':'Note (ex: 8/10)'} value={fb.score || ''} onChange={e => setFeedbackData(prev => ({ ...prev, [sub.id]: { ...prev[sub.id], score: e.target.value } }))} className="w-32 px-3 py-2 border rounded-lg text-sm" />
                                       <input type="text" placeholder={ht?'Fidbak...':'Commentaire...'} value={fb.feedback || ''} onChange={e => setFeedbackData(prev => ({ ...prev, [sub.id]: { ...prev[sub.id], feedback: e.target.value } }))} className="flex-1 px-3 py-2 border rounded-lg text-sm" />
                                     </div>
                                     <button onClick={() => onSaveFeedback(sub.id)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium w-full">✅ {ht?'Korije / Anrejistre':'Noter / Enregistrer'}</button>
@@ -427,36 +426,36 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
         {activeTab === 'exams' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800">📋 Examens</h2>
+              <h2 className="text-lg font-bold text-gray-800">📋 {ht?'Egzamen':'Examens'}</h2>
               <button onClick={() => { setShowForm('exam'); setEditItem(null); setFormData({ subject: teacher.subject || '', totalPoints: '100' }); }} className="bg-orange-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus size={16} />{t('newExam')}</button>
             </div>
             {showForm === 'exam' && (
               <div className="bg-white rounded-2xl shadow-lg p-5 space-y-3 border-2 border-orange-200">
-                <h3 className="font-semibold text-gray-800">{editItem ? 'Modifier' : 'Nouvel'} Examen</h3>
-                <div><label className={labelCls}>Classe <span className="text-red-400">*</span></label>
+                <h3 className="font-semibold text-gray-800">{editItem ? (ht?'Modifye':'Modifier') : (ht?'Nouvo':'Nouvel')} {ht?'Egzamen':'Examen'}</h3>
+                <div><label className={labelCls}>{ht?'Klas':'Classe'} <span className="text-red-400">*</span></label>
                   <select required value={formData.classId || ''} onChange={e => set('classId', e.target.value)} className={inputCls}>
-                    <option value="">Sélectionner</option>
+                    <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                     {myClasses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.gradeLevel})</option>)}
                   </select>
                 </div>
-                <div><label className={labelCls}>Titre <span className="text-red-400">*</span></label><input required value={formData.title || ''} onChange={e => set('title', e.target.value)} className={inputCls} placeholder="Ex: Examen Trimestre 1" /></div>
+                <div><label className={labelCls}>{ht?'Tit':'Titre'} <span className="text-red-400">*</span></label><input required value={formData.title || ''} onChange={e => set('title', e.target.value)} className={inputCls} placeholder={ht?'Egz: Egzamen Trimès 1':'Ex: Examen Trimestre 1'} /></div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div><label className={labelCls}>Matière</label><input value={formData.subject || ''} onChange={e => set('subject', e.target.value)} className={inputCls} /></div>
-                  <div><label className={labelCls}>Date</label><input type="date" value={formData.examDate || ''} onChange={e => set('examDate', e.target.value)} className={inputCls} /></div>
-                  <div><label className={labelCls}>Total points</label><input type="number" value={formData.totalPoints || ''} onChange={e => set('totalPoints', e.target.value)} className={inputCls} /></div>
+                  <div><label className={labelCls}>{ht?'Matyè':'Matière'}</label><input value={formData.subject || ''} onChange={e => set('subject', e.target.value)} className={inputCls} /></div>
+                  <div><label className={labelCls}>{ht?'Dat':'Date'}</label><input type="date" value={formData.examDate || ''} onChange={e => set('examDate', e.target.value)} className={inputCls} /></div>
+                  <div><label className={labelCls}>{ht?'Total pwen':'Total points'}</label><input type="number" value={formData.totalPoints || ''} onChange={e => set('totalPoints', e.target.value)} className={inputCls} /></div>
                 </div>
                 {gradingPeriods.length > 0 && (
-                  <div><label className={labelCls}>Période</label>
+                  <div><label className={labelCls}>{ht?'Peryòd':'Période'}</label>
                     <select value={formData.periodId || ''} onChange={e => set('periodId', e.target.value)} className={inputCls}>
-                      <option value="">Sélectionner</option>
+                      <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                       {gradingPeriods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                 )}
-                <div><label className={labelCls}>Description</label><textarea value={formData.description || ''} onChange={e => set('description', e.target.value)} className={`${inputCls} h-20`} /></div>
+                <div><label className={labelCls}>{ht?'Deskripsyon':'Description'}</label><textarea value={formData.description || ''} onChange={e => set('description', e.target.value)} className={`${inputCls} h-20`} /></div>
                 <div className="flex gap-2">
                   <button onClick={onSaveExam} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-medium">{t("save")}</button>
-                  <button onClick={() => { setShowForm(null); setEditItem(null); }} className="px-4 py-3 bg-gray-100 rounded-xl text-gray-600">Annuler</button>
+                  <button onClick={() => { setShowForm(null); setEditItem(null); }} className="px-4 py-3 bg-gray-100 rounded-xl text-gray-600">{ht?'Anile':'Annuler'}</button>
                 </div>
               </div>
             )}
@@ -469,7 +468,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-800">{ex.title}</p>
-                        {isFuture && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">À venir</span>}
+                        {isFuture && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{ht?'K ap vini':'À venir'}</span>}
                       </div>
                       <p className="text-xs text-gray-400 mt-1">{cls?.name || ''} • {ex.subject || ''} • {ex.totalPoints || 100} pts</p>
                       {ex.description && <p className="text-sm text-gray-600 mt-2">{ex.description}</p>}
@@ -486,23 +485,23 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                   )}
                 </div>
               );
-            }) : <div className="text-center py-12 bg-white rounded-2xl shadow-lg text-gray-400"><ClipboardList size={48} className="mx-auto mb-3 opacity-30" /><p>Aucun examen planifié</p></div>}
+            }) : <div className="text-center py-12 bg-white rounded-2xl shadow-lg text-gray-400"><ClipboardList size={48} className="mx-auto mb-3 opacity-30" /><p>{ht?'Pa gen egzamen planifye':'Aucun examen planifié'}</p></div>}
           </div>
         )}
 
         {/* ═══ ATTENDANCE ═══ */}
         {activeTab === 'attendance' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-gray-800">✅ Présence</h2>
+            <h2 className="text-lg font-bold text-gray-800">✅ {ht?'Prezans':'Présence'}</h2>
             <div className="bg-white rounded-2xl shadow-lg p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Classe</label>
+                <div><label className={labelCls}>{ht?'Klas':'Classe'}</label>
                   <select value={attendanceClassId} onChange={e => { setAttendanceClassId(e.target.value); if (e.target.value) loadAttendanceForDate(e.target.value, attendanceDate); }} className={inputCls}>
-                    <option value="">Sélectionner</option>
+                    <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                     {myClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
-                <div><label className={labelCls}>Date</label>
+                <div><label className={labelCls}>{ht?'Dat':'Date'}</label>
                   <input type="date" value={attendanceDate} onChange={e => { setAttendanceDate(e.target.value); if (attendanceClassId) loadAttendanceForDate(attendanceClassId, e.target.value); }} className={inputCls} />
                 </div>
               </div>
@@ -515,18 +514,14 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                     <span className="text-red-600 font-medium">❌ {attendanceRecords.filter(r => r.status === 'absent').length}</span>
                     <span className="text-yellow-600 font-medium">⏰ {attendanceRecords.filter(r => r.status === 'late').length}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{attendanceRecords.length} élèves</span>
+                  <span className="text-xs text-gray-400">{attendanceRecords.length} {ht?'elèv':'élèves'}</span>
                 </div>
                 <div className="divide-y">
                   {attendanceRecords.map((r, idx) => (
                     <button key={r.studentId} onClick={() => toggleStatus(idx)} className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition">
                       <span className="text-sm">{r.name}</span>
-                      <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                        r.status === 'present' ? 'bg-green-100 text-green-700' :
-                        r.status === 'absent' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {r.status === 'present' ? '✅ Présent' : r.status === 'absent' ? '❌ Absent' : '⏰ Retard'}
+                      <span className={`text-sm font-medium px-3 py-1 rounded-full ${r.status === 'present' ? 'bg-green-100 text-green-700' : r.status === 'absent' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {r.status === 'present' ? (ht?'✅ Prezan':'✅ Présent') : r.status === 'absent' ? (ht?'❌ Absan':'❌ Absent') : (ht?'⏰ Reta':'⏰ Retard')}
                       </span>
                     </button>
                   ))}
@@ -537,7 +532,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
               </div>
             )}
             {attendanceClassId && attendanceRecords.length === 0 && (
-              <div className="text-center py-8 bg-white rounded-2xl shadow-lg text-gray-400"><Users size={48} className="mx-auto mb-3 opacity-30" /><p>Aucun élève dans cette classe</p></div>
+              <div className="text-center py-8 bg-white rounded-2xl shadow-lg text-gray-400"><Users size={48} className="mx-auto mb-3 opacity-30" /><p>{ht?'Pa gen elèv nan klas sa a':'Aucun élève dans cette classe'}</p></div>
             )}
           </div>
         )}
@@ -545,41 +540,62 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
         {/* ═══ GRADES ═══ */}
         {activeTab === 'grades' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-gray-800">🎓 Notes</h2>
+            <h2 className="text-lg font-bold text-gray-800">🎓 {ht?'Nòt':'Notes'}</h2>
+
+            {/* Legend */}
+            <div className="bg-white rounded-xl shadow p-3 flex flex-wrap gap-2">
+              {[
+                { range: '90-100', label: ht?'Ekselan':'Excellent',   color: 'bg-green-100 text-green-700'  },
+                { range: '80-89',  label: ht?'Trè Byen':'Très Bien',  color: 'bg-blue-100 text-blue-700'    },
+                { range: '70-79',  label: ht?'Byen':'Bien',            color: 'bg-cyan-100 text-cyan-700'    },
+                { range: '60-69',  label: ht?'Pasab':'Passable',       color: 'bg-yellow-100 text-yellow-700'},
+                { range: '< 60',   label: ht?'Echèk':'Échec',          color: 'bg-red-100 text-red-700'      },
+              ].map(({ range, label, color }) => (
+                <span key={range} className={`text-xs px-2.5 py-1 rounded-full font-medium ${color}`}>{range} — {label}</span>
+              ))}
+            </div>
+
             <div className="bg-white rounded-2xl shadow-lg p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Classe</label>
+                <div><label className={labelCls}>{ht?'Klas':'Classe'}</label>
                   <select value={gradeClassId} onChange={e => setGradeClassId(e.target.value)} className={inputCls}>
-                    <option value="">Sélectionner</option>
+                    <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                     {myClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
-                <div><label className={labelCls}>Période</label>
+                <div><label className={labelCls}>{ht?'Peryòd':'Période'}</label>
                   <select value={gradePeriodId} onChange={e => setGradePeriodId(e.target.value)} className={inputCls}>
-                    <option value="">Sélectionner</option>
+                    <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                     {gradingPeriods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
               </div>
             </div>
+
             {gradeClassId && gradePeriodId && classStudentsForGrades.length > 0 && (
               <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="p-4 bg-gray-50 border-b">
-                  <p className="text-sm text-gray-600">{classStudentsForGrades.length} élèves • Entrez les notes sur 100</p>
+                  <p className="text-sm text-gray-600">{classStudentsForGrades.length} {ht?'elèv':'élèves'} • {ht?'Antre nòt sou 100':'Entrez les notes sur 100'}</p>
                 </div>
                 <div className="divide-y">
                   {classStudentsForGrades.map(s => {
                     const existing = existingGrades.find(g => g.studentId === s.id);
+                    const currentScore = liveScores[s.id] !== undefined ? liveScores[s.id] : (existing?.score ?? '');
+                    const label = getGradeLabel(currentScore, ht);
                     return (
-                      <div key={s.id} className="flex items-center justify-between px-5 py-3">
+                      <div key={s.id} className="flex items-center gap-3 px-5 py-3">
                         <span className="text-sm flex-1">{s.firstName} {s.lastName}</span>
                         <input
                           type="number" min="0" max="100"
-                          defaultValue={existing?.score ?? ''}
+                          value={currentScore}
+                          onChange={e => setLiveScores(prev => ({ ...prev, [s.id]: e.target.value }))}
                           onBlur={e => { const v = e.target.value; if (v !== '') saveGradeEntry(s.id, v); }}
                           className="w-20 px-3 py-2 border rounded-xl text-center text-sm font-semibold"
                           placeholder="—"
                         />
+                        {label && (
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${label.color}`}>{label.label}</span>
+                        )}
                       </div>
                     );
                   })}
@@ -587,10 +603,10 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
               </div>
             )}
             {gradeClassId && gradePeriodId && classStudentsForGrades.length === 0 && (
-              <div className="text-center py-8 bg-white rounded-2xl shadow-lg text-gray-400"><p>Aucun élève dans cette classe</p></div>
+              <div className="text-center py-8 bg-white rounded-2xl shadow-lg text-gray-400"><p>{ht?'Pa gen elèv nan klas sa a':'Aucun élève dans cette classe'}</p></div>
             )}
             {(!gradeClassId || !gradePeriodId) && (
-              <div className="text-center py-12 bg-white rounded-2xl shadow-lg text-gray-400"><GraduationCap size={48} className="mx-auto mb-3 opacity-30" /><p>Sélectionnez une classe et une période</p></div>
+              <div className="text-center py-12 bg-white rounded-2xl shadow-lg text-gray-400"><GraduationCap size={48} className="mx-auto mb-3 opacity-30" /><p>{ht?'Chwazi yon klas ak yon peryòd':'Sélectionnez une classe et une période'}</p></div>
             )}
           </div>
         )}
@@ -598,24 +614,14 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
         {/* ═══ SALARY ═══ */}
         {activeTab === 'salary' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-gray-800">💰 Mon Salaire</h2>
+            <h2 className="text-lg font-bold text-gray-800">💰 {ht?'Salè Mwen':'Mon Salaire'}</h2>
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-xs text-gray-500">Annuel</p>
-                <p className="text-xl font-bold text-gray-800">HTG {annual.toLocaleString()}</p>
-                <p className="text-xs text-gray-400">HTG {(annual / 10).toLocaleString()} / mois</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-4 text-center">
-                <p className="text-xs text-gray-500">Reçu</p>
-                <p className="text-xl font-bold text-green-600">HTG {totalPaid.toLocaleString()}</p>
-              </div>
-              <div className={`bg-white rounded-xl shadow-lg p-4 text-center`}>
-                <p className="text-xs text-gray-500">Restant</p>
-                <p className={`text-xl font-bold ${salaryBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>{salaryBalance > 0 ? `HTG ${salaryBalance.toLocaleString()}` : 'SOLDÉ'}</p>
-              </div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-xs text-gray-500">{ht?'Anyèl':'Annuel'}</p><p className="text-xl font-bold text-gray-800">HTG {annual.toLocaleString()}</p><p className="text-xs text-gray-400">HTG {(annual / 10).toLocaleString()} / {ht?'mwa':'mois'}</p></div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-xs text-gray-500">{ht?'Resevwa':'Reçu'}</p><p className="text-xl font-bold text-green-600">HTG {totalPaid.toLocaleString()}</p></div>
+              <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-xs text-gray-500">{ht?'Rete':'Restant'}</p><p className={`text-xl font-bold ${salaryBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>{salaryBalance > 0 ? `HTG ${salaryBalance.toLocaleString()}` : (ht?'PEYE NET':'SOLDÉ')}</p></div>
             </div>
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b"><h3 className="font-semibold text-gray-800 text-sm">Historique des Versements</h3></div>
+              <div className="p-4 bg-gray-50 border-b"><h3 className="font-semibold text-gray-800 text-sm">{ht?'Istorik Peman yo':'Historique des Versements'}</h3></div>
               {teacherPayments.length > 0 ? (
                 <div className="divide-y">
                   {teacherPayments.map(p => (
@@ -628,7 +634,68 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                     </div>
                   ))}
                 </div>
-              ) : <div className="p-8 text-center text-gray-400 text-sm">Aucun versement enregistré</div>}
+              ) : <div className="p-8 text-center text-gray-400 text-sm">{ht?'Pa gen peman anrejistre':'Aucun versement enregistré'}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ PROFILE / CHANJE KÒD ═══ */}
+        {activeTab === 'profile' && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-gray-800">👤 {ht?'Pwofil Mwen':'Mon Profil'}</h2>
+
+            {/* Teacher info card */}
+            <div className="bg-white rounded-2xl shadow-lg p-5 space-y-2">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-socrates-navy text-white flex items-center justify-center text-xl font-bold">{teacher.firstName?.[0]}{teacher.lastName?.[0]}</div>
+                <div>
+                  <p className="font-bold text-lg text-gray-800">{teacher.firstName} {teacher.lastName}</p>
+                  {teacher.subject && <p className="text-sm text-gray-500">{ht?'Matyè':'Matière'}: {teacher.subject}</p>}
+                  {teacher.email && <p className="text-sm text-gray-400">{teacher.email}</p>}
+                  {teacher.phone && <p className="text-sm text-gray-400">{teacher.phone}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* PIN change */}
+            <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Lock size={18} className="text-socrates-blue" />
+                <h3 className="font-semibold text-gray-800">{ht?'Chanje Kòd PIN':'Changer le code PIN'}</h3>
+              </div>
+              <div>
+                <label className={labelCls}>{ht?'Kòd aktyèl':'Code actuel'}</label>
+                <input
+                  type="password" maxLength={6} placeholder="••••"
+                  value={pinData.current}
+                  onChange={e => { setPinData(p => ({ ...p, current: e.target.value.replace(/\D/g, '') })); setPinMsg(null); }}
+                  className={`${inputCls} text-center text-xl tracking-widest`}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>{ht?'Nouvo kòd (4-6 chif)':'Nouveau code (4-6 chiffres)'}</label>
+                <input
+                  type="password" maxLength={6} placeholder="••••"
+                  value={pinData.next}
+                  onChange={e => { setPinData(p => ({ ...p, next: e.target.value.replace(/\D/g, '') })); setPinMsg(null); }}
+                  className={`${inputCls} text-center text-xl tracking-widest`}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>{ht?'Konfime nouvo kòd':'Confirmer le nouveau code'}</label>
+                <input
+                  type="password" maxLength={6} placeholder="••••"
+                  value={pinData.confirm}
+                  onChange={e => { setPinData(p => ({ ...p, confirm: e.target.value.replace(/\D/g, '') })); setPinMsg(null); }}
+                  className={`${inputCls} text-center text-xl tracking-widest`}
+                />
+              </div>
+              {pinMsg && (
+                <p className={`text-sm font-medium text-center ${pinMsg.ok ? 'text-green-600' : 'text-red-600'}`}>{pinMsg.text}</p>
+              )}
+              <button onClick={onChangePIN} className="w-full bg-socrates-blue text-white py-3 rounded-xl font-semibold">
+                {ht?'Chanje Kòd':'Modifier le code'}
+              </button>
             </div>
           </div>
         )}

@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Users, GraduationCap, BookOpen, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Flag, ArrowUpRight, ArrowDownRight, Plus, ChevronRight, Clock, Percent, Wallet, PiggyBank, RefreshCw } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Flag, ArrowUpRight, ArrowDownRight, Plus, ChevronRight, Clock, Percent, Wallet, PiggyBank, RefreshCw, MessageSquare } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 
 export default function Dashboard({ onOpenModal }) {
   const {
     school, students, teachers, classes, payments, teacherPayments, expenses,
-    getStudentBalance, getTeacherBalance,
+    homeworkSubmissions, staffPayments,
+    getStudentBalance, getTeacherBalance, getStaffBalance,
     isAdultSchool, isPrescolaireOnly,
     setActiveTab, autoFlagOverdue,
   } = useSchool();
@@ -42,6 +43,17 @@ export default function Dashboard({ onOpenModal }) {
   const flaggedStudents = students.filter(s => s.flag);
   const unpaidTeachers = teachers.filter(tc => getTeacherBalance(tc.id) > 0).length;
   const coaches = teachers.filter(tc => tc.isCoach);
+
+  // ── Staff salary calculations ──
+  const staffList = school?.adminStaff || [];
+  const staffWithSalary = staffList.filter(s => s.id && parseFloat(s.annualSalary) > 0);
+  const totalStaffDue = staffWithSalary.reduce((sum, s) => sum + Math.max(0, getStaffBalance(s.id)), 0);
+  const unpaidStaff = staffWithSalary.filter(s => getStaffBalance(s.id) > 0).length;
+  const masSalayal = finance.totalTeacherDue + totalStaffDue;
+  const totalUnpaidPayroll = unpaidTeachers + unpaidStaff;
+
+  // ── Devwa An Atant ──
+  const pendingHomework = (homeworkSubmissions || []).filter(s => !s.corrected && !s.grade).length;
 
   const recentActivity = useMemo(() => {
     const all = [];
@@ -125,8 +137,40 @@ export default function Dashboard({ onOpenModal }) {
         </div>
       </div>
 
+      {/* ── Mas Salayal + Devwa An Atant ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`bg-white rounded-xl shadow-lg p-4 border-l-4 ${masSalayal > 0 ? 'border-orange-400' : 'border-green-400'}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <GraduationCap size={16} className={masSalayal > 0 ? 'text-orange-400' : 'text-green-500'} />
+            <span className="text-xs text-gray-500">{t('masSalayal') || 'Mas Salayal'}</span>
+          </div>
+          <p className={`text-xl font-bold ${masSalayal > 0 ? 'text-orange-500' : 'text-green-600'}`}>
+            HTG {masSalayal.toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            {totalUnpaidPayroll > 0
+              ? `${unpaidTeachers} pwofesè + ${unpaidStaff} pèsonèl`
+              : t('allPaid') || 'Tout payé ✓'}
+          </p>
+        </div>
+        <div className={`bg-white rounded-xl shadow-lg p-4 border-l-4 ${pendingHomework > 0 ? 'border-purple-400' : 'border-gray-200'}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <MessageSquare size={16} className={pendingHomework > 0 ? 'text-purple-500' : 'text-gray-300'} />
+            <span className="text-xs text-gray-500">{t('devwaAtant') || 'Devwa An Atant'}</span>
+          </div>
+          <p className={`text-xl font-bold ${pendingHomework > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+            {pendingHomework}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            {pendingHomework > 0
+              ? `${t('toCorrect') || 'à corriger'}`
+              : t('noPending') || 'Aucun en attente ✓'}
+          </p>
+        </div>
+      </div>
+
       {/* ── Alerts Row ── */}
-      {(unpaidStudents > 0 || unpaidTeachers > 0 || noDeposit > 0 || flaggedStudents.length > 0) && (
+      {(unpaidStudents > 0 || unpaidTeachers > 0 || noDeposit > 0 || flaggedStudents.length > 0 || pendingHomework > 0) && (
         <div className="flex flex-wrap gap-2">
           {unpaidStudents > 0 && (
             <button onClick={() => setActiveTab('students')} className="flex items-center gap-2 bg-red-50 text-red-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-100 transition">
@@ -140,9 +184,15 @@ export default function Dashboard({ onOpenModal }) {
               <ChevronRight size={14} />
             </button>
           )}
-          {unpaidTeachers > 0 && (
+          {totalUnpaidPayroll > 0 && (
             <button onClick={() => setActiveTab('teachers')} className="flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-orange-100 transition">
               <AlertTriangle size={16} />{unpaidTeachers} {adult ? t('teacherAdultPlural') || 'prof(s)' : t('teacherPlural') || 'enseignant(s)'} {t('toPayAlert') || 'à payer'}
+              <ChevronRight size={14} />
+            </button>
+          )}
+          {pendingHomework > 0 && (
+            <button onClick={() => setActiveTab('teachers')} className="flex items-center gap-2 bg-purple-50 text-purple-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-purple-100 transition">
+              <MessageSquare size={16} />{pendingHomework} {t('devwaAtant') || 'devwa an atant'}
               <ChevronRight size={14} />
             </button>
           )}
@@ -192,7 +242,7 @@ export default function Dashboard({ onOpenModal }) {
               <div className="flex justify-between text-sm"><span className="text-gray-500">{t('annualSalaries') || 'Salaires annuels'}</span><span className="font-bold text-gray-700">HTG {finance.totalAnnualSalary.toLocaleString()}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">{t('salariesPaid') || 'Salaires versés'}</span><span className="font-bold text-green-600">HTG {finance.totalTeacherPaid.toLocaleString()}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">{t('expenses')}</span><span className="font-bold text-orange-500">HTG {finance.totalExpenses.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm border-t mt-2 pt-2"><span className="text-gray-500 font-medium">{t('salariesDue') || 'Salaires dus'}</span><span className="font-bold text-red-500">HTG {finance.totalTeacherDue.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm border-t mt-2 pt-2"><span className="text-gray-500 font-medium">{t('salariesDue') || 'Salaires dus'}</span><span className="font-bold text-red-500">HTG {masSalayal.toLocaleString()}</span></div>
             </div>
           </div>
           <button onClick={() => setActiveTab('teachers')} className="w-full mt-3 text-socrates-blue text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-blue-50 transition">
