@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, Plus, Download, Trash2, Search, Filter, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Receipt, BarChart3, X } from 'lucide-react';
+import { DollarSign, Plus, Download, Trash2, Search, Filter, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Receipt, BarChart3, X, CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 
 export default function Payments({ onOpenModal }) {
-  const { students, teachers, payments, teacherPayments, expenses, school, deletePayment, deleteTeacherPayment, deleteExpense, getStudentBalance, getTeacherBalance, isAdultSchool } = useSchool();
+  const { students, teachers, payments, teacherPayments, expenses, school, deletePayment, deleteTeacherPayment, deleteExpense, getStudentBalance, getTeacherBalance, isAdultSchool, paymentRequests, confirmPaymentRequest, rejectPaymentRequest } = useSchool();
   const { t, lang } = useLang();
   const ht = lang === 'ht';
 
@@ -15,10 +15,15 @@ export default function Payments({ onOpenModal }) {
   const [showFilters, setShowFilters] = useState(false);
   const [showBilan, setShowBilan] = useState(false);
   const [bilanMonth, setBilanMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [viewingReceipt, setViewingReceipt] = useState(null);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const adult = isAdultSchool();
   const studentLabel = adult ? t('studentsAdult') : t('students');
   const teacherLabel = adult ? t('teachersAdult') : t('teachers');
+
+  const pendingRequests = (paymentRequests || []).filter(r => r.status === 'pending');
 
   const PAYMENT_TYPE_LABELS = {
     scolarite: `📚 ${t('tuition')}`, inscription: `📋 ${t('inscription')}`, deposit: `💰 ${t('deposit')}`,
@@ -38,6 +43,8 @@ export default function Payments({ onOpenModal }) {
     food: { label: ht?'Kantin':'Cantine', icon: '🍽️' },
     other: { label: t('other'), icon: '📋' },
   };
+
+  const METHOD_ICONS = { MonCash: '📱', Natcash: '📲', 'Dépôt bancaire': '🏦', Zelle: '💸', PayPal: '🅿️' };
 
   const allEntries = useMemo(() => {
     const entries = [];
@@ -91,7 +98,6 @@ export default function Payments({ onOpenModal }) {
       ${entry.personRole?`<p><strong>${ht?'Fonksyon':'Fonction'}:</strong> ${entry.personRole}</p>`:''}
       <p><strong>${t('method')}:</strong> ${entry.method||(ht?'Kach':'Espèces')}</p>
       ${entry.month?`<p><strong>${t('month')}:</strong> ${entry.month}</p>`:''}
-      ${entry.category?`<p><strong>${ht?'Kategori':'Catégorie'}:</strong> ${EXPENSE_CATEGORIES[entry.category]?.label||entry.category}</p>`:''}
       ${entry.description?`<p><strong>Description:</strong> ${entry.description}</p>`:''}
       <div style="background:#f0f0f0;padding:20px;text-align:center;margin:20px 0;border-radius:8px;">
         <p style="margin:0;">${isOut?(ht?'Montan Vèse':'Montant Versé'):(ht?'Montan Resevwa':'Montant Reçu')}</p>
@@ -114,19 +120,16 @@ export default function Payments({ onOpenModal }) {
     const monthNames = ht ? ['Janvye','Fevriye','Mas','Avril','Me','Jen','Jiyè','Out','Septanm','Oktòb','Novanm','Desanm'] : ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
     const monthName = monthNames[parseInt(month)-1];
     const prevMonth = parseInt(month)===1?`${parseInt(year)-1}-12`:`${year}-${String(parseInt(month)-1).padStart(2,'0')}`;
-
     const mPayments = payments.filter(p => (p.date||'').startsWith(bilanMonth));
     const mTeacherPay = teacherPayments.filter(p => (p.date||'').startsWith(bilanMonth));
     const mExpenses = (expenses||[]).filter(p => (p.date||'').startsWith(bilanMonth));
     const pmPayments = payments.filter(p => (p.date||'').startsWith(prevMonth));
     const pmTeacherPay = teacherPayments.filter(p => (p.date||'').startsWith(prevMonth));
     const pmExpenses = (expenses||[]).filter(p => (p.date||'').startsWith(prevMonth));
-
     const revenueByType = {};
     mPayments.forEach(p => { const type = p.paymentType||(p.isDeposit?'deposit':'scolarite'); revenueByType[type]=(revenueByType[type]||0)+(parseFloat(p.amount)||0); });
     const expenseByCategory = {};
     mExpenses.forEach(p => { const cat = p.category||'other'; expenseByCategory[cat]=(expenseByCategory[cat]||0)+(parseFloat(p.amount)||0); });
-
     const totalRevenue = mPayments.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
     const totalSalaries = mTeacherPay.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
     const totalExpenses = mExpenses.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
@@ -135,43 +138,35 @@ export default function Payments({ onOpenModal }) {
     const prevRevenue = pmPayments.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
     const prevBOut = pmTeacherPay.reduce((s,p)=>s+(parseFloat(p.amount)||0),0)+pmExpenses.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
     const prevNet = prevRevenue - prevBOut;
-
     const arrow = (current,previous) => { if(previous===0) return ''; const pct=Math.round(((current-previous)/previous)*100); if(pct>0) return `<span style="color:#16a34a;">↑ +${pct}%</span>`; if(pct<0) return `<span style="color:#dc2626;">↓ ${pct}%</span>`; return '<span style="color:#6b7280;">= 0%</span>'; };
-
     const revenueRows = Object.entries(revenueByType).sort((a,b)=>b[1]-a[1]).map(([type,amount])=>`<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${PAYMENT_TYPE_LABELS[type]||type}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#16a34a;">HTG ${amount.toLocaleString()}</td></tr>`).join('');
     const salaryRows = mTeacherPay.map(p=>{const tc=teachers.find(x=>x.id===p.teacherId);return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${tc?tc.firstName+' '+tc.lastName:(ht?'Enkoni':'Inconnu')}${p.month?' — '+p.month:''}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#dc2626;">HTG ${(parseFloat(p.amount)||0).toLocaleString()}</td></tr>`;}).join('');
     const expenseRows = Object.entries(expenseByCategory).sort((a,b)=>b[1]-a[1]).map(([cat,amount])=>{const info=EXPENSE_CATEGORIES[cat]||EXPENSE_CATEGORIES.other;return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${info.icon} ${info.label}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#dc2626;">HTG ${amount.toLocaleString()}</td></tr>`;}).join('');
-
     const bTotalStudentDue = students.reduce((sum,s)=>sum+Math.max(0,getStudentBalance(s.id)),0);
     const bTotalTeacherDue = teachers.reduce((sum,tc)=>sum+Math.max(0,getTeacherBalance(tc.id)),0);
     const unpaidStudents = students.filter(s=>getStudentBalance(s.id)>0);
     const top5 = [...unpaidStudents].sort((a,b)=>getStudentBalance(b.id)-getStudentBalance(a.id)).slice(0,5);
     const debtorRows = top5.map(s=>`<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${s.firstName} ${s.lastName}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${s.gradeLevel||'N/A'}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;color:#dc2626;">HTG ${getStudentBalance(s.id).toLocaleString()}</td></tr>`).join('');
-
     const _in = ht?'Antre':'Entrées'; const _out = ht?'Sòti':'Sorties'; const _net = ht?'Rezilta Nèt':'Résultat Net';
-    const _vsPrev = ht?'vs mwa avan':'vs mois préc.'; const _totalIn = ht?'TOTAL ANTRE':'TOTAL ENTRÉES'; const _totalSal = ht?'TOTAL SALÈ':'TOTAL SALAIRES'; const _totalExp = ht?'TOTAL DEPANS':'TOTAL DÉPENSES';
+    const _vsPrev = ht?'vs mwa avan':'vs mois préc.';
     const sLabel = adult?t('studentsAdult'):t('students'); const tLabel = adult?t('teachersAdult'):t('teachers');
-
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${ht?'Bilan':'Bilan'} ${monthName} ${year}</title>
+    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bilan ${monthName} ${year}</title>
     <style>body{font-family:'Inter',sans-serif;padding:20px;max-width:800px;margin:0 auto;color:#1f2937;font-size:14px;}@media print{.no-print{display:none!important;}body{padding:0;}}table{width:100%;border-collapse:collapse;}.section{margin:25px 0;}.section h3{color:#1e3a5f;border-bottom:2px solid #e5e7eb;padding-bottom:8px;margin-bottom:10px;}.card{display:inline-block;min-width:150px;padding:15px;border-radius:12px;text-align:center;margin:5px;}</style></head><body>
-      <div style="text-align:center;margin-bottom:30px;"><h1 style="color:#1e3a5f;margin:0;font-size:1.8em;">${school?.name||'SOCRATES'}</h1>${school?.address?`<p style="color:#6b7280;margin:4px 0;">${school.address}${school.city?', '+school.city:''}</p>`:''}${school?.phone?`<p style="color:#6b7280;margin:4px 0;">${t('phone')}: ${school.phone}</p>`:''}</div>
+      <div style="text-align:center;margin-bottom:30px;"><h1 style="color:#1e3a5f;margin:0;font-size:1.8em;">${school?.name||'SOCRATES'}</h1></div>
       <h2 style="text-align:center;color:#1e3a5f;border-bottom:3px solid #1e3a5f;padding-bottom:10px;">${ht?'BILAN MANSYÈL':'BILAN MENSUEL'} — ${monthName.toUpperCase()} ${year}</h2>
       <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:25px 0;">
         <div class="card" style="background:#f0fdf4;border:1px solid #bbf7d0;"><p style="color:#6b7280;font-size:0.8em;margin:0;">${_in}</p><p style="font-size:1.5em;font-weight:700;color:#16a34a;margin:5px 0;">HTG ${totalRevenue.toLocaleString()}</p><p style="font-size:0.75em;margin:0;">${arrow(totalRevenue,prevRevenue)} ${_vsPrev}</p></div>
         <div class="card" style="background:#fef2f2;border:1px solid #fecaca;"><p style="color:#6b7280;font-size:0.8em;margin:0;">${_out}</p><p style="font-size:1.5em;font-weight:700;color:#dc2626;margin:5px 0;">HTG ${totalBOut.toLocaleString()}</p><p style="font-size:0.75em;margin:0;">${arrow(totalBOut,prevBOut)} ${_vsPrev}</p></div>
         <div class="card" style="background:${bNet>=0?'#f0fdf4':'#fef2f2'};border:1px solid ${bNet>=0?'#bbf7d0':'#fecaca'};"><p style="color:#6b7280;font-size:0.8em;margin:0;">${_net}</p><p style="font-size:1.5em;font-weight:700;color:${bNet>=0?'#16a34a':'#dc2626'};margin:5px 0;">${bNet>=0?'':'-'}HTG ${Math.abs(bNet).toLocaleString()}</p><p style="font-size:0.75em;margin:0;">${arrow(bNet,prevNet)} ${_vsPrev}</p></div>
       </div>
-      <div class="section"><h3>📈 ${_in} — ${ht?'Detay pa tip':'Détail par type'}</h3>${revenueRows?`<table>${revenueRows}<tr style="background:#f0fdf4;font-weight:700;"><td style="padding:10px 12px;">${_totalIn}</td><td style="padding:10px 12px;text-align:right;color:#16a34a;">HTG ${totalRevenue.toLocaleString()}</td></tr></table>`:`<p style="color:#9ca3af;">${ht?'Pa gen antre mwa sa a':'Aucune entrée ce mois'}</p>`}<p style="color:#6b7280;font-size:0.85em;margin-top:8px;">${mPayments.length} ${ht?'peman resevwa':'paiement(s) reçu(s)'}</p></div>
-      <div class="section"><h3>👥 ${ht?'Salè':'Salaires'} ${tLabel}</h3>${salaryRows?`<table>${salaryRows}<tr style="background:#fef2f2;font-weight:700;"><td style="padding:10px 12px;">${_totalSal}</td><td style="padding:10px 12px;text-align:right;color:#dc2626;">HTG ${totalSalaries.toLocaleString()}</td></tr></table>`:`<p style="color:#9ca3af;">${ht?'Pa gen salè vèse mwa sa a':'Aucun salaire versé ce mois'}</p>`}</div>
-      <div class="section"><h3>📋 ${ht?'Depans pa kategori':'Dépenses par catégorie'}</h3>${expenseRows?`<table>${expenseRows}<tr style="background:#fef2f2;font-weight:700;"><td style="padding:10px 12px;">${_totalExp}</td><td style="padding:10px 12px;text-align:right;color:#dc2626;">HTG ${totalExpenses.toLocaleString()}</td></tr></table>`:`<p style="color:#9ca3af;">${ht?'Pa gen depans mwa sa a':'Aucune dépense ce mois'}</p>`}</div>
-      <div class="section"><h3>⚠️ ${ht?'Sitiyasyon Enpeye':'Situation des Impayés'}</h3><div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:15px;">
-        <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;"><p style="margin:0;font-size:0.8em;color:#6b7280;">${sLabel} ${ht?'ak balans':'avec solde'}</p><p style="margin:4px 0;font-size:1.3em;font-weight:700;color:#ea580c;">${unpaidStudents.length} / ${students.length}</p></div>
-        <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;"><p style="margin:0;font-size:0.8em;color:#6b7280;">${t('totalDue')} ${sLabel.toLowerCase()}</p><p style="margin:4px 0;font-size:1.3em;font-weight:700;color:#ea580c;">HTG ${bTotalStudentDue.toLocaleString()}</p></div>
-        <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;"><p style="margin:0;font-size:0.8em;color:#6b7280;">${ht?'Salè ki rete pou vèse':'Salaires restants à verser'}</p><p style="margin:4px 0;font-size:1.3em;font-weight:700;color:#ea580c;">HTG ${bTotalTeacherDue.toLocaleString()}</p></div>
-      </div>${debtorRows?`<p style="font-weight:600;margin-bottom:5px;">Top 5 — ${sLabel} ${ht?'ki dwe plis':'les plus endettés'}:</p><table><thead><tr style="background:#1e3a5f;color:white;"><th style="padding:8px 12px;text-align:left;">${t('name')}</th><th style="padding:8px 12px;text-align:left;">${t('gradeLevel')}</th><th style="padding:8px 12px;text-align:right;">${t('balance')}</th></tr></thead><tbody>${debtorRows}</tbody></table>`:''}</div>
+      <div class="section"><h3>📈 ${_in}</h3>${revenueRows?`<table>${revenueRows}<tr style="background:#f0fdf4;font-weight:700;"><td style="padding:10px 12px;">TOTAL</td><td style="padding:10px 12px;text-align:right;color:#16a34a;">HTG ${totalRevenue.toLocaleString()}</td></tr></table>`:`<p style="color:#9ca3af;">${ht?'Pa gen antre':'Aucune entrée'}</p>`}</div>
+      <div class="section"><h3>👥 ${ht?'Salè':'Salaires'}</h3>${salaryRows?`<table>${salaryRows}<tr style="background:#fef2f2;font-weight:700;"><td style="padding:10px 12px;">TOTAL</td><td style="padding:10px 12px;text-align:right;color:#dc2626;">HTG ${totalSalaries.toLocaleString()}</td></tr></table>`:`<p style="color:#9ca3af;">${ht?'Pa gen salè':'Aucun salaire'}</p>`}</div>
+      <div class="section"><h3>📋 ${ht?'Depans':'Dépenses'}</h3>${expenseRows?`<table>${expenseRows}<tr style="background:#fef2f2;font-weight:700;"><td style="padding:10px 12px;">TOTAL</td><td style="padding:10px 12px;text-align:right;color:#dc2626;">HTG ${totalExpenses.toLocaleString()}</td></tr></table>`:`<p style="color:#9ca3af;">${ht?'Pa gen depans':'Aucune dépense'}</p>`}</div>
+      <div class="section"><h3>⚠️ ${ht?'Enpeye':'Impayés'}</h3><div style="display:flex;gap:15px;flex-wrap:wrap;">
+        <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 20px;border-radius:8px;"><p style="margin:0;font-size:0.8em;">${unpaidStudents.length} / ${students.length} ${sLabel}</p><p style="margin:4px 0;font-weight:700;color:#ea580c;">HTG ${bTotalStudentDue.toLocaleString()}</p></div>
+      </div>${debtorRows?`<br/><table><thead><tr style="background:#1e3a5f;color:white;"><th style="padding:8px 12px;text-align:left;">${t('name')}</th><th style="padding:8px 12px;text-align:left;">${t('gradeLevel')}</th><th style="padding:8px 12px;text-align:right;">${t('balance')}</th></tr></thead><tbody>${debtorRows}</tbody></table>`:''}</div>
       <div style="margin-top:40px;display:flex;justify-content:space-between;"><div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">${t('schoolStamp')}</div><div style="width:45%;border-top:1px solid #000;padding-top:8px;text-align:center;font-size:0.85em;">${t('directorSignature')}</div></div>
-      <p style="text-align:center;color:#9ca3af;font-size:0.75em;margin-top:30px;">${t('generatedBy')} — ${new Date().toLocaleString('fr-HT')}</p>
       <button onclick="window.print()" class="no-print" style="margin-top:20px;padding:15px 30px;font-size:1em;width:100%;background:#1e3a5f;color:white;border:none;border-radius:8px;cursor:pointer;">${t('print')}</button>
     </body></html>`);
     w.document.close();
@@ -209,9 +204,70 @@ export default function Payments({ onOpenModal }) {
 
   return (
     <div className="space-y-4">
+
+      {/* ═══ PENDING PAYMENT REQUESTS ═══ */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock size={18} className="text-amber-600" />
+            <h3 className="font-semibold text-amber-800">
+              {ht ? `${pendingRequests.length} peman ap tann konfirmasyon` : `${pendingRequests.length} paiement${pendingRequests.length > 1 ? 's' : ''} en attente de confirmation`}
+            </h3>
+          </div>
+          <div className="space-y-3">
+            {pendingRequests.map(req => {
+              const student = students.find(s => s.id === req.studentId);
+              return (
+                <div key={req.id} className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-lg">
+                      {METHOD_ICONS[req.method] || '💳'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-gray-800">HTG {parseFloat(req.amount).toLocaleString()}</p>
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{req.method}</span>
+                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{req.type === 'sponsor' ? (ht?'Sponsor':'Sponsor') : (ht?'Paran':'Parent')}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-0.5">
+                        {ht?'Elèv':'Élève'}: <strong>{req.studentName || (student ? `${student.firstName} ${student.lastName}` : '?')}</strong>
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {ht?'Voye pa':'Envoyé par'}: {req.senderName}{req.senderPhone ? ` • ${req.senderPhone}` : ''}
+                      </p>
+                      {req.note && <p className="text-xs text-gray-400 mt-1 italic">"{req.note}"</p>}
+                      <p className="text-xs text-gray-400">{formatDate(req.date)}</p>
+                    </div>
+                    {req.receiptBase64 && (
+                      <button onClick={() => setViewingReceipt(req)} className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 border-amber-200 hover:border-amber-400 transition">
+                        <img src={req.receiptBase64} alt="reçu" className="w-full h-full object-cover" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => confirmPaymentRequest(req.id, req)} className="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-green-600 transition">
+                      <CheckCircle size={16} /> {ht?'Konfime':'Confirmer'}
+                    </button>
+                    <button onClick={() => { setRejectModal(req); setRejectReason(''); }} className="flex-1 bg-red-50 text-red-600 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition">
+                      <XCircle size={16} /> {ht?'Rejte':'Rejeter'}
+                    </button>
+                    {req.receiptBase64 && (
+                      <button onClick={() => setViewingReceipt(req)} className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm hover:bg-gray-200 transition">
+                        <Eye size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="bg-white rounded-xl shadow-lg p-4 text-center"><div className="flex items-center justify-center gap-1 mb-1"><TrendingUp size={16} className="text-green-500"/></div><p className="text-xl font-bold text-green-600">HTG {totalIn.toLocaleString()}</p><p className="text-xs text-gray-500">{_inLabel}</p></div>
-        <div className="bg-white rounded-xl shadow-lg p-4 text-center"><div className="flex items-center justify-center gap-1 mb-1"><TrendingDown size={16} className="text-red-500"/></div><p className="text-xl font-bold text-red-500">HTG {totalOut.toLocaleString()}</p><p className="text-xs text-gray-500">{_outLabel}</p></div>
+        <div className="bg-white rounded-xl shadow-lg p-4 text-center"><TrendingUp size={16} className="mx-auto text-green-500 mb-1"/><p className="text-xl font-bold text-green-600">HTG {totalIn.toLocaleString()}</p><p className="text-xs text-gray-500">{_inLabel}</p></div>
+        <div className="bg-white rounded-xl shadow-lg p-4 text-center"><TrendingDown size={16} className="mx-auto text-red-500 mb-1"/><p className="text-xl font-bold text-red-500">HTG {totalOut.toLocaleString()}</p><p className="text-xs text-gray-500">{_outLabel}</p></div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className={`text-xl font-bold ${net>=0?'text-emerald-600':'text-red-600'}`}>HTG {net.toLocaleString()}</p><p className="text-xs text-gray-500">{_netLabel}</p></div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-lg font-bold text-orange-500">HTG {totalStudentDue.toLocaleString()}</p><p className="text-xs text-gray-500">{t('owing')} {studentLabel.toLowerCase()}</p></div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center"><p className="text-lg font-bold text-orange-500">HTG {totalTeacherDue.toLocaleString()}</p><p className="text-xs text-gray-500">{t('owing')} {teacherLabel.toLowerCase()}</p></div>
@@ -242,25 +298,53 @@ export default function Payments({ onOpenModal }) {
         <div className="space-y-6">
           <div>
             <div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center"><ArrowUpRight size={18} className="text-green-600"/></div><h3 className="font-semibold text-gray-800">{_inLabel} <span className="text-sm font-normal text-gray-400">({entrees.length})</span></h3><span className="ml-auto text-sm font-bold text-green-600">HTG {totalIn.toLocaleString()}</span></div>
-            {entrees.length>0?(<div className="space-y-2">{entrees.map(e=><PaymentRow key={`in-${e.id}`} entry={e}/>)}</div>):(<div className="text-center py-6 text-gray-400 text-sm bg-white rounded-xl shadow">{ht?'Pa gen antre':'Aucune entrée'}{filterMethod||filterMonth||searchTerm?` ${ht?'pou filtè sa yo':'pour ces filtres'}`:''}</div>)}
+            {entrees.length>0?(<div className="space-y-2">{entrees.map(e=><PaymentRow key={`in-${e.id}`} entry={e}/>)}</div>):(<div className="text-center py-6 text-gray-400 text-sm bg-white rounded-xl shadow">{ht?'Pa gen antre':'Aucune entrée'}</div>)}
           </div>
           <div>
             <div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><ArrowDownRight size={18} className="text-red-600"/></div><h3 className="font-semibold text-gray-800">{_outLabel} <span className="text-sm font-normal text-gray-400">({sorties.length})</span></h3><span className="ml-auto text-sm font-bold text-red-500">HTG {totalOut.toLocaleString()}</span></div>
-            {sorties.length>0?(<div className="space-y-2">{sorties.map(e=><PaymentRow key={`out-${e.id}`} entry={e}/>)}</div>):(<div className="text-center py-6 text-gray-400 text-sm bg-white rounded-xl shadow">{ht?'Pa gen sòti':'Aucune sortie'}{filterMethod||filterMonth||searchTerm?` ${ht?'pou filtè sa yo':'pour ces filtres'}`:''}</div>)}
+            {sorties.length>0?(<div className="space-y-2">{sorties.map(e=><PaymentRow key={`out-${e.id}`} entry={e}/>)}</div>):(<div className="text-center py-6 text-gray-400 text-sm bg-white rounded-xl shadow">{ht?'Pa gen sòti':'Aucune sortie'}</div>)}
           </div>
         </div>
       ):(
         <div className="space-y-2">
-          {filtered.length>0?filtered.map(e=>(<PaymentRow key={`${e.subType}-${e.id}`} entry={e}/>)):(<div className="text-center py-12 text-gray-500 bg-white rounded-xl shadow-lg"><DollarSign size={48} className="mx-auto mb-4 opacity-50"/><p>{ht?'Pa gen tranzaksyon':'Aucune transaction'}{filterMethod||filterMonth||searchTerm?` ${ht?'pou filtè sa yo':'pour ces filtres'}`:''}</p></div>)}
+          {filtered.length>0?filtered.map(e=>(<PaymentRow key={`${e.subType}-${e.id}`} entry={e}/>)):(<div className="text-center py-12 text-gray-500 bg-white rounded-xl shadow-lg"><DollarSign size={48} className="mx-auto mb-4 opacity-50"/><p>{ht?'Pa gen tranzaksyon':'Aucune transaction'}</p></div>)}
         </div>
       )}
 
+      {/* Bilan modal */}
       {showBilan&&(<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowBilan(false)}><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e=>e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-socrates-navy">{ht?'Bilan Mansyèl':'Bilan Mensuel'}</h3><button onClick={()=>setShowBilan(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={18}/></button></div>
-        <p className="text-sm text-gray-500 mb-4">{ht?'Chwazi mwa a pou jenere rapò finansye a.':'Sélectionnez le mois pour générer le rapport financier.'}</p>
-        <input type="month" value={bilanMonth} onChange={e=>setBilanMonth(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base mb-4 focus:ring-2 focus:ring-socrates-blue/20 focus:border-socrates-blue"/>
-        <button onClick={generateBilan} className="w-full bg-socrates-navy text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-900 transition"><BarChart3 size={18}/>{ht?'Jenere Bilan':'Générer le Bilan'}</button>
+        <input type="month" value={bilanMonth} onChange={e=>setBilanMonth(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-base mb-4"/>
+        <button onClick={generateBilan} className="w-full bg-socrates-navy text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2"><BarChart3 size={18}/>{ht?'Jenere Bilan':'Générer le Bilan'}</button>
       </div></div>)}
+
+      {/* Receipt viewer modal */}
+      {viewingReceipt&&(<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={()=>setViewingReceipt(null)}>
+        <div className="bg-white rounded-2xl overflow-hidden max-w-sm w-full shadow-2xl" onClick={e=>e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 border-b">
+            <h3 className="font-bold text-gray-800">{ht?'Resi / Prèv peman':'Reçu / Preuve de paiement'}</h3>
+            <button onClick={()=>setViewingReceipt(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={18}/></button>
+          </div>
+          <img src={viewingReceipt.receiptBase64} alt="reçu" className="w-full max-h-96 object-contain" />
+          <div className="p-4 bg-gray-50">
+            <p className="text-sm font-medium">{viewingReceipt.senderName} • {viewingReceipt.method}</p>
+            <p className="text-sm text-gray-500">HTG {parseFloat(viewingReceipt.amount).toLocaleString()} — {formatDate(viewingReceipt.date)}</p>
+          </div>
+        </div>
+      </div>)}
+
+      {/* Reject modal */}
+      {rejectModal&&(<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setRejectModal(null)}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e=>e.stopPropagation()}>
+          <h3 className="font-bold text-gray-800 mb-3">{ht?'Rezon reji a':'Raison du rejet'}</h3>
+          <textarea value={rejectReason} onChange={e=>setRejectReason(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-sm h-24 resize-none mb-4" placeholder={ht?'Eksplike rezon an...':'Expliquez la raison...'}/>
+          <div className="flex gap-2">
+            <button onClick={()=>{ rejectPaymentRequest(rejectModal.id, rejectReason); setRejectModal(null); }} className="flex-1 bg-red-500 text-white py-3 rounded-xl font-medium">{ht?'Rejte':'Rejeter'}</button>
+            <button onClick={()=>setRejectModal(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-medium text-gray-700">Annuler</button>
+          </div>
+        </div>
+      </div>)}
+
     </div>
   );
 }

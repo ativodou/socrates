@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../../firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 import SchoolPublicProfile from './SchoolPublicProfile';
@@ -25,6 +25,7 @@ export default function AuthScreen() {
   const [submittingHW, setSubmittingHW] = useState(null);
   const [submitData, setSubmitData] = useState({ text: '', photoBase64: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [showPayment, setShowPayment] = useState({}); // {studentId: bool}
 
   const compressImage = (file, maxWidth = 800, quality = 0.6) => {
     return new Promise((resolve) => {
@@ -244,6 +245,129 @@ export default function AuthScreen() {
                     <div className="bg-green-50 rounded-xl p-3 text-center"><p className="text-xs text-gray-500">{L.paid}</p><p className="text-sm font-bold text-green-600">HTG {paid.toLocaleString()}</p></div>
                     <div className={`rounded-xl p-3 text-center ${balance > 0 ? 'bg-red-50' : 'bg-green-50'}`}><p className="text-xs text-gray-500">{L.remaining}</p><p className={`text-sm font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{balance > 0 ? `HTG ${balance.toLocaleString()}` : L.cleared}</p></div>
                   </div>
+
+                  {/* ── Pay & Confirm (Sponsor) ── */}
+                  {school?.paymentMethods && Object.keys(school.paymentMethods).length > 0 && (
+                    <div>
+                      {!showPayment[`sponsor_${student.id}`] ? (
+                        balance > 0 && (
+                          <button onClick={() => setShowPayment(p => ({...p, [`sponsor_${student.id}`]: {step:'choose', amount: String(Math.round(balance)), senderName:'', senderPhone:'', note:'', receiptBase64:'', method:null, loading:false, error:'', done:false}}))}
+                            className="w-full bg-socrates-navy text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 text-sm">
+                            💳 {parentLang==='ht' ? 'Fè yon Peman' : 'Effectuer un Paiement'}
+                          </button>
+                        )
+                      ) : showPayment[`sponsor_${student.id}`]?.done ? (
+                        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center space-y-2">
+                          <div className="text-4xl">✅</div>
+                          <p className="font-bold text-green-700">{parentLang==='ht' ? 'Demann ou voye!' : 'Demande envoyée !'}</p>
+                          <p className="text-xs text-green-600">{parentLang==='ht' ? 'Lekòl la ap verifye epi konfime peman an.' : "L'école va vérifier et confirmer votre paiement."}</p>
+                          <button onClick={() => setShowPayment(p => ({...p, [`sponsor_${student.id}`]: null}))} className="text-xs text-green-600 underline">{parentLang==='ht' ? 'Fèmen' : 'Fermer'}</button>
+                        </div>
+                      ) : showPayment[`sponsor_${student.id}`]?.step === 'choose' ? (
+                        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-700">{parentLang==='ht' ? 'Chwazi metòd peman:' : 'Méthode de paiement :'}</p>
+                            <button onClick={() => setShowPayment(p => ({...p, [`sponsor_${student.id}`]: null}))} className="text-gray-400 text-lg">✕</button>
+                          </div>
+                          <div className="space-y-2">
+                            {[
+                              {key:'moncash', label:'MonCash', icon:'📱'},
+                              {key:'natcash', label:'Natcash', icon:'📲'},
+                              {key:'bank',    label:parentLang==='ht'?'Depò Labank':'Dépôt bancaire', icon:'🏦'},
+                              {key:'zelle',   label:'Zelle (USA)', icon:'💸'},
+                              {key:'paypal',  label:'PayPal', icon:'🅿️'},
+                            ].filter(m => school.paymentMethods[m.key]).map(m => (
+                              <button key={m.key}
+                                onClick={() => setShowPayment(p => ({...p, [`sponsor_${student.id}`]: {...p[`sponsor_${student.id}`], step:'fill', method:m}}))}
+                                className="w-full bg-white border rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition text-left">
+                                <span className="text-xl">{m.icon}</span>
+                                <div className="flex-1"><p className="font-semibold text-sm text-gray-800">{m.label}</p><p className="text-xs text-gray-400 font-mono">{school.paymentMethods[m.key]}</p></div>
+                                <span className="text-gray-400">›</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : showPayment[`sponsor_${student.id}`]?.step === 'fill' ? (() => {
+                        const ps = showPayment[`sponsor_${student.id}`];
+                        const update = (obj) => setShowPayment(p => ({...p, [`sponsor_${student.id}`]: {...p[`sponsor_${student.id}`], ...obj}}));
+                        return (
+                          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => update({step:'choose'})} className="text-gray-400 text-lg">‹</button>
+                                <span className="text-xl">{ps.method.icon}</span>
+                                <p className="font-bold text-sm">{ps.method.label}</p>
+                              </div>
+                              <button onClick={() => setShowPayment(p => ({...p, [`sponsor_${student.id}`]: null}))} className="text-gray-400 text-lg">✕</button>
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                              <p className="font-semibold mb-1">{ps.method.label} :</p>
+                              <p className="font-mono font-bold text-base text-gray-800">{school.paymentMethods[ps.method.key]}</p>
+                              <p className="mt-2 text-amber-600">{parentLang==='ht' ? '➊ Voye lajan ➋ Pran foto resi ➌ Ranpli fòm anba' : '➊ Envoyez ➋ Photo du reçu ➌ Remplissez ci-dessous'}</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Montan (HTG)' : 'Montant (HTG)'}</label>
+                              <input type="number" value={ps.amount} onChange={e => update({amount:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-lg font-bold text-center" placeholder="0"/>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Non moun ki voye a *' : "Nom de l'expéditeur *"}</label>
+                              <input type="text" value={ps.senderName} onChange={e => update({senderName:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder={parentLang==='ht' ? 'Non konplè ou' : 'Votre nom complet'}/>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Telefòn (opsyonèl)' : 'Téléphone (optionnel)'}</label>
+                              <input type="tel" value={ps.senderPhone} onChange={e => update({senderPhone:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder="+509 XXXX XXXX"/>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Foto resi (rekòmande)' : 'Photo du reçu (recommandé)'}</label>
+                              {ps.receiptBase64 ? (
+                                <div className="relative">
+                                  <img src={ps.receiptBase64} alt="reçu" className="w-full max-h-40 object-contain rounded-xl border"/>
+                                  <button onClick={() => update({receiptBase64:''})} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
+                                </div>
+                              ) : (
+                                <label className="block w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 transition">
+                                  <span className="text-2xl block mb-1">📷</span>
+                                  <span className="text-xs text-gray-500">{parentLang==='ht' ? 'Klike pou foto resi' : 'Cliquer pour photo du reçu'}</span>
+                                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async(e) => {
+                                    const file = e.target.files[0]; if(!file) return;
+                                    const compressed = await compressImage(file);
+                                    update({receiptBase64: compressed});
+                                  }}/>
+                                </label>
+                              )}
+                            </div>
+                            <textarea value={ps.note} onChange={e => update({note:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl text-sm resize-none h-16" placeholder={parentLang==='ht' ? 'Nòt (opsyonèl)' : 'Note (optionnel)'}/>
+                            {ps.error && <p className="text-red-500 text-xs bg-red-50 px-3 py-2 rounded-lg">{ps.error}</p>}
+                            <button disabled={ps.loading} onClick={async () => {
+                              if (!ps.senderName.trim()) { update({error: parentLang==='ht'?'Mete non ou':'Entrez votre nom'}); return; }
+                              if (!ps.amount || parseFloat(ps.amount)<=0) { update({error: parentLang==='ht'?'Montan pa valid':'Montant invalide'}); return; }
+                              update({loading:true, error:''});
+                              try {
+                                await addDoc(collection(db, 'schools', school.id, 'paymentRequests'), {
+                                  studentId: student.id,
+                                  studentName: `${student.firstName} ${student.lastName}`,
+                                  amount: parseFloat(ps.amount),
+                                  method: ps.method.label,
+                                  senderName: ps.senderName.trim(),
+                                  senderPhone: ps.senderPhone.trim(),
+                                  note: ps.note.trim(),
+                                  receiptBase64: ps.receiptBase64 || '',
+                                  type: 'sponsor',
+                                  status: 'pending',
+                                  date: new Date().toISOString().split('T')[0],
+                                  createdAt: serverTimestamp(),
+                                });
+                                update({loading:false, done:true});
+                              } catch(err) { update({loading:false, error: parentLang==='ht'?'Erè. Eseye ankò.':'Erreur. Réessayez.'}); }
+                            }} className="w-full bg-socrates-navy text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+                              {ps.loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <>{parentLang==='ht' ? '📤 Voye Demann' : '📤 Envoyer la Demande'}</>}
+                            </button>
+                          </div>
+                        );
+                      })() : null}
+                    </div>
+                  )}
+
                   {/* Bulletin by period */}
                   {periods.length > 0 && (
                     <div>
@@ -367,6 +491,141 @@ export default function AuthScreen() {
                     <div className="bg-green-50 rounded-xl p-3 text-center"><p className="text-xs text-gray-500">{L.paid}</p><p className="text-sm font-bold text-green-600">HTG {paid.toLocaleString()}</p></div>
                     <div className={`rounded-xl p-3 text-center ${balance > 0 ? 'bg-red-50' : 'bg-green-50'}`}><p className="text-xs text-gray-500">{L.remaining}</p><p className={`text-sm font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{balance > 0 ? `HTG ${balance.toLocaleString()}` : L.cleared}</p></div>
                   </div>
+
+                  {/* ── Pay & Confirm ── */}
+                  {school?.paymentMethods && Object.keys(school.paymentMethods).length > 0 && (
+                    <div>
+                      {!showPayment[student.id] ? (
+                        balance > 0 && (
+                          <button onClick={() => setShowPayment(p => ({...p, [student.id]: {step:'choose', amount: String(Math.round(balance)), senderName:'', senderPhone:'', note:'', receiptBase64:'', method:null, loading:false, error:'', done:false}}))}
+                            className="w-full bg-socrates-navy text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 text-sm">
+                            💳 {parentLang==='ht' ? 'Fè yon Peman' : 'Effectuer un Paiement'}
+                          </button>
+                        )
+                      ) : showPayment[student.id]?.done ? (
+                        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center space-y-2">
+                          <div className="text-4xl">✅</div>
+                          <p className="font-bold text-green-700">{parentLang==='ht' ? 'Demann ou voye!' : 'Demande envoyée !'}</p>
+                          <p className="text-xs text-green-600">{parentLang==='ht' ? 'Lekòl la ap verifye epi konfime peman an.' : "L'école va vérifier et confirmer votre paiement."}</p>
+                          <button onClick={() => setShowPayment(p => ({...p, [student.id]: null}))} className="text-xs text-green-600 underline mt-1">{parentLang==='ht' ? 'Fèmen' : 'Fermer'}</button>
+                        </div>
+                      ) : showPayment[student.id]?.step === 'choose' ? (
+                        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-700">{parentLang==='ht' ? 'Chwazi metòd peman:' : 'Méthode de paiement :'}</p>
+                            <button onClick={() => setShowPayment(p => ({...p, [student.id]: null}))} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                          </div>
+                          <div className="space-y-2">
+                            {[
+                              {key:'moncash', label:'MonCash', icon:'📱'},
+                              {key:'natcash', label:'Natcash', icon:'📲'},
+                              {key:'bank',    label:parentLang==='ht'?'Depò Labank':'Dépôt bancaire', icon:'🏦'},
+                              {key:'zelle',   label:'Zelle (USA)', icon:'💸'},
+                              {key:'paypal',  label:'PayPal', icon:'🅿️'},
+                            ].filter(m => school.paymentMethods[m.key]).map(m => (
+                              <button key={m.key}
+                                onClick={() => setShowPayment(p => ({...p, [student.id]: {...p[student.id], step:'fill', method:m}}))}
+                                className="w-full bg-white border rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition text-left">
+                                <span className="text-xl">{m.icon}</span>
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm text-gray-800">{m.label}</p>
+                                  <p className="text-xs text-gray-400 font-mono">{school.paymentMethods[m.key]}</p>
+                                </div>
+                                <span className="text-gray-400">›</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : showPayment[student.id]?.step === 'fill' ? (() => {
+                        const ps = showPayment[student.id];
+                        const update = (obj) => setShowPayment(p => ({...p, [student.id]: {...p[student.id], ...obj}}));
+                        return (
+                          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => update({step:'choose'})} className="text-gray-400 text-lg">‹</button>
+                                <span className="text-xl">{ps.method.icon}</span>
+                                <p className="font-bold text-sm text-gray-800">{ps.method.label}</p>
+                              </div>
+                              <button onClick={() => setShowPayment(p => ({...p, [student.id]: null}))} className="text-gray-400 text-lg">✕</button>
+                            </div>
+                            {/* Instructions */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                              <p className="font-semibold mb-1">{parentLang==='ht' ? `Nimewo ${ps.method.label}:` : `${ps.method.label} :`}</p>
+                              <p className="font-mono font-bold text-base text-gray-800">{school.paymentMethods[ps.method.key]}</p>
+                              <p className="mt-2 text-amber-600">{parentLang==='ht' ? '➊ Voye lajan ➋ Pran foto resi ➌ Ranpli fòm anba' : '➊ Envoyez ➋ Prenez photo du reçu ➌ Remplissez ci-dessous'}</p>
+                            </div>
+                            {/* Amount */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Montan (HTG)' : 'Montant (HTG)'}</label>
+                              <input type="number" value={ps.amount} onChange={e => update({amount:e.target.value})} className="w-full px-4 py-3 border rounded-xl text-lg font-bold text-center" placeholder="0"/>
+                              {balance > 0 && <button onClick={() => update({amount:String(Math.round(balance))})} className="text-xs text-blue-500 mt-1">
+                                {parentLang==='ht' ? `Tout balans: HTG ${Math.round(balance).toLocaleString()}` : `Solde complet: HTG ${Math.round(balance).toLocaleString()}`}
+                              </button>}
+                            </div>
+                            {/* Sender name */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Non moun ki voye a *' : "Nom de l'expéditeur *"}</label>
+                              <input type="text" value={ps.senderName} onChange={e => update({senderName:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder={parentLang==='ht' ? 'Non konplè ou' : 'Votre nom complet'}/>
+                            </div>
+                            {/* Phone */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Telefòn (opsyonèl)' : 'Téléphone (optionnel)'}</label>
+                              <input type="tel" value={ps.senderPhone} onChange={e => update({senderPhone:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder="+509 XXXX XXXX"/>
+                            </div>
+                            {/* Receipt photo */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">{parentLang==='ht' ? 'Foto resi (rekòmande)' : 'Photo du reçu (recommandé)'}</label>
+                              {ps.receiptBase64 ? (
+                                <div className="relative">
+                                  <img src={ps.receiptBase64} alt="reçu" className="w-full max-h-40 object-contain rounded-xl border"/>
+                                  <button onClick={() => update({receiptBase64:''})} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
+                                </div>
+                              ) : (
+                                <label className="block w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 transition">
+                                  <span className="text-2xl block mb-1">📷</span>
+                                  <span className="text-xs text-gray-500">{parentLang==='ht' ? 'Klike pou foto resi' : 'Cliquer pour photo du reçu'}</span>
+                                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async(e) => {
+                                    const file = e.target.files[0]; if(!file) return;
+                                    const compressed = await compressImage(file);
+                                    update({receiptBase64: compressed});
+                                  }}/>
+                                </label>
+                              )}
+                            </div>
+                            {/* Note */}
+                            <textarea value={ps.note} onChange={e => update({note:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl text-sm resize-none h-16" placeholder={parentLang==='ht' ? 'Nòt (opsyonèl)' : 'Note (optionnel)'}/>
+                            {ps.error && <p className="text-red-500 text-xs bg-red-50 px-3 py-2 rounded-lg">{ps.error}</p>}
+                            <button disabled={ps.loading} onClick={async () => {
+                              if (!ps.senderName.trim()) { update({error: parentLang==='ht'?'Mete non ou':'Entrez votre nom'}); return; }
+                              if (!ps.amount || parseFloat(ps.amount)<=0) { update({error: parentLang==='ht'?'Montan pa valid':'Montant invalide'}); return; }
+                              update({loading:true, error:''});
+                              try {
+                                await addDoc(collection(db, 'schools', school.id, 'paymentRequests'), {
+                                  studentId: student.id,
+                                  studentName: `${student.firstName} ${student.lastName}`,
+                                  amount: parseFloat(ps.amount),
+                                  method: ps.method.label,
+                                  senderName: ps.senderName.trim(),
+                                  senderPhone: ps.senderPhone.trim(),
+                                  note: ps.note.trim(),
+                                  receiptBase64: ps.receiptBase64 || '',
+                                  type: 'parent',
+                                  status: 'pending',
+                                  date: new Date().toISOString().split('T')[0],
+                                  createdAt: serverTimestamp(),
+                                });
+                                update({loading:false, done:true});
+                              } catch(err) { update({loading:false, error: parentLang==='ht'?'Erè. Eseye ankò.':'Erreur. Réessayez.'}); }
+                            }} className="w-full bg-socrates-navy text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+                              {ps.loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <>{parentLang==='ht' ? '📤 Voye Demann' : '📤 Envoyer la Demande'}</>}
+                            </button>
+                          </div>
+                        );
+                      })() : null}
+                    </div>
+                  )}
+
                   {studentHW.length > 0 && (
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">{L.homework}</h4>

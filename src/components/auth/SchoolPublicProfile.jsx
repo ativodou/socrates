@@ -18,18 +18,20 @@ export default function SchoolPublicProfile({ school, onBack }) {
   const ht = lang === 'ht';
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [photos, setPhotos] = useState([]);
   const [loadingExtra, setLoadingExtra] = useState(true);
 
-  // Load teachers and classes from subcollections
   useEffect(() => {
     const load = async () => {
       try {
-        const [teacherSnap, classSnap] = await Promise.all([
+        const [teacherSnap, classSnap, photoSnap] = await Promise.all([
           getDocs(collection(db, 'schools', school.id, 'teachers')),
           getDocs(collection(db, 'schools', school.id, 'classes')),
+          getDocs(collection(db, 'schools', school.id, 'schoolPhotos')),
         ]);
         setTeachers(teacherSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setClasses(classSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setPhotos(photoSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.uploadedAt||'').localeCompare(b.uploadedAt||'')));
       } catch (e) { console.error('Error loading school details:', e); }
       setLoadingExtra(false);
     };
@@ -48,7 +50,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
       <header className="bg-gradient-to-r from-socrates-navy to-socrates-blue text-white">
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-6">
           <button onClick={onBack} className="flex items-center gap-2 text-blue-200 mb-4 hover:text-white text-sm">
-            <ArrowLeft size={18} /> ${ht?'Retounen nan anyè a':"Retour à l'annuaire"}
+            <ArrowLeft size={18} /> {ht?'Retounen nan anyè a':"Retour à l'annuaire"}
           </button>
           <div className="flex items-center gap-4">
             {school.logo && school.logo.length > 10
@@ -61,7 +63,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {school.schoolType && <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">{school.schoolType}</span>}
                 {school.typeEcole && <span className="bg-white/10 text-blue-200 text-xs px-3 py-1 rounded-full">{school.typeEcole}</span>}
-                {school.foundedYear && <span className="text-blue-200 text-xs">${ht?'Fonde an ':'Fondée en '}{school.foundedYear}</span>}
+                {school.foundedYear && <span className="text-blue-200 text-xs">{ht?'Fonde an ':'Fondée en '}{school.foundedYear}</span>}
               </div>
               {(school.sige || school.methodePedagogique) && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -105,6 +107,21 @@ export default function SchoolPublicProfile({ school, onBack }) {
 
       <div className="max-w-2xl mx-auto p-4 space-y-4">
 
+        {/* ── Galerie Photos ── */}
+        {photos.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">📸 {ht?'Galri Foto':'Galerie Photos'}</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {photos.map(photo => (
+                <div key={photo.id} className="rounded-xl overflow-hidden shadow-sm">
+                  <img src={photo.url} alt={photo.caption || ''} className="w-full h-36 object-cover" />
+                  {photo.caption && <p className="text-xs text-gray-500 px-2 py-1.5 bg-gray-50">{photo.caption}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Localisation ── */}
         {(school.departement || school.address) && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
@@ -118,7 +135,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
             {school.gpsLat && school.gpsLng && (
               <div className="mt-3 rounded-xl overflow-hidden border h-40">
                 <iframe title="map" width="100%" height="100%" frameBorder="0"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(school.gpsLng) - 0.005}%2C${parseFloat(school.gpsLat) - 0.003}%2C${parseFloat(school.gpsLng) + 0.005}%2C${parseFloat(school.gpsLat) + 0.003}&layer=mapnik&marker=${school.gpsLat}%2C${school.gpsLng}`}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(school.gpsLng)-0.005}%2C${parseFloat(school.gpsLat)-0.003}%2C${parseFloat(school.gpsLng)+0.005}%2C${parseFloat(school.gpsLat)+0.003}&layer=mapnik&marker=${school.gpsLat}%2C${school.gpsLng}`}
                 />
               </div>
             )}
@@ -154,7 +171,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
               </div>
               <div>
                 <p className="font-semibold text-gray-800">{school.directorName}</p>
-                <p className="text-xs text-gray-500">{school.directorTitle || ht?'Direktè':'Directeur'}</p>
+                <p className="text-xs text-gray-500">{school.directorTitle || (ht?'Direktè':'Directeur')}</p>
               </div>
             </div>
             {(school.directorPhone || school.directorEmail) && (
@@ -205,10 +222,10 @@ export default function SchoolPublicProfile({ school, onBack }) {
           </div>
         )}
 
-        {/* ── {ht?'Kò Anseyan':'Corps Enseignant'} ── */}
+        {/* ── Corps Enseignant ── */}
         {teachers.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} className="text-teal-500" /> {ht?'Kò Anseyan':'Corps Enseignant'} <span className="ml-auto text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded-full">{teachers.length} ht?'anseyan':'enseignant' + (teachers.length > 1 ? 's' : '')</span></h3>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><GraduationCap size={18} className="text-teal-500" /> {ht?'Kò Anseyan':'Corps Enseignant'} <span className="ml-auto text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded-full">{teachers.length} {ht?'anseyan':'enseignant'}{teachers.length > 1 ? 's' : ''}</span></h3>
             <div className="grid grid-cols-2 gap-2">
               {teachers.map(tc => (
                 <div key={tc.id} className="flex items-center gap-2.5 p-3 bg-gray-50 rounded-xl">
@@ -228,7 +245,7 @@ export default function SchoolPublicProfile({ school, onBack }) {
         {/* ── Classes ── */}
         {classes.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} className="text-cyan-500" />{ht?' Klas ':' Classes '}<span className="ml-auto text-xs bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">{classes.length} ht?'klas':'classe' + (classes.length > 1 ? 's' : '')</span></h3>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Users size={18} className="text-cyan-500" />{ht?' Klas ':' Classes '}<span className="ml-auto text-xs bg-cyan-50 text-cyan-700 px-2 py-1 rounded-full">{classes.length} {ht?'klas':'classe'}{classes.length > 1 ? 's' : ''}</span></h3>
             <div className="flex flex-wrap gap-2">
               {classes.map(c => (
                 <span key={c.id} className="bg-cyan-50 text-cyan-800 px-3 py-1.5 rounded-full text-sm font-medium">
@@ -249,7 +266,6 @@ export default function SchoolPublicProfile({ school, onBack }) {
                 .map(([key, fees]) => {
                 const isPhilo = key === 'philo';
                 const isProg = key.startsWith('prog_');
-                // For program fees, find matching program name
                 let label = FEE_LABELS[key] || key.replace(/_/g, ' ');
                 if (isProg && school.programs) {
                   const parts = key.split('_');
@@ -289,7 +305,6 @@ export default function SchoolPublicProfile({ school, onBack }) {
         {hasServices && (
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">🏫 Services & Infos</h3>
-            {/* Languages */}
             {school.languages?.length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-medium text-gray-500 mb-2">Langues d'enseignement</p>
@@ -298,7 +313,6 @@ export default function SchoolPublicProfile({ school, onBack }) {
                 </div>
               </div>
             )}
-            {/* Services grid */}
             <div className="grid grid-cols-2 gap-2">
               {school.hasUniform && (
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
@@ -308,24 +322,20 @@ export default function SchoolPublicProfile({ school, onBack }) {
               )}
               {school.hasCafeteria && (
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-lg">🍽️</span>
-                  <p className="text-sm font-medium text-gray-700">Cantine</p>
+                  <span className="text-lg">🍽️</span><p className="text-sm font-medium text-gray-700">Cantine</p>
                 </div>
               )}
               {school.hasTransport && (
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-lg">🚌</span>
-                  <p className="text-sm font-medium text-gray-700">Transport scolaire</p>
+                  <span className="text-lg">🚌</span><p className="text-sm font-medium text-gray-700">Transport scolaire</p>
                 </div>
               )}
               {school.hasInternet && (
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-lg">📶</span>
-                  <p className="text-sm font-medium text-gray-700">Internet</p>
+                  <span className="text-lg">📶</span><p className="text-sm font-medium text-gray-700">Internet</p>
                 </div>
               )}
             </div>
-            {/* Academic year */}
             {(school.yearStart || school.yearEnd) && (
               <p className="text-xs text-gray-500 mt-3">📅 Année scolaire : {school.yearStart || '?'} → {school.yearEnd || '?'}</p>
             )}
@@ -368,7 +378,6 @@ export default function SchoolPublicProfile({ school, onBack }) {
           </div>
         )}
 
-        {/* Loading indicator for subcollection data */}
         {loadingExtra && (
           <div className="text-center py-4">
             <p className="text-sm text-gray-400">Chargement des détails...</p>
