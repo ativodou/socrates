@@ -70,6 +70,7 @@ export const translations = {
     tabClasses: 'Classes',
     tabGrades: 'Notes',
     tabPayments: 'Paiements',
+    tabAccounting: 'Comptabilité',
     tabSettings: 'Paramètres',
 
     // ═══ DASHBOARD ═══
@@ -561,6 +562,7 @@ export const translations = {
     tabClasses: 'Klas',
     tabGrades: 'Nòt',
     tabPayments: 'Peman',
+    tabAccounting: 'Kontablite',
     tabSettings: 'Paramèt',
 
     // ═══ DASHBOARD ═══

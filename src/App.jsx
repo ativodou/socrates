@@ -21,6 +21,7 @@ import ClassDetail from './components/tabs/ClassDetail';
 import Grades from './components/tabs/Grades';
 import Payments from './components/tabs/Payments';
 import Parametres from './components/parametres/Parametres';
+import Accounting from './components/tabs/Accounting';
 
 // Shared
 import ModalForms from './components/shared/ModalForms';
@@ -94,13 +95,14 @@ function AppContent() {
         <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
-          {activeTab === 'dashboard' && <Dashboard onOpenModal={openModal} />}
-          {activeTab === 'students'  && <Students onOpenModal={openModal} />}
-          {activeTab === 'teachers'  && <Teachers onOpenModal={openModal} />}
-          {activeTab === 'classes'   && <Classes onOpenModal={openModal} onViewClass={setViewClass} />}
-          {activeTab === 'grades'    && <Grades />}
-          {activeTab === 'payments'  && <Payments onOpenModal={openModal} />}
-          {activeTab === 'settings'  && <Parametres />}
+          {activeTab === 'dashboard'  && <Dashboard onOpenModal={openModal} />}
+          {activeTab === 'students'   && <Students onOpenModal={openModal} />}
+          {activeTab === 'teachers'   && <Teachers onOpenModal={openModal} />}
+          {activeTab === 'classes'    && <Classes onOpenModal={openModal} onViewClass={setViewClass} />}
+          {activeTab === 'grades'     && <Grades />}
+          {activeTab === 'payments'   && <Payments onOpenModal={openModal} />}
+          {activeTab === 'accounting' && <Accounting />}
+          {activeTab === 'settings'   && <Parametres />}
         </main>
       </div>
 
