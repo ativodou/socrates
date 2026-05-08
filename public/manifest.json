@@ -47,6 +47,20 @@
       "type": "image/png",
       "form_factor": "wide",
       "label": "SOCRATES — Tableau de bord"
+    },
+    {
+      "src": "/screenshots/screen-narrow-1.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SOCRATES — Vue mobile 1"
+    },
+    {
+      "src": "/screenshots/screen-narrow-2.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SOCRATES — Vue mobile 2"
     }
   ]
 }
