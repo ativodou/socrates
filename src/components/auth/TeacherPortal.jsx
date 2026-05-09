@@ -169,8 +169,9 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
   const existingGrades = grades.filter(g => g.classId === gradeClassId && g.periodId === gradePeriodId);
 
   const saveGradeEntry = async (studentId, score) => {
-    const existing = grades.find(g => g.studentId === studentId && g.classId === gradeClassId && g.periodId === gradePeriodId);
-    const payload = { studentId, classId: gradeClassId, periodId: gradePeriodId, score: parseFloat(score) || 0, teacherId: teacher.id };
+    const subject = teacher.subject || '';
+    const existing = grades.find(g => g.studentId === studentId && g.classId === gradeClassId && g.periodId === gradePeriodId && (g.subject || '') === subject);
+    const payload = { studentId, classId: gradeClassId, periodId: gradePeriodId, subject, score: parseFloat(score) || 0, teacherId: teacher.id };
     if (existing) await updateDoc(doc(db, 'schools', school.id, 'grades', existing.id), payload);
     else await addDoc(collection(db, 'schools', school.id, 'grades'), payload);
     loadData();

@@ -151,7 +151,7 @@ export default function Grades() {
           <p style="font-size:1.5em;font-weight:700;color:${sData?.average !== null && sData.average >= 50 ? '#16a34a' : '#dc2626'};margin:4px 0;">${sData?.average !== null ? sData.average.toFixed(2) : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
-          <p style="color:#6b7280;font-size:0.8em;margin:0;">{t('rank')}</p>
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">${ht?'Klasman':'Rang'}</p>
           <p style="font-size:1.5em;font-weight:700;color:#1e3a5f;margin:4px 0;">${sData?.rank ? sData.rank + '/' + totalRanked : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
@@ -159,7 +159,7 @@ export default function Grades() {
           <p style="font-size:1.5em;font-weight:700;color:${annualAvg !== null && annualAvg >= 50 ? '#16a34a' : '#dc2626'};margin:4px 0;">${annualAvg !== null ? annualAvg.toFixed(2) : '—'}</p>
         </div>
         <div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
-          <p style="color:#6b7280;font-size:0.8em;margin:0;">{t('classAverage')}</p>
+          <p style="color:#6b7280;font-size:0.8em;margin:0;">${ht?'Mwayèn Klas':'Moy. Classe'}</p>
           <p style="font-size:1.5em;font-weight:700;color:#1e3a5f;margin:4px 0;">${classAvg}</p>
         </div>
       </div>

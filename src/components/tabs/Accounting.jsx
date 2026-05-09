@@ -1,9 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../../firebase';
-import {
-  collection, addDoc, getDocs, deleteDoc, doc,
-  query, orderBy, where, serverTimestamp, updateDoc
-} from 'firebase/firestore';
+import React, { useState } from 'react';
+import { useLang } from '../../i18n/LanguageContext';
 import { useSchool } from '../../contexts/SchoolContext';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -43,23 +39,27 @@ const PALETTE = {
   textLight: '#546E7A',
 };
 
-// ─── Expense categories ───────────────────────────────────────────────────────
-const EXPENSE_CATS = {
-  fr: [
-    'Salaires & Indemnités', 'Fournitures scolaires', 'Eau & Électricité',
-    'Réparations & Entretien', 'Alimentation (cantine)', 'Événements & Activités',
-    'Loyer & Charges', 'Transport', 'Équipements', 'Autres dépenses'
-  ],
-  ht: [
-    'Salè & Konpansasyon', 'Materyèl lekòl', 'Dlo & Elektrisite',
-    'Reparasyon & Antretyen', 'Manje (kantèn)', 'Evènman & Aktivite',
-    'Lwaye & Chaj', 'Transpò', 'Ekipman', 'Lòt depans'
-  ],
-};
+// ─── Expense categories (enum keys matching SchoolContext/Payments) ────────────
+const EXPENSE_CATEGORY_OPTS = [
+  { key: 'staff',       fr: 'Salaires & Indemnités',      ht: 'Salè & Konpansasyon' },
+  { key: 'coach',       fr: 'Coach externe',              ht: 'Coach ekstèn' },
+  { key: 'rent',        fr: 'Loyer & Charges',            ht: 'Lwaye & Chaj' },
+  { key: 'utilities',   fr: 'Eau & Électricité',          ht: 'Dlo & Elektrisite' },
+  { key: 'supplies',    fr: 'Fournitures scolaires',      ht: 'Materyèl lekòl' },
+  { key: 'maintenance', fr: 'Réparations & Entretien',    ht: 'Reparasyon & Antretyen' },
+  { key: 'transport',   fr: 'Transport',                  ht: 'Transpò' },
+  { key: 'food',        fr: 'Alimentation (cantine)',     ht: 'Manje (kantèn)' },
+  { key: 'other',       fr: 'Autres dépenses',            ht: 'Lòt depans' },
+];
 
 const MONTHS = {
   fr: ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
   ht: ['Janvye','Fevriye','Mas','Avril','Me','Jen','Jiyè','Out','Septanm','Oktòb','Novanm','Desanm'],
+};
+
+const PAYMENT_METHODS = {
+  fr: ['Espèces', 'Chèque', 'Virement', 'Mobile Money'],
+  ht: ['Kach', 'Chèk', 'Virement', 'Mobil Moni'],
 };
 
 // ─── i18n strings ─────────────────────────────────────────────────────────────
@@ -67,39 +67,36 @@ const T = {
   fr: {
     title: 'Comptabilité',
     tabs: { expenses: 'Dépenses', payroll: 'Paie du Personnel', income: 'Revenus', report: 'Rapport Mensuel' },
-    // Expenses
     addExpense: 'Ajouter une Dépense',
     editExpense: 'Modifier la Dépense',
     date: 'Date', category: 'Catégorie', amount: 'Montant (HTG)',
-    description: 'Description', paidBy: 'Payé par', receipt: 'Reçu / Note',
+    description: 'Description', personName: 'Payé par', method: 'Méthode',
     save: 'Enregistrer', cancel: 'Annuler', delete: 'Supprimer',
     noExpenses: 'Aucune dépense enregistrée.',
     totalExpenses: 'Total des Dépenses',
     confirmDelete: 'Supprimer cet enregistrement ?',
-    // Payroll
     addPayroll: 'Ajouter un Paiement',
+    editPayroll: 'Modifier le Paiement',
     employee: 'Employé', role: 'Rôle / Poste', period: 'Période',
-    amountHTG: 'Montant (HTG)', amountUSD: 'Montant (USD)',
-    paid: 'Payé', pending: 'En attente', status: 'Statut',
-    markPaid: 'Marquer comme payé', generateSlip: 'Fiche de Paie',
+    amountHTG: 'Montant (HTG)',
+    paid: 'Payé', status: 'Statut',
+    generateSlip: 'Fiche de Paie',
     noPayroll: 'Aucun paiement enregistré.',
     totalPayroll: 'Total Paie',
-    roles: ['Directeur', 'Enseignant', 'Secrétaire', 'Économe', 'Gardien', 'Personnel de service', 'Autre'],
-    // Income
+    personType: { teacher: 'Enseignant', staff: 'Personnel admin.' },
+    selectPerson: 'Choisir un employé',
+    month: 'Mois',
     expectedIncome: 'Revenus Attendus (frais de scolarité)',
     collectedIncome: 'Revenus Collectés',
     pendingBalance: 'Solde Impayé',
     noIncomeData: 'Aucune donnée de paiement disponible.',
-    // Report
-    reportTitle: 'Rapport Mensuel', month: 'Mois', year: 'Année',
+    reportTitle: 'Rapport Mensuel', year: 'Année',
     totalIncome: 'Total Revenus', totalExpense: 'Total Dépenses',
     totalPayrollLabel: 'Total Paie', netBalance: 'Solde Net',
     printReport: 'Imprimer le Rapport',
     expenseByCategory: 'Dépenses par Catégorie',
     surplus: 'Surplus', deficit: 'Déficit',
     currency: { htg: 'HTG', usd: 'USD' },
-    selectMonth: 'Choisir le mois', selectYear: 'Choisir l\'année',
-    filterMonth: 'Filtrer par mois',
     allMonths: 'Tous les mois',
   },
   ht: {
@@ -108,32 +105,33 @@ const T = {
     addExpense: 'Ajoute yon Depans',
     editExpense: 'Modifye Depans lan',
     date: 'Dat', category: 'Kategori', amount: 'Montan (HTG)',
-    description: 'Deskripsyon', paidBy: 'Ki moun ki peye', receipt: 'Resi / Nòt',
+    description: 'Deskripsyon', personName: 'Ki moun ki peye', method: 'Metòd',
     save: 'Anrejistre', cancel: 'Anile', delete: 'Efase',
     noExpenses: 'Pa gen depans anrejistre.',
     totalExpenses: 'Total Depans',
     confirmDelete: 'Efase anrejistman sa a ?',
     addPayroll: 'Ajoute yon Pèman',
+    editPayroll: 'Modifye Pèman an',
     employee: 'Anplwaye', role: 'Wòl / Pòs', period: 'Peryòd',
-    amountHTG: 'Montan (HTG)', amountUSD: 'Montan (USD)',
-    paid: 'Peye', pending: 'An atant', status: 'Eta',
-    markPaid: 'Make kòm peye', generateSlip: 'Fich Pèman',
+    amountHTG: 'Montan (HTG)',
+    paid: 'Peye', status: 'Eta',
+    generateSlip: 'Fich Pèman',
     noPayroll: 'Pa gen pèman anrejistre.',
     totalPayroll: 'Total Pèman',
-    roles: ['Direktè', 'Pwofesè', 'Sekretè', 'Ekonom', 'Gadyen', 'Pèsonèl sèvis', 'Lòt'],
+    personType: { teacher: 'Pwofesè', staff: 'Pèsonèl admin.' },
+    selectPerson: 'Chwazi yon anplwaye',
+    month: 'Mwa',
     expectedIncome: 'Revni Prevwa (frè eskolaj)',
     collectedIncome: 'Revni Kolekte',
     pendingBalance: 'Balans Inpeye',
     noIncomeData: 'Pa gen done pèman disponib.',
-    reportTitle: 'Rapò Mansyèl', month: 'Mwa', year: 'Ane',
+    reportTitle: 'Rapò Mansyèl', year: 'Ane',
     totalIncome: 'Total Revni', totalExpense: 'Total Depans',
     totalPayrollLabel: 'Total Pèman', netBalance: 'Balans Nèt',
     printReport: 'Enprime Rapò a',
     expenseByCategory: 'Depans pa Kategori',
     surplus: 'Siplis', deficit: 'Defisi',
     currency: { htg: 'HTG', usd: 'USD' },
-    selectMonth: 'Chwazi mwa', selectYear: 'Chwazi ane',
-    filterMonth: 'Filtre pa mwa',
     allMonths: 'Tout mwa yo',
   }
 };
@@ -141,119 +139,77 @@ const T = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString('fr-HT', { minimumFractionDigits: 0 });
 const today = () => new Date().toISOString().split('T')[0];
-const currentMonth = () => new Date().getMonth();  // 0-based
+const currentMonth = () => new Date().getMonth();
 const currentYear = () => new Date().getFullYear();
+const currentMonthStr = () => `${currentYear()}-${String(currentMonth() + 1).padStart(2, '0')}`;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Accounting() {
-  const { school, payments = [], students = [], language = 'fr' } = useSchool();
+  const {
+    school, payments = [], students = [], teachers = [],
+    expenses = [], teacherPayments = [], staffPayments = [],
+    saveExpense, deleteExpense,
+    saveTeacherPayment, deleteTeacherPayment,
+    saveStaffPayment, deleteStaffPayment,
+  } = useSchool();
+  const { lang: language } = useLang();
   const t = T[language] || T.fr;
-  const cats = EXPENSE_CATS[language] || EXPENSE_CATS.fr;
   const months = MONTHS[language] || MONTHS.fr;
+  const methods = PAYMENT_METHODS[language] || PAYMENT_METHODS.fr;
+  const adminStaff = school?.adminStaff || [];
 
   const [tab, setTab] = useState('expenses');
 
-  // ── Expenses state ─────────────────────────────────────────────────────────
-  const [expenses, setExpenses] = useState([]);
-  const [expenseForm, setExpenseForm] = useState(null); // null = closed, {} = new, {id,...} = edit
-  const [expLoading, setExpLoading] = useState(false);
+  // ── Expense filter state ───────────────────────────────────────────────────
+  const [expenseForm, setExpenseForm] = useState(null);
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState(currentYear());
 
   // ── Payroll state ─────────────────────────────────────────────────────────
-  const [payroll, setPayroll] = useState([]);
   const [payrollForm, setPayrollForm] = useState(null);
-  const [prLoading, setPrLoading] = useState(false);
   const [slipTarget, setSlipTarget] = useState(null);
 
   // ── Report state ──────────────────────────────────────────────────────────
   const [reportMonth, setReportMonth] = useState(currentMonth());
   const [reportYear, setReportYear] = useState(currentYear());
-  const printRef = useRef();
-
-  const schoolId = school?.id;
-
-  // ── Load expenses ──────────────────────────────────────────────────────────
-  const loadExpenses = async () => {
-    if (!schoolId) return;
-    setExpLoading(true);
-    try {
-      const q = query(collection(db, 'schools', schoolId, 'expenses'), orderBy('date', 'desc'));
-      const snap = await getDocs(q);
-      setExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) { console.error('loadExpenses', e); }
-    setExpLoading(false);
+  // ── Category helpers ───────────────────────────────────────────────────────
+  const getCatLabel = (key) => {
+    const opt = EXPENSE_CATEGORY_OPTS.find(o => o.key === key);
+    // Fallback shows raw value for old free-text entries saved before reconciliation
+    return opt ? (opt[language] || opt.fr) : key;
   };
 
-  // ── Load payroll ───────────────────────────────────────────────────────────
-  const loadPayroll = async () => {
-    if (!schoolId) return;
-    setPrLoading(true);
-    try {
-      const q = query(collection(db, 'schools', schoolId, 'payroll'), orderBy('createdAt', 'desc'));
-      const snap = await getDocs(q);
-      setPayroll(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) { console.error('loadPayroll', e); }
-    setPrLoading(false);
-  };
+  // ── Combined payroll from teacherPayments + staffPayments ──────────────────
+  const allPayroll = [
+    ...teacherPayments.map(p => {
+      const teacher = teachers.find(tc => tc.id === p.teacherId);
+      return {
+        ...p,
+        _type: 'teacher',
+        personId: p.teacherId,
+        employee: teacher?.name || p.teacherName || '?',
+        role: teacher?.subject || '',
+        amountHTG: p.amount,
+      };
+    }),
+    ...staffPayments.map(p => {
+      const member = adminStaff.find(s => s.id === p.staffId);
+      return {
+        ...p,
+        _type: 'staff',
+        personId: p.staffId,
+        employee: member?.name || p.staffName || '?',
+        role: member?.role || '',
+        amountHTG: p.amount,
+      };
+    }),
+  ].sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1);
 
-  useEffect(() => {
-    if (schoolId) { loadExpenses(); loadPayroll(); }
-  }, [schoolId]);
-
-  // ── Save expense ───────────────────────────────────────────────────────────
-  const saveExpense = async (form) => {
-    if (!form.date || !form.category || !form.amount) return;
-    try {
-      if (form.id) {
-        const ref = doc(db, 'schools', schoolId, 'expenses', form.id);
-        await updateDoc(ref, { date: form.date, category: form.category, amount: Number(form.amount), description: form.description || '', paidBy: form.paidBy || '', receipt: form.receipt || '' });
-      } else {
-        await addDoc(collection(db, 'schools', schoolId, 'expenses'), {
-          date: form.date, category: form.category, amount: Number(form.amount),
-          description: form.description || '', paidBy: form.paidBy || '',
-          receipt: form.receipt || '', createdAt: serverTimestamp()
-        });
-      }
-      setExpenseForm(null);
-      loadExpenses();
-    } catch (e) { console.error('saveExpense', e); }
-  };
-
-  const deleteExpense = async (id) => {
-    if (!window.confirm(t.confirmDelete)) return;
-    await deleteDoc(doc(db, 'schools', schoolId, 'expenses', id));
-    loadExpenses();
-  };
-
-  // ── Save payroll ───────────────────────────────────────────────────────────
-  const savePayroll = async (form) => {
-    if (!form.employee || !form.amountHTG) return;
-    try {
-      if (form.id) {
-        const ref = doc(db, 'schools', schoolId, 'payroll', form.id);
-        await updateDoc(ref, { employee: form.employee, role: form.role || '', period: form.period || '', amountHTG: Number(form.amountHTG), amountUSD: Number(form.amountUSD || 0), status: form.status || 'pending', notes: form.notes || '' });
-      } else {
-        await addDoc(collection(db, 'schools', schoolId, 'payroll'), {
-          employee: form.employee, role: form.role || '', period: form.period || '',
-          amountHTG: Number(form.amountHTG), amountUSD: Number(form.amountUSD || 0),
-          status: 'pending', notes: form.notes || '', createdAt: serverTimestamp()
-        });
-      }
-      setPayrollForm(null);
-      loadPayroll();
-    } catch (e) { console.error('savePayroll', e); }
-  };
-
-  const markPaid = async (id) => {
-    await updateDoc(doc(db, 'schools', schoolId, 'payroll', id), { status: 'paid', paidAt: serverTimestamp() });
-    loadPayroll();
-  };
-
-  const deletePayroll = async (id) => {
-    if (!window.confirm(t.confirmDelete)) return;
-    await deleteDoc(doc(db, 'schools', schoolId, 'payroll', id));
-    loadPayroll();
+  // Format "YYYY-MM" → "Janvier 2025"
+  const formatPeriod = (month) => {
+    if (!month) return '—';
+    const [y, m] = month.split('-');
+    return `${months[parseInt(m, 10) - 1] || ''} ${y}`;
   };
 
   // ── Filtered expenses ──────────────────────────────────────────────────────
@@ -268,28 +224,28 @@ export default function Accounting() {
   const reportPrefix = `${reportYear}-${reportMonthStr}`;
 
   const reportExpenses = expenses.filter(e => e.date?.startsWith(reportPrefix));
-  const reportPayroll = payroll.filter(p => (p.period || '').includes(`${months[reportMonth]} ${reportYear}`) || (p.period || '').startsWith(reportPrefix));
+  const reportPayroll = allPayroll.filter(p =>
+    (p.month || '').startsWith(reportPrefix) || (p.date || '').startsWith(reportPrefix)
+  );
 
   const totalReportExpenses = reportExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalReportPayroll = reportPayroll.reduce((s, p) => s + Number(p.amountHTG || 0), 0);
 
   const collectedIncome = payments
     .filter(p => {
-      const d = p.date || p.createdAt?.seconds ? new Date((p.createdAt?.seconds || 0) * 1000).toISOString().split('T')[0] : '';
+      const d = p.date || (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000).toISOString().split('T')[0] : '');
       return (p.date || d || '').startsWith(reportPrefix);
     })
     .reduce((s, p) => s + Number(p.amount || 0), 0);
 
-  const expectedIncome = students.length > 0
-    ? students.reduce((s, st) => s + Number(st.tuition || school?.tuitionAmount || 0), 0)
-    : 0;
+  const expectedIncome = students.reduce((s, st) => s + (Number(st.annualTuition || 0) + Number(st.fraisDivers || 0)), 0);
 
   const netBalance = collectedIncome - totalReportExpenses - totalReportPayroll;
 
-  // category breakdown
-  const catBreakdown = cats.map(cat => ({
-    cat,
-    total: reportExpenses.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount || 0), 0)
+  const catBreakdown = EXPENSE_CATEGORY_OPTS.map(opt => ({
+    cat: opt[language] || opt.fr,
+    key: opt.key,
+    total: reportExpenses.filter(e => e.category === opt.key).reduce((s, e) => s + Number(e.amount || 0), 0),
   })).filter(c => c.total > 0);
 
   const maxCat = Math.max(...catBreakdown.map(c => c.total), 1);
@@ -335,14 +291,14 @@ export default function Accounting() {
       ` : ''}
       ${reportExpenses.length ? `
         <h2>${t.tabs.expenses}</h2>
-        <table><thead><tr><th>${t.date}</th><th>${t.category}</th><th>${t.description}</th><th>${t.amount}</th><th>${t.paidBy}</th></tr></thead><tbody>
-        ${reportExpenses.map(e => `<tr><td>${e.date}</td><td>${e.category}</td><td>${e.description || '—'}</td><td>${fmt(e.amount)} HTG</td><td>${e.paidBy || '—'}</td></tr>`).join('')}
+        <table><thead><tr><th>${t.date}</th><th>${t.category}</th><th>${t.description}</th><th>${t.amount}</th><th>${t.personName}</th></tr></thead><tbody>
+        ${reportExpenses.map(e => `<tr><td>${e.date}</td><td>${getCatLabel(e.category)}</td><td>${e.description || '—'}</td><td>${fmt(e.amount)} HTG</td><td>${e.personName || e.paidBy || '—'}</td></tr>`).join('')}
         </tbody></table>
       ` : ''}
       ${reportPayroll.length ? `
         <h2>${t.tabs.payroll}</h2>
-        <table><thead><tr><th>${t.employee}</th><th>${t.role}</th><th>${t.amountHTG}</th><th>${t.status}</th></tr></thead><tbody>
-        ${reportPayroll.map(p => `<tr><td>${p.employee}</td><td>${p.role || '—'}</td><td>${fmt(p.amountHTG)} HTG</td><td>${p.status === 'paid' ? t.paid : t.pending}</td></tr>`).join('')}
+        <table><thead><tr><th>${t.employee}</th><th>${t.role}</th><th>${t.period}</th><th>${t.amountHTG}</th><th>${t.method}</th></tr></thead><tbody>
+        ${reportPayroll.map(p => `<tr><td>${p.employee}</td><td>${p.role || '—'}</td><td>${formatPeriod(p.month)}</td><td>${fmt(p.amountHTG)} HTG</td><td>${p.method || '—'}</td></tr>`).join('')}
         </tbody></table>
       ` : ''}
       <p style="margin-top:40px;font-size:11px;color:#546E7A;">Généré par SOCRATES — ${new Date().toLocaleDateString('fr-FR')}</p>
@@ -407,9 +363,28 @@ export default function Accounting() {
     progressBar: (pct, color) => ({ height: '100%', width: `${pct}%`, background: color, borderRadius: 6, transition: 'width .5s' }),
   };
 
-  // ─── Modals ────────────────────────────────────────────────────────────────
+  // ─── Expense Modal ─────────────────────────────────────────────────────────
   const ExpenseModal = ({ form, onClose }) => {
-    const [f, setF] = useState({ date: today(), category: cats[0], amount: '', description: '', paidBy: '', receipt: '', ...form });
+    const [f, setF] = useState({
+      date: today(),
+      category: EXPENSE_CATEGORY_OPTS[0].key,
+      amount: '',
+      method: methods[0],
+      description: '',
+      ...form,
+      personName: form?.personName || form?.paidBy || '',
+    });
+
+    const handleSave = async () => {
+      if (!f.date || !f.category || !f.amount) return;
+      const [y, m] = f.date.split('-');
+      await saveExpense(
+        { date: f.date, category: f.category, amount: Number(f.amount), personName: f.personName || '', method: f.method || '', description: f.description || '', month: `${y}-${m}` },
+        form?.id || null
+      );
+      onClose();
+    };
+
     return (
       <div style={s.modal}>
         <div style={s.modalBox}>
@@ -425,7 +400,7 @@ export default function Accounting() {
             <div>
               <label style={s.label}>{t.category} *</label>
               <select style={s.input} value={f.category} onChange={e => setF({...f, category: e.target.value})}>
-                {cats.map(c => <option key={c}>{c}</option>)}
+                {EXPENSE_CATEGORY_OPTS.map(o => <option key={o.key} value={o.key}>{o[language] || o.fr}</option>)}
               </select>
             </div>
             <div>
@@ -433,60 +408,109 @@ export default function Accounting() {
               <input style={s.input} type="number" min="0" value={f.amount} onChange={e => setF({...f, amount: e.target.value})} />
             </div>
             <div>
-              <label style={s.label}>{t.paidBy}</label>
-              <input style={s.input} type="text" value={f.paidBy} onChange={e => setF({...f, paidBy: e.target.value})} />
+              <label style={s.label}>{t.method}</label>
+              <select style={s.input} value={f.method} onChange={e => setF({...f, method: e.target.value})}>
+                {methods.map(m => <option key={m}>{m}</option>)}
+              </select>
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
+            <div>
+              <label style={s.label}>{t.personName}</label>
+              <input style={s.input} type="text" value={f.personName} onChange={e => setF({...f, personName: e.target.value})} />
+            </div>
+            <div>
               <label style={s.label}>{t.description}</label>
               <input style={s.input} type="text" value={f.description} onChange={e => setF({...f, description: e.target.value})} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={s.label}>{t.receipt}</label>
-              <input style={s.input} type="text" value={f.receipt} onChange={e => setF({...f, receipt: e.target.value})} placeholder="Numéro de reçu ou note" />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
             <button style={s.btn('ghost')} onClick={onClose}>{t.cancel}</button>
             {form?.id && <button style={s.btn('danger')} onClick={() => { deleteExpense(form.id); onClose(); }}><Icon d={icons.trash} size={14} />{t.delete}</button>}
-            <button style={s.btn('primary')} onClick={() => saveExpense(f)}><Icon d={icons.check} size={14} />{t.save}</button>
+            <button style={s.btn('primary')} onClick={handleSave}><Icon d={icons.check} size={14} />{t.save}</button>
           </div>
         </div>
       </div>
     );
   };
 
+  // ─── Payroll Modal ─────────────────────────────────────────────────────────
   const PayrollModal = ({ form, onClose }) => {
-    const currentPeriod = `${months[currentMonth()]} ${currentYear()}`;
-    const [f, setF] = useState({ employee: '', role: t.roles[1], period: currentPeriod, amountHTG: '', amountUSD: '', notes: '', ...form });
+    const [f, setF] = useState({
+      _type: 'teacher',
+      personId: '',
+      amount: '',
+      month: currentMonthStr(),
+      date: today(),
+      method: methods[0],
+      notes: '',
+      ...form,
+    });
+
+    const people = f._type === 'teacher' ? teachers : adminStaff;
+    const selectedPerson = people.find(p => p.id === f.personId);
+
+    const handleSave = async () => {
+      if (!f.personId || !f.amount) return;
+      const data = {
+        amount: Number(f.amount),
+        month: f.month,
+        date: f.date,
+        method: f.method || methods[0],
+        notes: f.notes || '',
+      };
+      const editId = form?.id || null;
+      if (f._type === 'teacher') {
+        await saveTeacherPayment({ ...data, teacherId: f.personId, teacherName: selectedPerson?.name || '' }, editId);
+      } else {
+        await saveStaffPayment({ ...data, staffId: f.personId, staffName: selectedPerson?.name || '' }, editId);
+      }
+      onClose();
+    };
+
+    const handleDelete = () => {
+      if (form?._type === 'teacher') deleteTeacherPayment(form.id);
+      else deleteStaffPayment(form.id);
+      onClose();
+    };
+
     return (
       <div style={s.modal}>
         <div style={s.modalBox}>
           <div style={s.modalHeader}>
-            <h3 style={s.modalTitle}>{form?.id ? t.employee : t.addPayroll}</h3>
+            <h3 style={s.modalTitle}>{form?.id ? t.editPayroll : t.addPayroll}</h3>
             <button style={{...s.btn('ghost', true), padding: '4px'}} onClick={onClose}><Icon d={icons.close} size={16} /></button>
           </div>
           <div style={s.formGrid}>
             <div>
-              <label style={s.label}>{t.employee} *</label>
-              <input style={s.input} type="text" value={f.employee} onChange={e => setF({...f, employee: e.target.value})} />
-            </div>
-            <div>
               <label style={s.label}>{t.role}</label>
-              <select style={s.input} value={f.role} onChange={e => setF({...f, role: e.target.value})}>
-                {t.roles.map(r => <option key={r}>{r}</option>)}
+              <select style={s.input} value={f._type} onChange={e => setF({...f, _type: e.target.value, personId: ''})}>
+                <option value="teacher">{t.personType.teacher}</option>
+                <option value="staff">{t.personType.staff}</option>
               </select>
             </div>
             <div>
-              <label style={s.label}>{t.period}</label>
-              <input style={s.input} type="text" value={f.period} onChange={e => setF({...f, period: e.target.value})} placeholder={currentPeriod} />
+              <label style={s.label}>{t.employee} *</label>
+              <select style={s.input} value={f.personId} onChange={e => setF({...f, personId: e.target.value})}>
+                <option value="">{t.selectPerson}</option>
+                {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={s.label}>{t.month}</label>
+              <input style={s.input} type="month" value={f.month} onChange={e => setF({...f, month: e.target.value, date: e.target.value ? `${e.target.value}-01` : f.date})} />
+            </div>
+            <div>
+              <label style={s.label}>{t.date}</label>
+              <input style={s.input} type="date" value={f.date} onChange={e => setF({...f, date: e.target.value})} />
             </div>
             <div>
               <label style={s.label}>{t.amountHTG} *</label>
-              <input style={s.input} type="number" min="0" value={f.amountHTG} onChange={e => setF({...f, amountHTG: e.target.value})} />
+              <input style={s.input} type="number" min="0" value={f.amount} onChange={e => setF({...f, amount: e.target.value})} />
             </div>
             <div>
-              <label style={s.label}>{t.amountUSD}</label>
-              <input style={s.input} type="number" min="0" step="0.01" value={f.amountUSD} onChange={e => setF({...f, amountUSD: e.target.value})} placeholder="Optionnel" />
+              <label style={s.label}>{t.method}</label>
+              <select style={s.input} value={f.method} onChange={e => setF({...f, method: e.target.value})}>
+                {methods.map(m => <option key={m}>{m}</option>)}
+              </select>
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={s.label}>Notes</label>
@@ -495,61 +519,56 @@ export default function Accounting() {
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
             <button style={s.btn('ghost')} onClick={onClose}>{t.cancel}</button>
-            {form?.id && <button style={s.btn('danger')} onClick={() => { deletePayroll(form.id); onClose(); }}><Icon d={icons.trash} size={14} />{t.delete}</button>}
-            <button style={s.btn('primary')} onClick={() => savePayroll(f)}><Icon d={icons.check} size={14} />{t.save}</button>
+            {form?.id && <button style={s.btn('danger')} onClick={handleDelete}><Icon d={icons.trash} size={14} />{t.delete}</button>}
+            <button style={s.btn('primary')} onClick={handleSave}><Icon d={icons.check} size={14} />{t.save}</button>
           </div>
         </div>
       </div>
     );
   };
 
-  // Pay slip modal
-  const PaySlipModal = ({ item, onClose }) => {
-    const isPaid = item.status === 'paid';
-    return (
-      <div style={s.modal} onClick={onClose}>
-        <div style={{...s.modalBox, maxWidth: 420}} onClick={e => e.stopPropagation()}>
-          <div style={s.modalHeader}>
-            <h3 style={s.modalTitle}>{t.generateSlip}</h3>
-            <button style={{...s.btn('ghost', true), padding: '4px'}} onClick={onClose}><Icon d={icons.close} size={16} /></button>
+  // ─── Pay Slip Modal ────────────────────────────────────────────────────────
+  const PaySlipModal = ({ item, onClose }) => (
+    <div style={s.modal} onClick={onClose}>
+      <div style={{...s.modalBox, maxWidth: 420}} onClick={e => e.stopPropagation()}>
+        <div style={s.modalHeader}>
+          <h3 style={s.modalTitle}>{t.generateSlip}</h3>
+          <button style={{...s.btn('ghost', true), padding: '4px'}} onClick={onClose}><Icon d={icons.close} size={16} /></button>
+        </div>
+        <div style={s.slip} id="payslip-content">
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: PALETTE.primary }}>{school?.name || 'SOCRATES'}</div>
+            <div style={{ fontSize: 13, color: PALETTE.muted }}>{t.generateSlip} — {formatPeriod(item.month)}</div>
           </div>
-          <div style={s.slip} id="payslip-content">
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: PALETTE.primary }}>{school?.name || 'SOCRATES'}</div>
-              <div style={{ fontSize: 13, color: PALETTE.muted }}>{t.generateSlip} — {item.period}</div>
-            </div>
-            {[
-              [t.employee, item.employee],
-              [t.role, item.role || '—'],
-              [t.period, item.period || '—'],
-              [t.amountHTG, `${fmt(item.amountHTG)} HTG`],
-              ...(item.amountUSD ? [[t.amountUSD, `$${item.amountUSD}`]] : []),
-              [t.status, isPaid ? t.paid : t.pending],
-            ].map(([k, v]) => (
-              <div key={k} style={s.slipRow}><span style={{ fontWeight: 600, fontSize: 13 }}>{k}</span><span style={{ fontSize: 13 }}>{v}</span></div>
-            ))}
-            {item.notes && <p style={{ fontSize: 12, color: PALETTE.muted, marginTop: 10 }}>Notes: {item.notes}</p>}
-            <div style={{ marginTop: 16, fontSize: 11, color: PALETTE.textLight, textAlign: 'center' }}>
-              Généré par SOCRATES — {new Date().toLocaleDateString('fr-FR')}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-            {!isPaid && <button style={s.btn('success')} onClick={() => { markPaid(item.id); onClose(); }}><Icon d={icons.check} size={14} />{t.markPaid}</button>}
-            <button style={s.btn('primary')} onClick={() => {
-              const w = window.open('', '_blank');
-              w.document.write(`<html><head><title>Fiche de Paie</title><style>body{font-family:Arial;padding:30px;}</style></head><body>${document.getElementById('payslip-content').outerHTML}</body></html>`);
-              w.document.close(); w.print();
-            }}><Icon d={icons.print} size={14} />{t.printReport}</button>
+          {[
+            [t.employee, item.employee],
+            [t.role, item.role || (item._type === 'teacher' ? t.personType.teacher : t.personType.staff)],
+            [t.period, formatPeriod(item.month)],
+            [t.amountHTG, `${fmt(item.amountHTG)} HTG`],
+            [t.method, item.method || '—'],
+            [t.status, t.paid],
+            ...(item.notes ? [['Notes', item.notes]] : []),
+          ].map(([k, v]) => (
+            <div key={k} style={s.slipRow}><span style={{ fontWeight: 600, fontSize: 13 }}>{k}</span><span style={{ fontSize: 13 }}>{v}</span></div>
+          ))}
+          <div style={{ marginTop: 16, fontSize: 11, color: PALETTE.textLight, textAlign: 'center' }}>
+            Généré par SOCRATES — {new Date().toLocaleDateString('fr-FR')}
           </div>
         </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+          <button style={s.btn('primary')} onClick={() => {
+            const w = window.open('', '_blank');
+            w.document.write(`<html><head><title>Fiche de Paie</title><style>body{font-family:Arial;padding:30px;}</style></head><body>${document.getElementById('payslip-content').outerHTML}</body></html>`);
+            w.document.close(); w.print();
+          }}><Icon d={icons.print} size={14} />{t.printReport}</button>
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
 
   // ─── Render ────────────────────────────────────────────────────────────────
   const totalFilteredExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const totalPayroll = payroll.reduce((s, p) => s + Number(p.amountHTG || 0), 0);
-  const pendingPayroll = payroll.filter(p => p.status !== 'paid').reduce((s, p) => s + Number(p.amountHTG || 0), 0);
+  const totalPayroll = allPayroll.reduce((s, p) => s + Number(p.amountHTG || 0), 0);
 
   return (
     <div style={s.container}>
@@ -573,7 +592,6 @@ export default function Accounting() {
       {/* ── EXPENSES TAB ────────────────────────────────────────────────────── */}
       {tab === 'expenses' && (
         <div>
-          {/* Summary */}
           <div style={s.summaryGrid}>
             <div style={s.summaryCard(PALETTE.danger)}>
               <div style={s.summaryLabel}>{t.totalExpenses}</div>
@@ -587,7 +605,6 @@ export default function Accounting() {
             </div>
           </div>
 
-          {/* Toolbar */}
           <div style={s.toolbar}>
             <div style={s.filterRow}>
               <select style={s.select} value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
@@ -603,11 +620,8 @@ export default function Accounting() {
             </button>
           </div>
 
-          {/* Table */}
           <div style={s.card}>
-            {expLoading ? (
-              <div style={s.empty}>Chargement…</div>
-            ) : filteredExpenses.length === 0 ? (
+            {filteredExpenses.length === 0 ? (
               <div style={s.empty}>{t.noExpenses}</div>
             ) : (
               <table style={s.table}>
@@ -617,18 +631,18 @@ export default function Accounting() {
                     <th style={s.th}>{t.category}</th>
                     <th style={s.th}>{t.description}</th>
                     <th style={s.th}>{t.amount}</th>
-                    <th style={s.th}>{t.paidBy}</th>
+                    <th style={s.th}>{t.personName}</th>
                     <th style={s.th}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredExpenses.map(e => (
-                    <tr key={e.id} style={{ cursor: 'pointer' }} onMouseEnter={ev => ev.currentTarget.style.background='#F7F9FB'} onMouseLeave={ev => ev.currentTarget.style.background=''}>
+                    <tr key={e.id} onMouseEnter={ev => ev.currentTarget.style.background='#F7F9FB'} onMouseLeave={ev => ev.currentTarget.style.background=''}>
                       <td style={s.td}>{e.date}</td>
-                      <td style={s.td}><span style={s.badge(PALETTE.accent)}>{e.category}</span></td>
+                      <td style={s.td}><span style={s.badge(PALETTE.accent)}>{getCatLabel(e.category)}</span></td>
                       <td style={s.td}>{e.description || '—'}</td>
                       <td style={{...s.td, fontWeight: 600, color: PALETTE.danger}}>{fmt(e.amount)} HTG</td>
-                      <td style={s.td}>{e.paidBy || '—'}</td>
+                      <td style={s.td}>{e.personName || e.paidBy || '—'}</td>
                       <td style={s.td}>
                         <div style={s.actionBtns}>
                           <button style={s.btn('ghost', true)} onClick={() => setExpenseForm(e)}><Icon d={icons.edit} size={14} /></button>
@@ -653,15 +667,15 @@ export default function Accounting() {
               <div style={s.summaryValue(PALETTE.primary)}>{fmt(totalPayroll)}</div>
               <div style={{ fontSize: 11, color: PALETTE.muted }}>HTG</div>
             </div>
-            <div style={s.summaryCard(PALETTE.warning)}>
-              <div style={s.summaryLabel}>{t.pending}</div>
-              <div style={s.summaryValue(PALETTE.warning)}>{fmt(pendingPayroll)}</div>
-              <div style={{ fontSize: 11, color: PALETTE.muted }}>HTG {t.pending.toLowerCase()}</div>
-            </div>
             <div style={s.summaryCard(PALETTE.success)}>
-              <div style={s.summaryLabel}>{t.paid}</div>
-              <div style={s.summaryValue(PALETTE.success)}>{payroll.filter(p => p.status === 'paid').length}</div>
-              <div style={{ fontSize: 11, color: PALETTE.muted }}>{language === 'fr' ? 'paiements effectués' : 'pèman fèt'}</div>
+              <div style={s.summaryLabel}>{language === 'fr' ? 'Enseignants' : 'Pwofesè'}</div>
+              <div style={s.summaryValue(PALETTE.success)}>{teacherPayments.length}</div>
+              <div style={{ fontSize: 11, color: PALETTE.muted }}>{language === 'fr' ? 'paiements' : 'pèman'}</div>
+            </div>
+            <div style={s.summaryCard(PALETTE.accent)}>
+              <div style={s.summaryLabel}>{language === 'fr' ? 'Personnel admin.' : 'Pèsonèl admin.'}</div>
+              <div style={s.summaryValue(PALETTE.accent)}>{staffPayments.length}</div>
+              <div style={{ fontSize: 11, color: PALETTE.muted }}>{language === 'fr' ? 'paiements' : 'pèman'}</div>
             </div>
           </div>
 
@@ -673,9 +687,7 @@ export default function Accounting() {
           </div>
 
           <div style={s.card}>
-            {prLoading ? (
-              <div style={s.empty}>Chargement…</div>
-            ) : payroll.length === 0 ? (
+            {allPayroll.length === 0 ? (
               <div style={s.empty}>{t.noPayroll}</div>
             ) : (
               <table style={s.table}>
@@ -685,24 +697,25 @@ export default function Accounting() {
                     <th style={s.th}>{t.role}</th>
                     <th style={s.th}>{t.period}</th>
                     <th style={s.th}>{t.amountHTG}</th>
+                    <th style={s.th}>{t.method}</th>
                     <th style={s.th}>{t.status}</th>
                     <th style={s.th}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payroll.map(p => (
-                    <tr key={p.id} onMouseEnter={ev => ev.currentTarget.style.background='#F7F9FB'} onMouseLeave={ev => ev.currentTarget.style.background=''}>
+                  {allPayroll.map(p => (
+                    <tr key={`${p._type}-${p.id}`} onMouseEnter={ev => ev.currentTarget.style.background='#F7F9FB'} onMouseLeave={ev => ev.currentTarget.style.background=''}>
                       <td style={{...s.td, fontWeight: 600}}>{p.employee}</td>
-                      <td style={s.td}><span style={s.badge(PALETTE.primary)}>{p.role || '—'}</span></td>
-                      <td style={s.td}>{p.period || '—'}</td>
-                      <td style={{...s.td, fontWeight: 600, color: PALETTE.text}}>{fmt(p.amountHTG)} HTG{p.amountUSD ? ` / $${p.amountUSD}` : ''}</td>
-                      <td style={s.td}><span style={s.badge(p.status === 'paid' ? PALETTE.success : PALETTE.warning)}>{p.status === 'paid' ? t.paid : t.pending}</span></td>
+                      <td style={s.td}><span style={s.badge(p._type === 'teacher' ? PALETTE.primary : PALETTE.accent)}>{p.role || (p._type === 'teacher' ? t.personType.teacher : t.personType.staff)}</span></td>
+                      <td style={s.td}>{formatPeriod(p.month)}</td>
+                      <td style={{...s.td, fontWeight: 600}}>{fmt(p.amountHTG)} HTG</td>
+                      <td style={s.td}>{p.method || '—'}</td>
+                      <td style={s.td}><span style={s.badge(PALETTE.success)}>{t.paid}</span></td>
                       <td style={s.td}>
                         <div style={s.actionBtns}>
-                          {p.status !== 'paid' && <button style={s.btn('success', true)} onClick={() => markPaid(p.id)}><Icon d={icons.check} size={13} /></button>}
                           <button style={s.btn('ghost', true)} onClick={() => setSlipTarget(p)} title={t.generateSlip}><Icon d={icons.print} size={13} /></button>
                           <button style={s.btn('ghost', true)} onClick={() => setPayrollForm(p)}><Icon d={icons.edit} size={13} /></button>
-                          <button style={s.btn('danger', true)} onClick={() => deletePayroll(p.id)}><Icon d={icons.trash} size={13} /></button>
+                          <button style={s.btn('danger', true)} onClick={() => p._type === 'teacher' ? deleteTeacherPayment(p.id) : deleteStaffPayment(p.id)}><Icon d={icons.trash} size={13} /></button>
                         </div>
                       </td>
                     </tr>
@@ -769,7 +782,6 @@ export default function Accounting() {
       {/* ── REPORT TAB ──────────────────────────────────────────────────────── */}
       {tab === 'report' && (
         <div>
-          {/* Month/Year picker */}
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
             <select style={s.select} value={reportMonth} onChange={e => setReportMonth(Number(e.target.value))}>
               {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
@@ -782,7 +794,6 @@ export default function Accounting() {
             </button>
           </div>
 
-          {/* Summary cards */}
           <div style={s.summaryGrid}>
             <div style={s.summaryCard(PALETTE.success)}>
               <div style={s.summaryLabel}>{t.totalIncome}</div>
@@ -810,13 +821,12 @@ export default function Accounting() {
             </div>
           </div>
 
-          {/* Expense by category chart */}
           {catBreakdown.length > 0 && (
             <div style={{...s.card, marginTop: 16}}>
               <h3 style={{ margin: '0 0 16px', fontSize: 15, color: PALETTE.primary }}>{t.expenseByCategory}</h3>
               {catBreakdown.sort((a, b) => b.total - a.total).map(c => (
-                <div key={c.cat} style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ minWidth: 180, fontSize: 12, color: PALETTE.text }}>{c.cat}</div>
+                <div key={c.key} style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ minWidth: 200, fontSize: 12, color: PALETTE.text }}>{c.cat}</div>
                   <div style={s.progressBg}>
                     <div style={s.progressBar(Math.round(c.total / maxCat * 100), PALETTE.primary)} />
                   </div>
@@ -828,7 +838,6 @@ export default function Accounting() {
             </div>
           )}
 
-          {/* Simple P&L table */}
           <div style={{...s.card, marginTop: 16}}>
             <h3 style={{ margin: '0 0 14px', fontSize: 15, color: PALETTE.primary }}>P&amp;L — {months[reportMonth]} {reportYear}</h3>
             <table style={s.table}>

@@ -6,7 +6,7 @@ import { useLang } from '../../i18n/LanguageContext';
 export default function Dashboard({ onOpenModal }) {
   const {
     school, students, teachers, classes, payments, teacherPayments, expenses,
-    homeworkSubmissions, staffPayments,
+    staffPayments,
     getStudentBalance, getTeacherBalance, getStaffBalance,
     isAdultSchool, isPrescolaireOnly,
     setActiveTab, autoFlagOverdue,
@@ -52,8 +52,7 @@ export default function Dashboard({ onOpenModal }) {
   const masSalayal = finance.totalTeacherDue + totalStaffDue;
   const totalUnpaidPayroll = unpaidTeachers + unpaidStaff;
 
-  // ── Devwa An Atant ──
-  const pendingHomework = (homeworkSubmissions || []).filter(s => !s.corrected && !s.grade).length;
+  const pendingHomework = 0; // submissions not loaded on admin dashboard
 
   const recentActivity = useMemo(() => {
     const all = [];
