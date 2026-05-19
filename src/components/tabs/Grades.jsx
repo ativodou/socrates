@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { FileText, Printer, Award, CheckCircle, XCircle } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
+import { toast } from '../../toast';
 
 export default function Grades() {
   const {
@@ -330,13 +331,12 @@ export default function Grades() {
         const incomplete = promotionData.filter(p => p.status === 'incomplete').length;
 
         const applyPromotions = async () => {
-          if (!window.confirm(ht ? `Aplike desizyon pwomosyon pou ${classStudents.length} elèv?` : `Appliquer les décisions de promotion pour ${classStudents.length} ${adult ? 'étudiants' : 'élèves'}?`)) return;
           for (const p of promotionData) {
             if (p.status !== 'incomplete') {
               await saveStudent({ ...p.student, promotionStatus: p.status, promotionAverage: p.annualAverage?.toFixed(2) || '' }, p.student.id);
             }
           }
-          alert(ht ? `Pwomosyon aplike: ${admis} admis, ${redoublants} redoublan` : `Promotion appliquée: ${admis} admis, ${redoublants} redoublant${redoublants > 1 ? 's' : ''}`);
+          toast.success(t('promotionApplied', { a: admis, r: redoublants }));
         };
 
         return (

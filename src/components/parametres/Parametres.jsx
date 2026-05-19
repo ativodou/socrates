@@ -5,6 +5,7 @@ import { doc, updateDoc, addDoc, deleteDoc, collection, getDocs } from 'firebase
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
+import { toast } from '../../toast';
 
 const SECTIONS = [
   { id: 'checklist',   label: 'Annuaire',    icon: ClipboardCheck, color: 'text-green-600'  },
@@ -37,12 +38,11 @@ function SchoolPhotoManager({ schoolId, ht }) {
   }, [schoolId]);
 
   const deletePhoto = async (photo) => {
-    if (!window.confirm(ht ? 'Efase foto sa?' : 'Supprimer cette photo ?')) return;
     try {
       if (photo.storagePath) await deleteObject(ref(storage, photo.storagePath));
       await deleteDoc(doc(db, 'schools', schoolId, 'schoolPhotos', photo.id));
       setPhotos(p => p.filter(x => x.id !== photo.id));
-    } catch (err) { alert('Erreur: ' + err.message); }
+    } catch (err) { toast.error(`${t('error')}: ${err.message}`); }
   };
 
   const saveCaption = async (photo) => {
@@ -144,8 +144,8 @@ export default function Parametres() {
         paymentMethods: val('paymentMethods','paymentMethods',{}),
       };
       await updateSchoolSettings(updateData);
-      alert(ht ? 'Anrejistre!' : 'Sauvegardé !');
-    } catch (err) { alert((ht?'Erè: ':'Erreur: ')+err.message); }
+      toast.success(t('saved'));
+    } catch (err) { toast.error(`${t('error')}: ${err.message}`); }
   };
 
   const checks = [
@@ -262,9 +262,10 @@ export default function Parametres() {
                   Changer le logo
                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                     const file=e.target.files[0]; if(!file) return;
-                    if(file.size>500*1024){alert('Max 500KB.');return;}
+                    if(file.size>500*1024){toast.error(t('photoMaxSize'));return;}
                     const reader=new FileReader();
-                    reader.onloadend=async()=>{try{await updateDoc(doc(db,'schools',school.id),{logo:reader.result});setSchool({...school,logo:reader.result});alert('Logo sauvegardé!');}catch(err){alert('Erreur: '+err.message);}};
+                    reader.onloadend=async()=>{try{await updateDoc(doc(db,'schools',school.id),{logo:reader.result});setSchool({...school,logo:reader.result});toast.success(t('logoSaved'));}catch(err){toast.error(`${t('error')}: ${err.message}`);}};
+
                     reader.readAsDataURL(file);
                   }} />
                 </label>
@@ -315,7 +316,7 @@ export default function Parametres() {
               <label className={`${labelCls} mb-2`}>Coordonnées GPS</label>
               <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={() => {
-                  if(!navigator.geolocation){alert('Non supporté.');return;}
+                  if(!navigator.geolocation){toast.error(t('gpsNotSupported'));return;}
                   set('gpsLoading',true);
                   navigator.geolocation.getCurrentPosition(pos=>{
                     const{latitude:lat,longitude:lng}=pos.coords;
@@ -323,7 +324,7 @@ export default function Parametres() {
                       if(!val('address','address'))set('address',data.display_name||'');
                       setFormData(f=>({...f,gpsLat:lat.toFixed(6),gpsLng:lng.toFixed(6),gpsLoading:false}));
                     }).catch(()=>setFormData(f=>({...f,gpsLat:lat.toFixed(6),gpsLng:lng.toFixed(6),gpsLoading:false})));
-                  },()=>{set('gpsLoading',false);alert("Position impossible.");});
+                  },()=>{set('gpsLoading',false);toast.error(t('gpsError'));});
                 }} className="flex items-center gap-2 text-sm bg-blue-50 text-socrates-blue border border-blue-200 px-4 py-2.5 rounded-xl hover:bg-blue-100 transition font-medium">
                   <MapPin size={16}/>{formData.gpsLoading?'Localisation...':"📍 Localiser l'école"}
                 </button>
@@ -421,7 +422,7 @@ export default function Parametres() {
                     <select value={formData.newProgDuration||'1'} onChange={e=>set('newProgDuration',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm">{[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} an{n>1?'s':''}</option>)}</select>
                   </div>
                   <div className="flex gap-2">
-                    <button type="button" onClick={()=>{if(!formData.newProgName){alert('Nom requis.');return;}setFormData({...formData,programs:[...val('programs','programs',[]),{name:formData.newProgName,domain:formData.newProgDomain||'',duration:parseInt(formData.newProgDuration||1)}],showAddProgram:false,newProgName:'',newProgDomain:'',newProgDuration:'1'});}} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
+                    <button type="button" onClick={()=>{if(!formData.newProgName){toast.error(t('nameRequired'));return;}setFormData({...formData,programs:[...val('programs','programs',[]),{name:formData.newProgName,domain:formData.newProgDomain||'',duration:parseInt(formData.newProgDuration||1)}],showAddProgram:false,newProgName:'',newProgDomain:'',newProgDuration:'1'});}} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
                     <button type="button" onClick={()=>set('showAddProgram',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                   </div>
                 </div>
@@ -441,7 +442,7 @@ export default function Parametres() {
                 <div key={t.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold">{t.firstName?.[0]}{t.lastName?.[0]}</div>
                   <div className="flex-1 min-w-0"><p className="font-medium text-sm">{t.firstName} {t.lastName}</p><p className="text-xs text-gray-500">{t.subject||'N/A'}</p></div>
-                  <button type="button" onClick={async()=>{if(window.confirm('Supprimer ?')){await deleteDoc(doc(db,'schools',school.id,'teachers',t.id));loadAllData();}}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                  <button type="button" onClick={async()=>{await deleteDoc(doc(db,'schools',school.id,'teachers',t.id));loadAllData();}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
                 </div>
               ))}
             </div>
@@ -453,7 +454,7 @@ export default function Parametres() {
                 </div>
                 <input type="text" placeholder="Matière" value={formData.newTeacherSubject||''} onChange={e=>set('newTeacherSubject',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <div className="flex gap-2">
-                  <button type="button" onClick={async()=>{if(!formData.newTeacherFirst||!formData.newTeacherLast){alert('Requis.');return;}await addDoc(collection(db,'schools',school.id,'teachers'),{firstName:formData.newTeacherFirst,lastName:formData.newTeacherLast,subject:formData.newTeacherSubject||''});setFormData({...formData,showAddTeacher:false,newTeacherFirst:'',newTeacherLast:'',newTeacherSubject:''});loadAllData();}} className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
+                  <button type="button" onClick={async()=>{if(!formData.newTeacherFirst||!formData.newTeacherLast){toast.error(t('required'));return;}await addDoc(collection(db,'schools',school.id,'teachers'),{firstName:formData.newTeacherFirst,lastName:formData.newTeacherLast,subject:formData.newTeacherSubject||''});setFormData({...formData,showAddTeacher:false,newTeacherFirst:'',newTeacherLast:'',newTeacherSubject:''});loadAllData();}} className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
                   <button type="button" onClick={()=>set('showAddTeacher',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
@@ -471,7 +472,7 @@ export default function Parametres() {
                 <div key={c.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center text-sm font-bold">{c.name?.[0]}</div>
                   <div className="flex-1"><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-gray-500">{teachers.find(t=>t.id===c.teacherId)?.firstName||'Sans enseignant'}{(c.teacherIds||[]).length>1?` + ${(c.teacherIds||[]).length-1}`:''} • {c.room||''}</p></div>
-                  <button type="button" onClick={async()=>{if(window.confirm('Supprimer ?')){await deleteDoc(doc(db,'schools',school.id,'classes',c.id));loadAllData();}}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                  <button type="button" onClick={async()=>{await deleteDoc(doc(db,'schools',school.id,'classes',c.id));loadAllData();}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
                 </div>
               ))}
             </div>
@@ -483,7 +484,7 @@ export default function Parametres() {
                   <select value={formData.newClassTeacher||''} onChange={e=>set('newClassTeacher',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Enseignant</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={async()=>{if(!formData.newClassName){alert('Nom requis.');return;}await addDoc(collection(db,'schools',school.id,'classes'),{name:formData.newClassName,gradeLevel:formData.newClassGrade||'',teacherId:formData.newClassTeacher||'',room:''});setFormData({...formData,showAddClass:false,newClassName:'',newClassGrade:'',newClassTeacher:''});loadAllData();}} className="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
+                  <button type="button" onClick={async()=>{if(!formData.newClassName){toast.error(t('nameRequired'));return;}await addDoc(collection(db,'schools',school.id,'classes'),{name:formData.newClassName,gradeLevel:formData.newClassGrade||'',teacherId:formData.newClassTeacher||'',room:''});setFormData({...formData,showAddClass:false,newClassName:'',newClassGrade:'',newClassTeacher:''});loadAllData();}} className="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
                   <button type="button" onClick={()=>set('showAddClass',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
@@ -577,7 +578,7 @@ export default function Parametres() {
                 <input type="number" min="0" placeholder={ht?"Salè anyèl HTG (opsyonèl)":"Salaire annuel HTG (optionnel)"} value={formData.newStaffSalary||''} onChange={e=>set('newStaffSalary',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 {formData.newStaffSalary>0&&<p className="text-xs text-green-600 text-center">HTG {(parseFloat(formData.newStaffSalary)/10).toLocaleString()} / {ht?'mwa':'mois'}</p>}
                 <div className="flex gap-2">
-                  <button type="button" onClick={()=>{if(!formData.newStaffFirst||!formData.newStaffLast||!formData.newStaffRole){alert('Requis.');return;}const m={id:`staff_${Date.now()}`,firstName:formData.newStaffFirst,lastName:formData.newStaffLast,role:formData.newStaffRole,annualSalary:parseFloat(formData.newStaffSalary)||0};setFormData({...formData,adminStaff:[...val('adminStaff','adminStaff',[]),m],showAddStaff:false,newStaffFirst:'',newStaffLast:'',newStaffRole:'',newStaffSalary:''});}} className="flex-1 bg-violet-600 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
+                  <button type="button" onClick={()=>{if(!formData.newStaffFirst||!formData.newStaffLast||!formData.newStaffRole){toast.error(t('required'));return;}const m={id:`staff_${Date.now()}`,firstName:formData.newStaffFirst,lastName:formData.newStaffLast,role:formData.newStaffRole,annualSalary:parseFloat(formData.newStaffSalary)||0};setFormData({...formData,adminStaff:[...val('adminStaff','adminStaff',[]),m],showAddStaff:false,newStaffFirst:'',newStaffLast:'',newStaffRole:'',newStaffSalary:''});}} className="flex-1 bg-violet-600 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
                   <button type="button" onClick={()=>set('showAddStaff',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
@@ -632,7 +633,7 @@ export default function Parametres() {
                 <input type="text" placeholder="Nom" value={formData.newActivityName||''} onChange={e=>set('newActivityName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <input type="text" placeholder="Description" value={formData.newActivityDesc||''} onChange={e=>set('newActivityDesc',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <div className="flex gap-2">
-                  <button type="button" onClick={()=>{if(!formData.newActivityName){alert('Nom requis.');return;}setFormData({...formData,activities:[...val('activities','activities',[]),{name:formData.newActivityName,description:formData.newActivityDesc||''}],showAddActivity:false,newActivityName:'',newActivityDesc:''}); }} className="flex-1 bg-orange-500 text-white py-2 rounded-xl text-sm font-medium">{ht?"Ajoute":"Ajouter"}</button>
+                  <button type="button" onClick={()=>{if(!formData.newActivityName){toast.error(t('nameRequired'));return;}setFormData({...formData,activities:[...val('activities','activities',[]),{name:formData.newActivityName,description:formData.newActivityDesc||''}],showAddActivity:false,newActivityName:'',newActivityDesc:''}); }} className="flex-1 bg-orange-500 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
                   <button type="button" onClick={()=>set('showAddActivity',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
                 </div>
               </div>
@@ -744,13 +745,13 @@ export default function Parametres() {
                 set('photoUploading',true);
                 try{
                   for(const file of files){
-                    if(file.size>2*1024*1024){alert(`${file.name} ${ht?'twò gwo (maks 2MB)':'trop grand (max 2MB)'}`);continue;}
+                    if(file.size>2*1024*1024){toast.error(`${file.name} ${t('fileMaxSize')}`);continue;}
                     const storageRef=ref(storage,`schools/${school.id}/photos/${Date.now()}_${file.name}`);
                     const snap=await uploadBytes(storageRef,file);
                     const url=await getDownloadURL(snap.ref);
                     await addDoc(collection(db,'schools',school.id,'schoolPhotos'),{url,caption:'',storagePath:snap.ref.fullPath,uploadedAt:new Date().toISOString()});
                   }
-                }catch(err){alert((ht?'Erè: ':'Erreur: ')+err.message);}
+                }catch(err){toast.error(`${t('error')}: ${err.message}`);}
                 set('photoUploading',false);
                 e.target.value='';
               }}/>

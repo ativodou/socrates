@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, User, BookOpen, DollarSign, Users as UsersIcon, Camera, Phone } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
+import { toast } from '../../toast';
 import Modal from '../shared/Modal';
 
 export default function ModalForms({ modalType, editItem, onClose, initialData }) {
@@ -46,7 +47,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
         case 'expense': await saveExpense(formData, editItem?.id); break;
       }
       onClose();
-    } catch (error) { alert('Erreur: ' + error.message); }
+    } catch (error) { toast.error(`${t('error')}: ${error.message}`); }
   };
 
   // Auto-fill fees: cycle-based for standard, program-based for Technique/Universitaire
@@ -78,7 +79,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 500000) { alert('Photo trop volumineuse (max 500KB)'); return; }
+    if (file.size > 500000) { toast.error(t('photoMaxSize')); return; }
     const reader = new FileReader();
     reader.onload = (ev) => set('photo', ev.target.result);
     reader.readAsDataURL(file);

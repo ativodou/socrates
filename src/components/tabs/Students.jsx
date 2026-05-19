@@ -24,6 +24,7 @@ export default function Students({ onOpenModal }) {
   const [showFilters, setShowFilters] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [flaggingId, setFlaggingId] = useState(null);
+  const [flagOtherNote, setFlagOtherNote] = useState('');
   const adult = isAdultSchool();
 
   let filtered = students.filter(s => (s.firstName + ' ' + s.lastName).toLowerCase().includes(searchTerm.toLowerCase()));
@@ -162,7 +163,7 @@ export default function Students({ onOpenModal }) {
 
                 {student.notes&&student.notes.trim()!==''&&(<div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm mt-3"><p className="text-yellow-800"><strong>Message:</strong> {student.notes}</p></div>)}
 
-                {isFlagging&&(<div className="mt-3 pt-3 border-t"><p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5"><AlertTriangle size={14} className="text-orange-500"/> {t('flagProblem')}</p><div className="flex flex-wrap gap-2 mb-2">{FLAG_TYPES.map(ft=>(<button key={ft.value} type="button" onClick={()=>{const note=ft.value==='other'?prompt(ht?'Nòt (opsyonèl):':'Note (optionnel):')||'':'';setStudentFlag(student.id,ft.value,note);}} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 ${ft.color} hover:ring-2 hover:ring-offset-1 transition`}><span>{ft.icon}</span>{ft.label}</button>))}</div><button onClick={()=>setFlaggingId(null)} className="text-xs text-gray-400">{t('cancel')}</button></div>)}
+                {isFlagging&&(<div className="mt-3 pt-3 border-t"><p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5"><AlertTriangle size={14} className="text-orange-500"/> {t('flagProblem')}</p><div className="flex flex-wrap gap-2 mb-2">{FLAG_TYPES.map(ft=>(<button key={ft.value} type="button" onClick={()=>{if(ft.value==='other'){setFlagOtherNote('');}else{setStudentFlag(student.id,ft.value,'');}}} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 ${ft.color} hover:ring-2 hover:ring-offset-1 transition`}><span>{ft.icon}</span>{ft.label}</button>))}</div>{flaggingId===student.id&&(<div className="mt-2 flex gap-2"><input value={flagOtherNote} onChange={e=>setFlagOtherNote(e.target.value)} placeholder={t('flagNotePh')} className="flex-1 px-3 py-1.5 border rounded-lg text-xs" /><button onClick={()=>setStudentFlag(student.id,'other',flagOtherNote)} className="px-3 py-1.5 bg-gray-700 text-white rounded-lg text-xs">{t('save')}</button></div>)}<button onClick={()=>{setFlaggingId(null);setFlagOtherNote('');}} className="text-xs text-gray-400 mt-1 block">{t('cancel')}</button></div>)}
 
                 <div className="flex gap-2 flex-wrap mt-3">
                   <button onClick={()=>{onOpenModal('payment',null,{studentId:student.id,amount:getMonthlyTuition(student),paymentType:'scolarite'});}} className="flex-1 bg-green-100 text-green-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><DollarSign size={16}/>{t('pay')}</button>

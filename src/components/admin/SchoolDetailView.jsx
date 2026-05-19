@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, GraduationCap, DollarSign, FileText } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
+import { toast } from '../../toast';
 
 export default function SchoolDetailView({ schoolId, onBack }) {
   const { loadSchoolDetails, updateSchoolContract, subscriptionPayments, saveSubscriptionPayment } = useSchool();
@@ -75,7 +76,7 @@ export default function SchoolDetailView({ schoolId, onBack }) {
             <button onClick={async () => {
               const doc = await updateSchoolContract(schoolId, contractForm.annualFee, contractForm.setupFee);
               setSchoolData({ ...schoolData, ...doc.data() });
-              alert('Contrat sauvegarde!');
+              toast.success('✓');
             }} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-medium">Sauvegarder</button>
             <button onClick={generateContract} className="flex-1 bg-purple-100 text-purple-700 py-3 rounded-xl font-medium">Generer Contrat</button>
           </div>

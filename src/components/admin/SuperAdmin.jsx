@@ -3,6 +3,8 @@ import { Shield, Users, DollarSign, Search, Eye, ToggleLeft, ToggleRight, Plus, 
 import { db } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
+import { useLang } from '../../i18n/LanguageContext';
+import { toast } from '../../toast';
 import SchoolDetailView from './SchoolDetailView';
 
 export default function SuperAdmin() {
@@ -13,6 +15,7 @@ export default function SuperAdmin() {
     getSchoolBalance, isSetupFeePaid, getTotalSubscriptionRevenue,
   } = useSchool();
 
+  const { t } = useLang();
   const [adminTab, setAdminTab] = useState('schools');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingSchool, setViewingSchool] = useState(null);
@@ -35,24 +38,24 @@ export default function SuperAdmin() {
       <header className="bg-gradient-to-r from-purple-900 to-purple-700 text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Shield size={28} />
-          <div><h1 className="font-display text-xl">SOCRATES Admin</h1><p className="text-xs text-purple-200">Super Administrateur</p></div>
+          <div><h1 className="font-display text-xl">SOCRATES Admin</h1><p className="text-xs text-purple-200">{t('superAdminTitle')}</p></div>
         </div>
-        <button onClick={handleLogout} className="bg-white/20 px-4 py-2 rounded-lg text-sm">Deconnexion</button>
+        <button onClick={handleLogout} className="bg-white/20 px-4 py-2 rounded-lg text-sm">{t('logout')}</button>
       </header>
 
       {/* Stats */}
       <div className="max-w-6xl mx-auto p-4 grid grid-cols-3 gap-4 mb-4">
-        <div className="bg-white rounded-xl shadow p-4"><p className="text-xs text-gray-500">Ecoles</p><p className="text-2xl font-bold text-purple-700">{allSchools.length}</p></div>
-        <div className="bg-white rounded-xl shadow p-4"><p className="text-xs text-gray-500">Eleves total</p><p className="text-2xl font-bold text-blue-700">{allSchools.reduce((s, sc) => s + (sc.studentCount || 0), 0)}</p></div>
-        <div className="bg-white rounded-xl shadow p-4"><p className="text-xs text-gray-500">Revenus</p><p className="text-2xl font-bold text-green-700">HTG {getTotalSubscriptionRevenue().toFixed(0)}</p></div>
+        <div className="bg-white rounded-xl shadow p-4"><p className="text-xs text-gray-500">{t('schools')}</p><p className="text-2xl font-bold text-purple-700">{allSchools.length}</p></div>
+        <div className="bg-white rounded-xl shadow p-4"><p className="text-xs text-gray-500">{t('totalStudentsAll')}</p><p className="text-2xl font-bold text-blue-700">{allSchools.reduce((s, sc) => s + (sc.studentCount || 0), 0)}</p></div>
+        <div className="bg-white rounded-xl shadow p-4"><p className="text-xs text-gray-500">{t('revenues')}</p><p className="text-2xl font-bold text-green-700">HTG {getTotalSubscriptionRevenue().toFixed(0)}</p></div>
       </div>
 
       {/* Tabs */}
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
           {[
-            { id: 'schools', label: 'Ecoles', icon: Users },
-            { id: 'payments', label: 'Paiements', icon: DollarSign },
+            { id: 'schools', label: t('schools'), icon: Users },
+            { id: 'payments', label: t('tabPayments'), icon: DollarSign },
           ].map(tab => (
             <button key={tab.id} onClick={() => setAdminTab(tab.id)} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition ${adminTab === tab.id ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}>
               <tab.icon size={16} />{tab.label}
@@ -65,7 +68,7 @@ export default function SuperAdmin() {
           <div className="space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input type="text" placeholder="Rechercher ecole..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-3 border rounded-xl w-full text-base" />
+              <input type="text" placeholder={t('search')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-3 border rounded-xl w-full text-base" />
             </div>
             {filtered.map(school => (
               <div key={school.id} className="bg-white rounded-xl shadow-lg p-4">
@@ -79,7 +82,7 @@ export default function SuperAdmin() {
                       <p className="font-semibold">{school.name}</p>
                       {school.verifiedBySocrates && (
                         <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                          <BadgeCheck size={12} /> Vérifié
+                          <BadgeCheck size={12} /> {t('verified')}
                         </span>
                       )}
                     </div>
@@ -87,21 +90,21 @@ export default function SuperAdmin() {
                     <div className="flex gap-2 mt-1 flex-wrap">
                       <span className={`text-xs px-2 py-0.5 rounded ${school.subscription === 'active' ? 'bg-green-100 text-green-700' : school.subscription === 'trial' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{school.subscription || 'trial'}</span>
                       <span className={`text-xs px-2 py-0.5 rounded ${school.status === 'disabled' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{school.status || 'active'}</span>
-                      <span className="text-xs text-gray-400">{school.studentCount || 0} eleves • {school.teacherCount || 0} enseignants</span>
+                      <span className="text-xs text-gray-400">{school.studentCount || 0} {t('studentPlural')} • {school.teacherCount || 0} {t('teachers').toLowerCase()}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={`font-bold text-sm ${getSchoolBalance(school.id) > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                      {getSchoolBalance(school.id) > 0 ? `Du: HTG ${getSchoolBalance(school.id).toFixed(0)}` : 'A jour'}
+                      {getSchoolBalance(school.id) > 0 ? `${t('owes')}: HTG ${getSchoolBalance(school.id).toFixed(0)}` : t('paidUpBadge')}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => setViewingSchool(school.id)} className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><Eye size={16} />Details</button>
+                  <button onClick={() => setViewingSchool(school.id)} className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1"><Eye size={16} />{t('details')}</button>
                   <button
                     onClick={() => toggleVerification(school.id, school.verifiedBySocrates)}
                     className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${school.verifiedBySocrates ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
-                    title={school.verifiedBySocrates ? 'Retirer vérification' : 'Marquer comme vérifié'}
+                    title={school.verifiedBySocrates ? t('removeVerification') : t('markVerified')}
                   >
                     <BadgeCheck size={16} />
                     {school.verifiedBySocrates ? '✓' : '?'}
@@ -124,25 +127,25 @@ export default function SuperAdmin() {
         {/* Payments Tab */}
         {adminTab === 'payments' && (
           <div className="space-y-3">
-            <button onClick={() => setShowPaymentForm(!showPaymentForm)} className="bg-purple-600 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2"><Plus size={18} />Enregistrer Paiement</button>
+            <button onClick={() => setShowPaymentForm(!showPaymentForm)} className="bg-purple-600 text-white px-4 py-3 rounded-xl font-medium flex items-center gap-2"><Plus size={18} />{t('save')} {t('tabPayments')}</button>
             {showPaymentForm && (
               <div className="bg-white rounded-xl shadow-lg p-5 space-y-4">
                 <select value={paymentForm.schoolId || ''} onChange={e => setPaymentForm({ ...paymentForm, schoolId: e.target.value })} className="w-full px-4 py-3 border rounded-xl">
-                  <option value="">Selectionnez ecole</option>
+                  <option value="">{t('selectSchool')}</option>
                   {allSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <input type="number" placeholder="Montant (HTG)" value={paymentForm.amount || ''} onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })} className="w-full px-4 py-3 border rounded-xl" />
+                <input type="number" placeholder={t('amountHTG')} value={paymentForm.amount || ''} onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })} className="w-full px-4 py-3 border rounded-xl" />
                 <input type="date" value={paymentForm.date || new Date().toISOString().split('T')[0]} onChange={e => setPaymentForm({ ...paymentForm, date: e.target.value })} className="w-full px-4 py-3 border rounded-xl" />
-                <label className="flex items-center gap-3"><input type="checkbox" checked={paymentForm.isSetupFee || false} onChange={e => setPaymentForm({ ...paymentForm, isSetupFee: e.target.checked })} className="w-5 h-5" /><span className="text-sm">Frais d'installation</span></label>
-                <input type="text" placeholder="Description" value={paymentForm.description || ''} onChange={e => setPaymentForm({ ...paymentForm, description: e.target.value })} className="w-full px-4 py-3 border rounded-xl" />
+                <label className="flex items-center gap-3"><input type="checkbox" checked={paymentForm.isSetupFee || false} onChange={e => setPaymentForm({ ...paymentForm, isSetupFee: e.target.checked })} className="w-5 h-5" /><span className="text-sm">{t('setupFee')}</span></label>
+                <input type="text" placeholder={t('description')} value={paymentForm.description || ''} onChange={e => setPaymentForm({ ...paymentForm, description: e.target.value })} className="w-full px-4 py-3 border rounded-xl" />
                 <div className="flex gap-2">
                   <button onClick={async () => {
-                    if (!paymentForm.schoolId || !paymentForm.amount) { alert('Ecole et montant requis'); return; }
+                    if (!paymentForm.schoolId || !paymentForm.amount) { toast.error(t('schoolAmountRequired')); return; }
                     await saveSubscriptionPayment(paymentForm);
                     setPaymentForm({});
                     setShowPaymentForm(false);
-                  }} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-medium">Enregistrer</button>
-                  <button onClick={() => setShowPaymentForm(false)} className="flex-1 bg-gray-100 py-3 rounded-xl">Annuler</button>
+                  }} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-medium">{t('save')}</button>
+                  <button onClick={() => setShowPaymentForm(false)} className="flex-1 bg-gray-100 py-3 rounded-xl">{t('cancel')}</button>
                 </div>
               </div>
             )}
@@ -151,8 +154,8 @@ export default function SuperAdmin() {
               return (
                 <div key={p.id} className="bg-white rounded-xl shadow-lg p-4 flex items-center gap-4">
                   <div className="flex-1">
-                    <p className="font-semibold text-green-600">HTG {p.amount} {p.isSetupFee && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded ml-2">Installation</span>}</p>
-                    <p className="text-sm text-gray-600">{school?.name || 'Ecole inconnue'}</p>
+                    <p className="font-semibold text-green-600">HTG {p.amount} {p.isSetupFee && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded ml-2">{t('setupFeeLabel')}</span>}</p>
+                    <p className="text-sm text-gray-600">{school?.name || t('unknownSchool')}</p>
                     <p className="text-xs text-gray-400">{p.date} • {p.description || ''}</p>
                   </div>
                   <button onClick={() => deleteSubscriptionPayment(p.id)} className="text-red-400 hover:text-red-600"><Trash2 size={18} /></button>

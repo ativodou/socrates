@@ -3,6 +3,7 @@ import { db } from '../../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { BookOpen, Users, FileText, Calendar, CheckSquare, DollarSign, LogOut, Plus, Trash2, Edit, ChevronDown, Clock, GraduationCap, ClipboardList, Lock } from 'lucide-react';
 import { useLang } from '../../i18n/LanguageContext';
+import { toast } from '../../toast';
 
 // ── Bulletin grade label helper ──────────────────────────────────
 const getGradeLabel = (score, ht) => {
@@ -132,8 +133,8 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
     loadData();
   };
 
-  const onDeleteHW   = async (id) => { if (confirm('Supprimer?')) { await deleteDoc(doc(db, 'schools', school.id, 'homework', id)); loadData(); } };
-  const onDeleteExam = async (id) => { if (confirm('Supprimer?')) { await deleteDoc(doc(db, 'schools', school.id, 'exams', id)); loadData(); } };
+  const onDeleteHW   = async (id) => { await deleteDoc(doc(db, 'schools', school.id, 'homework', id)); loadData(); };
+  const onDeleteExam = async (id) => { await deleteDoc(doc(db, 'schools', school.id, 'exams', id)); loadData(); };
 
   const loadAttendanceForDate = (classId, date) => {
     setAttendanceClassId(classId); setAttendanceDate(date);

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { db, auth } from '../firebase';
+import { toast } from '../toast';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 
@@ -95,7 +96,7 @@ export function SchoolProvider({ children }) {
             if (schoolDoc.exists()) {
               const schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
               if (schoolData.status === 'disabled') {
-                alert("Votre compte est desactive. Contactez l'administrateur.");
+                toast.error("Votre compte est désactivé. Contactez l'administrateur.");
                 await signOut(auth);
                 return;
               }
