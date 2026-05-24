@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, Users, GraduationCap, BookOpen, FileText, DollarSign, Calculator, Settings, LogOut } from 'lucide-react';
+import { BarChart3, Users, GraduationCap, BookOpen, FileText, DollarSign, Calculator, Settings, LogOut, Calendar } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 export default function Sidebar({ isOpen, onClose }) {
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
     { id: 'teachers',   icon: GraduationCap, label: adult ? t('teachersAdult') : t('teachers') },
     { id: 'classes',    icon: BookOpen,      label: prescoOnly ? t('sections') : t('classes') },
 ...(!prescoOnly ? [{ id: 'grades', icon: FileText, label: t('grades') }] : []),
+    { id: 'attendance', icon: Calendar,      label: t('attendanceTab') },
     { id: 'payments',   icon: DollarSign,    label: t('tabPayments') },
     { id: 'accounting', icon: Calculator,    label: t('tabAccounting') },
     { id: 'settings',   icon: Settings,      label: t('tabSettings') },

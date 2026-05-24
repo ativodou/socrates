@@ -19,6 +19,7 @@ import Teachers from './components/tabs/Teachers';
 import Classes from './components/tabs/Classes';
 import ClassDetail from './components/tabs/ClassDetail';
 import Grades from './components/tabs/Grades';
+import Attendance from './components/tabs/Attendance';
 import Payments from './components/tabs/Payments';
 import Parametres from './components/parametres/Parametres';
 import Accounting from './components/tabs/Accounting';
@@ -99,8 +100,9 @@ function AppContent() {
           {activeTab === 'students'   && <Students onOpenModal={openModal} />}
           {activeTab === 'teachers'   && <Teachers onOpenModal={openModal} />}
           {activeTab === 'classes'    && <Classes onOpenModal={openModal} onViewClass={setViewClass} />}
-          {activeTab === 'grades'     && <Grades />}
-          {activeTab === 'payments'   && <Payments onOpenModal={openModal} />}
+          {activeTab === 'grades'      && <Grades />}
+          {activeTab === 'attendance'  && <Attendance />}
+          {activeTab === 'payments'    && <Payments onOpenModal={openModal} />}
           {activeTab === 'accounting' && <Accounting />}
           {activeTab === 'settings'   && <Parametres />}
         </main>

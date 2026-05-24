@@ -67,10 +67,11 @@ const content = {
         icon: '📅',
         title: 'Présence & Devoirs',
         bullets: [
-          'Suivi des présences par classe et par jour',
+          'Présence quotidienne par classe — Présent, Absent, Retard',
+          'Historique des 30 derniers jours par classe',
+          'Feuille de présence imprimable',
           'Publication de devoirs avec date limite',
           'Soumission des devoirs par les élèves/parents',
-          'Historique des présences exportable',
         ],
       },
       {
@@ -160,10 +161,11 @@ const content = {
         icon: '📅',
         title: 'Prezans ak Devwa',
         bullets: [
-          'Suiv prezans pa klas ak pa jou',
+          'Prezans chak jou pa klas — Prezan, Absan, Reta',
+          'Istwa 30 dènye jou pa klas',
+          'Fèy prezans pou enprime',
           'Pibliye devwa ak dat limit',
           'Elèv/paran voye devwa yo',
-          'Istwa prezans ekspòtab',
         ],
       },
       {
