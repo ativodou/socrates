@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { db, auth } from '../firebase';
 import { toast } from '../toast';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
 
@@ -246,6 +246,27 @@ export function SchoolProvider({ children }) {
   };
 
   const handleLogin = async (email, password) => { await signInWithEmailAndPassword(auth, email, password); };
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+    // onAuthStateChanged handles school lookup automatically
+  };
+
+  const handleGoogleSetup = async (formData) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('Not authenticated');
+    const { schoolName, phone, address, schoolType, directorName, directorTitle } = formData;
+    await setDoc(doc(db, 'schools', currentUser.uid), {
+      name: schoolName, email: currentUser.email, phone: phone || '',
+      address: address || '', schoolType: schoolType || '', directorName: directorName || '',
+      directorTitle: directorTitle || 'Directeur', createdAt: serverTimestamp(),
+      subscription: 'trial', status: 'active',
+      trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+    setIsNewRegistration(true);
+  };
+
   const handleLogout = async () => { await signOut(auth); setSchool(null); setIsSuperAdmin(false); setAllSchools([]); };
 
   const saveStudent = async (data, editId = null) => {
@@ -462,7 +483,7 @@ export function SchoolProvider({ children }) {
 
   const value = {
     user, school, setSchool, loading, isSuperAdmin,
-    handleRegister, handleLogin, handleLogout, isNewRegistration,
+    handleRegister, handleLogin, handleGoogleSignIn, handleGoogleSetup, handleLogout, isNewRegistration,
     students, teachers, classes, grades, payments, teacherPayments, staffPayments,
     expenses, gradingPeriods, homework, exams, attendance,
     paymentRequests,  // ← NEW

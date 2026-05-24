@@ -70,17 +70,8 @@ function AppContent() {
   // Super Admin
   if (isSuperAdmin) return <SuperAdmin />;
 
-  // No school doc yet
-  if (!school) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Chargement de votre ecole...</p>
-          <div className="w-8 h-8 border-4 border-socrates-blue border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
-      </div>
-    );
-  }
+  // Authenticated but no school doc yet (new Google user or broken account)
+  if (!school) return <AuthScreen />;
 
   // Class detail view (fullscreen)
   if (viewClass) {
