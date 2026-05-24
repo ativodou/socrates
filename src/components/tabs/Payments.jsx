@@ -151,7 +151,7 @@ export default function Payments({ onOpenModal }) {
     const _vsPrev = ht?'vs mwa avan':'vs mois préc.';
     const sLabel = adult?t('studentsAdult'):t('students'); const tLabel = adult?t('teachersAdult'):t('teachers');
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bilan ${monthName} ${year}</title>
+    w.document.write(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${ht?'Bilan Mansyèl':'Bilan Mensuel'} ${monthName} ${year}</title>
     <style>body{font-family:'Inter',sans-serif;padding:20px;max-width:800px;margin:0 auto;color:#1f2937;font-size:14px;}@media print{.no-print{display:none!important;}body{padding:0;}}table{width:100%;border-collapse:collapse;}.section{margin:25px 0;}.section h3{color:#1e3a5f;border-bottom:2px solid #e5e7eb;padding-bottom:8px;margin-bottom:10px;}.card{display:inline-block;min-width:150px;padding:15px;border-radius:12px;text-align:center;margin:5px;}</style></head><body>
       <div style="text-align:center;margin-bottom:30px;"><h1 style="color:#1e3a5f;margin:0;font-size:1.8em;">${school?.name||'SOCRATES'}</h1></div>
       <h2 style="text-align:center;color:#1e3a5f;border-bottom:3px solid #1e3a5f;padding-bottom:10px;">${ht?'BILAN MANSYÈL':'BILAN MENSUEL'} — ${monthName.toUpperCase()} ${year}</h2>
@@ -282,7 +282,7 @@ export default function Payments({ onOpenModal }) {
           <button onClick={()=>setShowFilters(!showFilters)} className={`px-3 py-2.5 border rounded-xl flex items-center gap-1 ${showFilters?'bg-socrates-blue text-white':''}`}><Filter size={16}/><ChevronDown size={12}/></button>
         </div>
         <div className="flex gap-2">
-          <button onClick={()=>setShowBilan(true)} className="flex-1 sm:flex-none bg-socrates-navy text-white px-4 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"><BarChart3 size={16}/>Bilan</button>
+          <button onClick={()=>setShowBilan(true)} className="flex-1 sm:flex-none bg-socrates-navy text-white px-4 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"><BarChart3 size={16}/>{ht?'Bilan Mansyèl':'Bilan Mensuel'}</button>
           <button onClick={()=>onOpenModal('expense')} className="flex-1 sm:flex-none bg-orange-500 text-white px-4 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"><Receipt size={16}/>{t('expense')}</button>
         </div>
       </div>
@@ -340,7 +340,7 @@ export default function Payments({ onOpenModal }) {
           <textarea value={rejectReason} onChange={e=>setRejectReason(e.target.value)} className="w-full px-4 py-3 border rounded-xl text-sm h-24 resize-none mb-4" placeholder={ht?'Eksplike rezon an...':'Expliquez la raison...'}/>
           <div className="flex gap-2">
             <button onClick={()=>{ rejectPaymentRequest(rejectModal.id, rejectReason); setRejectModal(null); }} className="flex-1 bg-red-500 text-white py-3 rounded-xl font-medium">{ht?'Rejte':'Rejeter'}</button>
-            <button onClick={()=>setRejectModal(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-medium text-gray-700">Annuler</button>
+            <button onClick={()=>setRejectModal(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-medium text-gray-700">{ht?'Anile':'Annuler'}</button>
           </div>
         </div>
       </div>)}

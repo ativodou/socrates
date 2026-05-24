@@ -301,7 +301,7 @@ export default function Accounting() {
         ${reportPayroll.map(p => `<tr><td>${p.employee}</td><td>${p.role || '—'}</td><td>${formatPeriod(p.month)}</td><td>${fmt(p.amountHTG)} HTG</td><td>${p.method || '—'}</td></tr>`).join('')}
         </tbody></table>
       ` : ''}
-      <p style="margin-top:40px;font-size:11px;color:#546E7A;">Généré par SOCRATES — ${new Date().toLocaleDateString('fr-FR')}</p>
+      <p style="margin-top:40px;font-size:11px;color:#546E7A;">${language === 'ht' ? 'Jenere pa' : 'Généré par'} SOCRATES — ${new Date().toLocaleDateString('fr-FR')}</p>
       </body></html>
     `);
     w.document.close();
@@ -552,13 +552,13 @@ export default function Accounting() {
             <div key={k} style={s.slipRow}><span style={{ fontWeight: 600, fontSize: 13 }}>{k}</span><span style={{ fontSize: 13 }}>{v}</span></div>
           ))}
           <div style={{ marginTop: 16, fontSize: 11, color: PALETTE.textLight, textAlign: 'center' }}>
-            Généré par SOCRATES — {new Date().toLocaleDateString('fr-FR')}
+            {language === 'ht' ? 'Jenere pa' : 'Généré par'} SOCRATES — {new Date().toLocaleDateString('fr-FR')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
           <button style={s.btn('primary')} onClick={() => {
             const w = window.open('', '_blank');
-            w.document.write(`<html><head><title>Fiche de Paie</title><style>body{font-family:Arial;padding:30px;}</style></head><body>${document.getElementById('payslip-content').outerHTML}</body></html>`);
+            w.document.write(`<html><head><title>${t.generateSlip}</title><style>body{font-family:Arial;padding:30px;}</style></head><body>${document.getElementById('payslip-content').outerHTML}</body></html>`);
             w.document.close(); w.print();
           }}><Icon d={icons.print} size={14} />{t.printReport}</button>
         </div>

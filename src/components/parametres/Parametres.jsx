@@ -190,7 +190,7 @@ export default function Parametres() {
     <div className="flex gap-0 lg:gap-6 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 min-h-[calc(100vh-120px)]">
       {/* Desktop sidebar */}
       <div className="hidden lg:block w-56 flex-shrink-0 bg-white border-r pl-4 sm:pl-6 pt-4 sm:pt-6">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">Paramètres</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">{ht?'Paramèt':'Paramètres'}</p>
         <nav className="space-y-1">
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setActiveSection(s.id)}
@@ -219,8 +219,8 @@ export default function Parametres() {
 
         {/* ═══ CHECKLIST ═══ */}
         {activeSection==='checklist' && (<div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-800">Annuaire des Écoles</h2>
-          <p className="text-sm text-gray-500">Complétez votre profil pour apparaître dans l'annuaire public.</p>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Anyè Lekòl yo':'Annuaire des Écoles'}</h2>
+          <p className="text-sm text-gray-500">{ht?'Ranpli pwofil ou pou parèt nan anyè piblik la.':'Complétez votre profil pour apparaître dans l\'annuaire public.'}</p>
           <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-6">
             <div className="relative w-24 h-24 flex-shrink-0">
               <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
@@ -229,14 +229,14 @@ export default function Parametres() {
               </svg>
               <div className="absolute inset-0 flex items-center justify-center"><span className={`text-xl font-bold ${percent===100?'text-green-600':'text-gray-800'}`}>{percent}%</span></div>
             </div>
-            <div><p className={`font-semibold ${percent===100?'text-green-700':'text-gray-800'}`}>{getMessage()}</p><p className="text-sm text-gray-500 mt-1">{completed}/{total} complétés</p></div>
+            <div><p className={`font-semibold ${percent===100?'text-green-700':'text-gray-800'}`}>{getMessage()}</p><p className="text-sm text-gray-500 mt-1">{completed}/{total} {ht?'konplète':'complétés'}</p></div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-2">
             {checks.map((c,i) => (
               <button key={i} onClick={() => setActiveSection(c.section)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition ${c.done?'bg-green-50 hover:bg-green-100':'bg-gray-50 hover:bg-gray-100'}`}>
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${c.done?'bg-green-500 text-white':'bg-gray-200 text-gray-400'}`}>{c.done?<Check size={14}/>:<span className="text-xs font-bold">{i+1}</span>}</div>
                 <span className={`flex-1 text-sm font-medium ${c.done?'text-green-700':'text-gray-700'}`}>{c.label}</span>
-                {c.optional&&!c.done&&<span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Optionnel</span>}
+                {c.optional&&!c.done&&<span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{ht?'Opsyonèl':'Optionnel'}</span>}
                 <ChevronRight size={16} className="text-gray-400" />
               </button>
             ))}
@@ -244,14 +244,14 @@ export default function Parametres() {
           {!val('sige','sige') && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
               <span className="text-lg">⚠️</span>
-              <div><p className="font-medium text-orange-800 text-sm">SIGE non renseigné</p><p className="text-xs text-orange-600 mt-1">Le numéro SIGE facilite la reconnaissance officielle par le Ministère de l'Éducation Nationale.</p></div>
+              <div><p className="font-medium text-orange-800 text-sm">{ht?'SIGE pa ranpli':'SIGE non renseigné'}</p><p className="text-xs text-orange-600 mt-1">{ht?'Nimewo SIGE fasilitek rekonesans ofisyèl pa Ministè Edikasyon Nasyonal.':'Le numéro SIGE facilite la reconnaissance officielle par le Ministère de l\'Éducation Nationale.'}</p></div>
             </div>
           )}
         </div>)}
 
         {/* ═══ IDENTITÉ ═══ */}
         {activeSection==='identite' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Identité de l'École</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Idantite Lekòl la':'Identité de l\'École'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="font-semibold text-gray-800 mb-4">Logo</h3>
             <div className="flex items-center gap-5">
@@ -260,7 +260,7 @@ export default function Parametres() {
               </div>
               <div>
                 <label className="bg-socrates-blue text-white px-5 py-2.5 rounded-xl cursor-pointer text-sm font-medium inline-block">
-                  Changer le logo
+                  {ht?'Chanje logo a':'Changer le logo'}
                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                     const file=e.target.files[0]; if(!file) return;
                     if(file.size>500*1024){toast.error(t('photoMaxSize'));return;}
@@ -275,33 +275,33 @@ export default function Parametres() {
             </div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
-            <h3 className="font-semibold text-gray-800">Informations Générales</h3>
+            <h3 className="font-semibold text-gray-800">{ht?'Enfòmasyon Jeneral':'Informations Générales'}</h3>
             <div><label className={labelCls}>{ht?"Non lekòl la":"Nom de l'école"} <span className="text-red-400">*</span></label><input type="text" value={val('schoolName','name')} onChange={e=>set('schoolName',e.target.value)} className={inputCls} /></div>
-            <div><label className={labelCls}>Devise / Slogan</label><input type="text" value={val('slogan','slogan')} onChange={e=>set('slogan',e.target.value)} className={inputCls} placeholder="Savoir, Discipline, Excellence" /></div>
-            <div><label className={labelCls}>Mission</label><textarea value={val('mission','mission')} onChange={e=>set('mission',e.target.value)} className={`${inputCls} h-24 resize-none`} /></div>
+            <div><label className={labelCls}>{ht?'Deviz / Slogan':'Devise / Slogan'}</label><input type="text" value={val('slogan','slogan')} onChange={e=>set('slogan',e.target.value)} className={inputCls} placeholder="Savoir, Discipline, Excellence" /></div>
+            <div><label className={labelCls}>{ht?'Misyon':'Mission'}</label><textarea value={val('mission','mission')} onChange={e=>set('mission',e.target.value)} className={`${inputCls} h-24 resize-none`} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Année de fondation</label><input type="number" min="1800" max={new Date().getFullYear()} value={val('foundedYear','foundedYear')} onChange={e=>set('foundedYear',e.target.value)} className={inputCls} placeholder="1985" /></div>
+              <div><label className={labelCls}>{ht?'Ane fondasyion':'Année de fondation'}</label><input type="number" min="1800" max={new Date().getFullYear()} value={val('foundedYear','foundedYear')} onChange={e=>set('foundedYear',e.target.value)} className={inputCls} placeholder="1985" /></div>
               <div><label className={labelCls}>{ht?"Tip lekòl":"Type d'école"}</label>
                 <select value={val('typeEcole','typeEcole')} onChange={e=>set('typeEcole',e.target.value)} className={inputCls}>
-                  <option value="">Sélectionner</option>
+                  <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                   {['Publique','Privée Laïque','Privée Religieuse','Congréganiste','Communautaire'].map(t=><option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
             <div><label className={labelCls}>{ht?"Metòd pedagojik":"Méthode pédagogique"}</label>
               <select value={val('methodePedagogique','methodePedagogique')} onChange={e=>set('methodePedagogique',e.target.value)} className={inputCls}>
-                <option value="">Sélectionner</option>
+                <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                 {['Traditionnelle','Montessori','Mixte (Montessori + Traditionnelle)','Bilingue','Autre'].map(m=><option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-            <div><label className={labelCls}>No. SIGE {!val('sige','sige')&&<span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Non renseigné</span>}</label><input type="text" value={val('sige','sige')} onChange={e=>set('sige',e.target.value)} className={inputCls} placeholder="Numéro SIGE (optionnel)" /><p className="text-xs text-gray-400 mt-1">Système d'Information de Gestion de l'Éducation</p></div>
+            <div><label className={labelCls}>No. SIGE {!val('sige','sige')&&<span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{ht?'Pa ranpli':'Non renseigné'}</span>}</label><input type="text" value={val('sige','sige')} onChange={e=>set('sige',e.target.value)} className={inputCls} placeholder={ht?'Nimewo SIGE (opsyonèl)':'Numéro SIGE (optionnel)'} /><p className="text-xs text-gray-400 mt-1">{ht?'Sistèm Enfòmasyon Jestyon Edikasyon':'Système d\'Information de Gestion de l\'Éducation'}</p></div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><MapPin size={18} className="text-blue-500"/>Localisation</h3>
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><MapPin size={18} className="text-blue-500"/>{ht?'Lokalizasyon':'Localisation'}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={labelCls}>{ht?"Depatman":"Département"} <span className="text-red-400">*</span></label>
                 <select value={selectedDept} onChange={e=>{set('departement',e.target.value);set('commune','');}} className={inputCls}>
-                  <option value="">Sélectionner</option>
+                  <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                   {HAITI_DEPARTEMENTS_COMMUNES&&Object.keys(HAITI_DEPARTEMENTS_COMMUNES).sort().map(d=><option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
@@ -314,7 +314,7 @@ export default function Parametres() {
             </div>
             <div><label className={labelCls}>{ht?"Adrès":"Adresse"} <span className="text-red-400">*</span></label><input type="text" value={val('address','address')} onChange={e=>set('address',e.target.value)} className={inputCls} placeholder="Rue, quartier, repère" /></div>
             <div>
-              <label className={`${labelCls} mb-2`}>Coordonnées GPS</label>
+              <label className={`${labelCls} mb-2`}>{ht?'Kowòdone GPS':'Coordonnées GPS'}</label>
               <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={() => {
                   if(!navigator.geolocation){toast.error(t('gpsNotSupported'));return;}
@@ -327,7 +327,7 @@ export default function Parametres() {
                     }).catch(()=>setFormData(f=>({...f,gpsLat:lat.toFixed(6),gpsLng:lng.toFixed(6),gpsLoading:false})));
                   },()=>{set('gpsLoading',false);toast.error(t('gpsError'));});
                 }} className="flex items-center gap-2 text-sm bg-blue-50 text-socrates-blue border border-blue-200 px-4 py-2.5 rounded-xl hover:bg-blue-100 transition font-medium">
-                  <MapPin size={16}/>{formData.gpsLoading?'Localisation...':"📍 Localiser l'école"}
+                  <MapPin size={16}/>{formData.gpsLoading?(ht?'Ap lokalize...':'Localisation...'):(ht?"📍 Lokalize lekòl la":"📍 Localiser l'école")}
                 </button>
                 {val('gpsLat','gpsLat')&&<span className="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-xl flex items-center gap-1"><Check size={14}/>{val('gpsLat','gpsLat')}, {val('gpsLng','gpsLng')}</span>}
               </div>
@@ -339,7 +339,7 @@ export default function Parametres() {
             </div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Phone size={18} className="text-green-500"/>Contact & Réseaux</h3>
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Phone size={18} className="text-green-500"/>{ht?'Kontak & Rezo':'Contact & Réseaux'}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={labelCls}>{ht?"Telefòn":"Téléphone"} <span className="text-red-400">*</span></label><input type="tel" value={val('schoolPhone','phone')} onChange={e=>set('schoolPhone',e.target.value)} className={inputCls} placeholder="+509 XXXX XXXX"/></div>
               <div><label className={labelCls}>Email</label><input type="email" value={val('schoolEmail','email',user?.email||'')} onChange={e=>set('schoolEmail',e.target.value)} className={inputCls}/></div>
@@ -356,13 +356,13 @@ export default function Parametres() {
 
         {/* ═══ DIRECTEUR ═══ */}
         {activeSection==='directeur' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Directeur / Directrice</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Direktè / Direktris':'Directeur / Directrice'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Nom complet <span className="text-red-400">*</span></label><input type="text" value={val('directorName','directorName')} onChange={e=>set('directorName',e.target.value)} className={inputCls} placeholder="Jean Baptiste"/></div>
-              <div><label className={labelCls}>Titre</label>
+              <div><label className={labelCls}>{ht?'Non konplè':'Nom complet'} <span className="text-red-400">*</span></label><input type="text" value={val('directorName','directorName')} onChange={e=>set('directorName',e.target.value)} className={inputCls} placeholder="Jean Baptiste"/></div>
+              <div><label className={labelCls}>{ht?'Tit':'Titre'}</label>
                 <select value={val('directorTitle','directorTitle')} onChange={e=>set('directorTitle',e.target.value)} className={inputCls}>
-                  <option value="">Sélectionner</option>
+                  <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                   {['Directeur','Directrice','Directeur Général','Pasteur-Directeur'].map(t=><option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -377,10 +377,10 @@ export default function Parametres() {
 
         {/* ═══ STRUCTURE ═══ */}
         {activeSection==='structure' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Structure Académique</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Estrikti Akademik':'Structure Académique'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Catégorie d'école</label>
+              <div><label className={labelCls}>{ht?'Kategori lekòl':'Catégorie d\'école'}</label>
                 <select value={val('schoolType','schoolType')} onChange={e => {
                   const newType = e.target.value;
                   const oldType = school?.schoolType;
@@ -388,7 +388,7 @@ export default function Parametres() {
                   if (oldType && newType && newType !== oldType) set('_schoolTypeChanged', true);
                   else set('_schoolTypeChanged', false);
                 }} className={inputCls}>
-                  <option value="">Sélectionner</option>
+                  <option value="">{ht?'Chwazi':'Sélectionner'}</option>
                   {['Préscolaire','Primaire','Secondaire','Préscolaire-Primaire','Primaire-Secondaire','Complète','Technique','Universitaire'].map(t=><option key={t} value={t}>{t==='Complète'?'École Complète':t==='Technique'?'Technique / Professionnel':t}</option>)}
                 </select>
                 {formData._schoolTypeChanged && (
@@ -397,7 +397,7 @@ export default function Parametres() {
                   </div>
                 )}
               </div>
-              <div><label className={labelCls}>Système secondaire</label>
+              <div><label className={labelCls}>{ht?'Sistèm segondè':'Système secondaire'}</label>
                 {['Secondaire','Primaire-Secondaire','Complète'].includes(val('schoolType','schoolType'))?(
                   <div className="flex bg-gray-100 rounded-xl p-1">
                     {['NS','Traditionnel'].map(sys=>(
@@ -406,20 +406,20 @@ export default function Parametres() {
                       </button>
                     ))}
                   </div>
-                ):<p className="text-sm text-gray-400 px-4 py-3">Choisir catégorie avec secondaire</p>}
+                ):<p className="text-sm text-gray-400 px-4 py-3">{ht?'Chwazi kategori ak segondè':'Choisir catégorie avec secondaire'}</p>}
               </div>
             </div>
             {val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&(
               <div className="bg-blue-50 rounded-xl p-4">
-                <p className="text-sm font-medium text-blue-800 mb-2">Niveaux disponibles :</p>
+                <p className="text-sm font-medium text-blue-800 mb-2">{ht?'Nivo disponib :':'Niveaux disponibles :'}</p>
                 <div className="flex flex-wrap gap-2">{getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).map(g=>(
                   <span key={g} className={`px-3 py-1 rounded-full text-sm border ${g==='Philo'||g==='NS4'?'bg-purple-100 text-purple-700 border-purple-200 font-medium':'bg-white text-blue-700 border-blue-200'}`}>{g}</span>
                 ))}</div>
               </div>
             )}
             {isCustomGradeType(val('schoolType','schoolType'))&&(<div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700">Programmes offerts</p>
-              {val('programs','programs',[]).length===0&&<p className="text-gray-400 text-sm text-center py-3">Aucun programme.</p>}
+              <p className="text-sm font-medium text-gray-700">{ht?'Pwogram ofri':'Programmes offerts'}</p>
+              {val('programs','programs',[]).length===0&&<p className="text-gray-400 text-sm text-center py-3">{ht?'Pa gen pwogram.':'Aucun programme.'}</p>}
               {val('programs','programs',[]).map((p,i)=>(
                 <div key={i} className="border rounded-xl p-3 bg-gray-50 flex items-start justify-between gap-2">
                   <div><p className="font-medium text-sm">{p.name}</p><p className="text-xs text-gray-500">{p.duration} an{p.duration>1?'s':''} • {p.domain||'N/A'}</p></div>
@@ -428,14 +428,14 @@ export default function Parametres() {
               ))}
               {formData.showAddProgram?(
                 <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3">
-                  <input type="text" placeholder="Nom du programme" value={formData.newProgName||''} onChange={e=>set('newProgName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                  <input type="text" placeholder={ht?'Non pwogram nan':'Nom du programme'} value={formData.newProgName||''} onChange={e=>set('newProgName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                   <div className="grid grid-cols-2 gap-2">
-                    <input type="text" placeholder="Domaine" value={formData.newProgDomain||''} onChange={e=>set('newProgDomain',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                    <input type="text" placeholder={ht?'Domèn':'Domaine'} value={formData.newProgDomain||''} onChange={e=>set('newProgDomain',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                     <select value={formData.newProgDuration||'1'} onChange={e=>set('newProgDuration',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm">{[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} an{n>1?'s':''}</option>)}</select>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={()=>{if(!formData.newProgName){toast.error(t('nameRequired'));return;}setFormData({...formData,programs:[...val('programs','programs',[]),{name:formData.newProgName,domain:formData.newProgDomain||'',duration:parseInt(formData.newProgDuration||1)}],showAddProgram:false,newProgName:'',newProgDomain:'',newProgDuration:'1'});}} className="flex-1 bg-socrates-blue text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
-                    <button type="button" onClick={()=>set('showAddProgram',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
+                    <button type="button" onClick={()=>set('showAddProgram',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">{ht?'Anile':'Annuler'}</button>
                   </div>
                 </div>
               ):<button type="button" onClick={()=>set('showAddProgram',true)} className="w-full border-2 border-dashed border-blue-200 text-socrates-blue py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?"Ajoute yon pwogram":"Ajouter un programme"}</button>}
@@ -446,10 +446,10 @@ export default function Parametres() {
 
         {/* ═══ ENSEIGNANTS ═══ */}
         {activeSection==='enseignants' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">{school?.schoolType==='Préscolaire'?'Éducatrices':['Technique','Universitaire'].includes(school?.schoolType)?'Corps Professoral':'Corps Enseignant'}</h2>
+          <h2 className="text-xl font-bold text-gray-800">{school?.schoolType==='Préscolaire'?(ht?'Edikatris yo':'Éducatrices'):['Technique','Universitaire'].includes(school?.schoolType)?(ht?'Kò Pwofesoral':'Corps Professoral'):(ht?'Kò Anseyan':'Corps Enseignant')}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="space-y-2 mb-3">
-              {teachers.length===0&&<p className="text-gray-400 text-sm text-center py-6">Aucun enseignant.</p>}
+              {teachers.length===0&&<p className="text-gray-400 text-sm text-center py-6">{ht?'Pa gen anseyan.':'Aucun enseignant.'}</p>}
               {teachers.map(t=>(
                 <div key={t.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold">{t.firstName?.[0]}{t.lastName?.[0]}</div>
@@ -461,56 +461,56 @@ export default function Parametres() {
             {formData.showAddTeacher?(
               <div className="border border-teal-200 rounded-xl p-4 bg-teal-50 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="Prénom" value={formData.newTeacherFirst||''} onChange={e=>set('newTeacherFirst',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"/>
+                  <input type="text" placeholder={ht?'Prenon':'Prénom'} value={formData.newTeacherFirst||''} onChange={e=>set('newTeacherFirst',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"/>
                   <input type="text" placeholder="Nom" value={formData.newTeacherLast||''} onChange={e=>set('newTeacherLast',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"/>
                 </div>
-                <input type="text" placeholder="Matière" value={formData.newTeacherSubject||''} onChange={e=>set('newTeacherSubject',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                <input type="text" placeholder={ht?'Matyè':'Matière'} value={formData.newTeacherSubject||''} onChange={e=>set('newTeacherSubject',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <div className="flex gap-2">
                   <button type="button" onClick={async()=>{if(!formData.newTeacherFirst||!formData.newTeacherLast){toast.error(t('required'));return;}await addDoc(collection(db,'schools',school.id,'teachers'),{firstName:formData.newTeacherFirst,lastName:formData.newTeacherLast,subject:formData.newTeacherSubject||''});setFormData({...formData,showAddTeacher:false,newTeacherFirst:'',newTeacherLast:'',newTeacherSubject:''});loadAllData();}} className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
-                  <button type="button" onClick={()=>set('showAddTeacher',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
+                  <button type="button" onClick={()=>set('showAddTeacher',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">{ht?'Anile':'Annuler'}</button>
                 </div>
               </div>
-            ):<button type="button" onClick={()=>set('showAddTeacher',true)} className="w-full border-2 border-dashed border-teal-200 text-teal-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>Ajouter un enseignant</button>}
+            ):<button type="button" onClick={()=>set('showAddTeacher',true)} className="w-full border-2 border-dashed border-teal-200 text-teal-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?'Ajoute yon anseyan':'Ajouter un enseignant'}</button>}
           </div>
         </div>)}
 
         {/* ═══ CLASSES ═══ */}
         {activeSection==='classes' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Classes</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Klas':'Classes'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="space-y-2 mb-3">
-              {classes.length===0&&<p className="text-gray-400 text-sm text-center py-6">Aucune classe.</p>}
+              {classes.length===0&&<p className="text-gray-400 text-sm text-center py-6">{ht?'Pa gen klas.':'Aucune classe.'}</p>}
               {classes.map(c=>(
                 <div key={c.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center text-sm font-bold">{c.name?.[0]}</div>
-                  <div className="flex-1"><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-gray-500">{teachers.find(t=>t.id===c.teacherId)?.firstName||'Sans enseignant'}{(c.teacherIds||[]).length>1?` + ${(c.teacherIds||[]).length-1}`:''} • {c.room||''}</p></div>
+                  <div className="flex-1"><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-gray-500">{teachers.find(t=>t.id===c.teacherId)?.firstName||(ht?'San anseyan':'Sans enseignant')}{(c.teacherIds||[]).length>1?` + ${(c.teacherIds||[]).length-1}`:''} • {c.room||''}</p></div>
                   <button type="button" onClick={async()=>{await deleteDoc(doc(db,'schools',school.id,'classes',c.id));loadAllData();}} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
                 </div>
               ))}
             </div>
             {formData.showAddClass?(
               <div className="border border-cyan-200 rounded-xl p-4 bg-cyan-50 space-y-3">
-                <input type="text" placeholder="Nom de la classe" value={formData.newClassName||''} onChange={e=>set('newClassName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                <input type="text" placeholder={ht?'Non klas la':'Nom de la classe'} value={formData.newClassName||''} onChange={e=>set('newClassName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <div className="grid grid-cols-2 gap-2">
-                  <select value={formData.newClassGrade||''} onChange={e=>set('newClassGrade',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Niveau</option>{val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).map(g=><option key={g} value={g}>{g}</option>)}</select>
-                  <select value={formData.newClassTeacher||''} onChange={e=>set('newClassTeacher',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Enseignant</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select>
+                  <select value={formData.newClassGrade||''} onChange={e=>set('newClassGrade',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">{ht?'Nivo':'Niveau'}</option>{val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).map(g=><option key={g} value={g}>{g}</option>)}</select>
+                  <select value={formData.newClassTeacher||''} onChange={e=>set('newClassTeacher',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">{ht?'Anseyan':'Enseignant'}</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select>
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={async()=>{if(!formData.newClassName){toast.error(t('nameRequired'));return;}await addDoc(collection(db,'schools',school.id,'classes'),{name:formData.newClassName,gradeLevel:formData.newClassGrade||'',teacherId:formData.newClassTeacher||'',room:''});setFormData({...formData,showAddClass:false,newClassName:'',newClassGrade:'',newClassTeacher:''});loadAllData();}} className="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
-                  <button type="button" onClick={()=>set('showAddClass',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
+                  <button type="button" onClick={()=>set('showAddClass',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">{ht?'Anile':'Annuler'}</button>
                 </div>
               </div>
-            ):<button type="button" onClick={()=>set('showAddClass',true)} className="w-full border-2 border-dashed border-cyan-200 text-cyan-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>Ajouter une classe</button>}
+            ):<button type="button" onClick={()=>set('showAddClass',true)} className="w-full border-2 border-dashed border-cyan-200 text-cyan-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?'Ajoute yon klas':'Ajouter une classe'}</button>}
           </div>
         </div>)}
 
         {/* ═══ MATIÈRES ═══ */}
         {activeSection==='matieres' && (<div className="space-y-5">
           <h2 className="text-xl font-bold text-gray-800">Matières & {ht?"Koefisyan":"Coefficient"}s</h2>
-          <p className="text-sm text-gray-500">Définissez les matières enseignées et leur poids pour le calcul des moyennes et bulletins.</p>
+          <p className="text-sm text-gray-500">{ht?'Defini matyè ki anseye yo ak pwa yo pou kalkil mwayèn ak bilten.':'Définissez les matières enseignées et leur poids pour le calcul des moyennes et bulletins.'}</p>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="space-y-2">
-              {(val('subjects','subjects',[])||[]).length===0&&<p className="text-gray-400 text-sm text-center py-6">Aucune matière configurée.</p>}
+              {(val('subjects','subjects',[])||[]).length===0&&<p className="text-gray-400 text-sm text-center py-6">{ht?'Pa gen matyè konfigire.':'Aucune matière configurée.'}</p>}
               {(val('subjects','subjects',[])||[]).map((subj,i)=>(
                 <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm font-bold">{subj.coefficient||1}</div>
@@ -549,16 +549,16 @@ export default function Parametres() {
             })()}
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">➕ {ht?"Ajoute yon matyè":"Ajouter une matière"} personnalisée</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">➕ {ht?"Ajoute yon matyè pèsonalize":"Ajouter une matière personnalisée"}</h3>
             <div className="flex gap-2">
               <input type="text" value={formData.newSubjectName||''} onChange={e=>set('newSubjectName',e.target.value)} className="flex-1 px-3 py-2.5 border rounded-xl text-sm" placeholder={ht?"Non matyè a":"Nom de la matière"}/>
-              <input type="number" min="1" max="10" value={formData.newSubjectCoeff||''} onChange={e=>set('newSubjectCoeff',e.target.value)} className="w-20 px-3 py-2.5 border rounded-xl text-sm text-center" placeholder="Coeff"/>
+              <input type="number" min="1" max="10" value={formData.newSubjectCoeff||''} onChange={e=>set('newSubjectCoeff',e.target.value)} className="w-20 px-3 py-2.5 border rounded-xl text-sm text-center" placeholder={ht?'Koef':'Coeff'}/>
               <button type="button" onClick={()=>{if(!formData.newSubjectName?.trim())return;const subs=[...(val('subjects','subjects',[])||[]),{name:formData.newSubjectName.trim(),coefficient:parseInt(formData.newSubjectCoeff)||1}];set('subjects',subs);set('newSubjectName','');set('newSubjectCoeff','');}} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-medium"><Plus size={16}/></button>
             </div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="font-semibold text-gray-800 mb-3">🎓 {ht?"Sèy pwomosyon":"Seuil de promotion"}</h3>
-            <p className="text-xs text-gray-400 mb-3">Moyenne annuelle minimum pour passer à la classe supérieure</p>
+            <p className="text-xs text-gray-400 mb-3">{ht?'Mwayèn anyèl minimum pou monte nan klas siperyè':'Moyenne annuelle minimum pour passer à la classe supérieure'}</p>
             <div className="flex items-center gap-3">
               <input type="number" min="0" max="100" value={val('promotionThreshold','promotionThreshold',50)} onChange={e=>set('promotionThreshold',parseInt(e.target.value)||50)} className="w-24 px-3 py-2.5 border rounded-xl text-center text-lg font-bold"/>
               <span className="text-gray-500">/ 100</span>
@@ -569,20 +569,20 @@ export default function Parametres() {
 
         {/* ═══ ÉLÈVES ═══ */}
         {activeSection==='eleves' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Élèves</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Elèv':'Élèves'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <Users size={48} className="mx-auto text-gray-300 mb-4"/>
-            <p className="text-gray-500 mb-2">La gestion des élèves se fait dans l'onglet <strong>Élèves</strong> du menu principal.</p>
+            <p className="text-gray-500 mb-2">{ht?<>Jestyon elèv yo fèt nan onglet <strong>Elèv</strong> nan meni prensipal la.</>:<>La gestion des élèves se fait dans l'onglet <strong>Élèves</strong> du menu principal.</>}</p>
             <p className="text-sm text-gray-400">{students.length} élève{students.length!==1?'s':''} inscrit{students.length!==1?'s':''}</p>
           </div>
         </div>)}
 
         {/* ═══ PERSONNEL ═══ */}
         {activeSection==='personnel' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Personnel Administratif</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Pèsonèl Administratif':'Personnel Administratif'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="space-y-2 mb-3">
-              {val('adminStaff','adminStaff',[]).length===0&&<p className="text-gray-400 text-sm text-center py-6">Aucun personnel.</p>}
+              {val('adminStaff','adminStaff',[]).length===0&&<p className="text-gray-400 text-sm text-center py-6">{ht?'Pa gen pèsonèl.':'Aucun personnel.'}</p>}
               {val('adminStaff','adminStaff',[]).map((s,i)=>(
                 <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-violet-600 text-white flex items-center justify-center text-sm font-bold">{s.firstName?.[0]}{s.lastName?.[0]}</div>
@@ -598,58 +598,58 @@ export default function Parametres() {
             {formData.showAddStaff?(
               <div className="border border-violet-200 rounded-xl p-4 bg-violet-50 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="Prénom" value={formData.newStaffFirst||''} onChange={e=>set('newStaffFirst',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"/>
+                  <input type="text" placeholder={ht?'Prenon':'Prénom'} value={formData.newStaffFirst||''} onChange={e=>set('newStaffFirst',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"/>
                   <input type="text" placeholder="Nom" value={formData.newStaffLast||''} onChange={e=>set('newStaffLast',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"/>
                 </div>
                 <select value={formData.newStaffRole||''} onChange={e=>set('newStaffRole',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm">
-                  <option value="">Fonction</option>
-                  {['Secrétaire','Comptable','Surveillant(e)','Agent de sécurité',"Personnel d'entretien",'Bibliothécaire','Infirmier(ère)','Chauffeur','Autre'].map(r=><option key={r} value={r}>{r}</option>)}
+                  <option value="">{ht?'Fonksyon':'Fonction'}</option>
+                  {(ht?['Sekretè','Kontab','Siveyant','Ajan sekirite','Pèsonèl antretyen','Bibliyotekè','Enfimye','Chofè','Lòt']:['Secrétaire','Comptable','Surveillant(e)','Agent de sécurité',"Personnel d'entretien",'Bibliothécaire','Infirmier(ère)','Chauffeur','Autre']).map(r=><option key={r} value={r}>{r}</option>)}
                 </select>
                 <input type="number" min="0" placeholder={ht?"Salè anyèl HTG (opsyonèl)":"Salaire annuel HTG (optionnel)"} value={formData.newStaffSalary||''} onChange={e=>set('newStaffSalary',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 {formData.newStaffSalary>0&&<p className="text-xs text-green-600 text-center">HTG {(parseFloat(formData.newStaffSalary)/10).toLocaleString()} / {ht?'mwa':'mois'}</p>}
                 <div className="flex gap-2">
                   <button type="button" onClick={()=>{if(!formData.newStaffFirst||!formData.newStaffLast||!formData.newStaffRole){toast.error(t('required'));return;}const m={id:`staff_${Date.now()}`,firstName:formData.newStaffFirst,lastName:formData.newStaffLast,role:formData.newStaffRole,annualSalary:parseFloat(formData.newStaffSalary)||0};setFormData({...formData,adminStaff:[...val('adminStaff','adminStaff',[]),m],showAddStaff:false,newStaffFirst:'',newStaffLast:'',newStaffRole:'',newStaffSalary:''});}} className="flex-1 bg-violet-600 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
-                  <button type="button" onClick={()=>set('showAddStaff',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
+                  <button type="button" onClick={()=>set('showAddStaff',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">{ht?'Anile':'Annuler'}</button>
                 </div>
               </div>
-            ):<button type="button" onClick={()=>set('showAddStaff',true)} className="w-full border-2 border-dashed border-violet-200 text-violet-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?"Ajoute":"Ajouter"}</button>}
+            ):<button type="button" onClick={()=>set('showAddStaff',true)} className="w-full border-2 border-dashed border-violet-200 text-violet-600 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?"Ajoute yon pèsonèl":"Ajouter du personnel"}</button>}
           </div>
           <button onClick={saveSettings} className="w-full bg-socrates-blue text-white py-4 rounded-xl font-semibold text-lg">{ht?'Anrejistre':'Sauvegarder'}</button>
         </div>)}
 
         {/* ═══ VIE SCOLAIRE ═══ */}
         {activeSection==='viescolaire' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Vie Scolaire & Services</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Lavi Lekòl & Sèvis':'Vie Scolaire & Services'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
-            <h3 className="font-semibold text-gray-800">Infos Pratiques</h3>
+            <h3 className="font-semibold text-gray-800">{ht?'Enfò Pratik':'Infos Pratiques'}</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Capacité / classe</label><input type="number" min="0" value={val('capacity','capacity')} onChange={e=>set('capacity',e.target.value)} className={inputCls}/></div>
-              <div><label className={labelCls}>Accréditation</label><input type="text" value={val('accreditation','accreditation')} onChange={e=>set('accreditation',e.target.value)} className={inputCls}/></div>
+              <div><label className={labelCls}>{ht?'Kapasite / klas':'Capacité / classe'}</label><input type="number" min="0" value={val('capacity','capacity')} onChange={e=>set('capacity',e.target.value)} className={inputCls}/></div>
+              <div><label className={labelCls}>{ht?'Akreditasyon':'Accréditation'}</label><input type="text" value={val('accreditation','accreditation')} onChange={e=>set('accreditation',e.target.value)} className={inputCls}/></div>
             </div>
-            <div><label className={`${labelCls} mb-2`}>Langues</label>
+            <div><label className={`${labelCls} mb-2`}>{ht?'Lang':'Langues'}</label>
               <div className="flex flex-wrap gap-2">{['Français','Créole','Anglais','Espagnol'].map(lng=>{const langs=val('languages','languages',[]);const sel=langs.includes(lng);return(<button key={lng} type="button" onClick={()=>set('languages',sel?langs.filter(l=>l!==lng):[...langs,lng])} className={`px-4 py-2 rounded-full text-sm font-medium border transition ${sel?'bg-socrates-blue text-white border-socrates-blue':'bg-white text-gray-600 border-gray-300'}`}>{lng}</button>);})}</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Début année</label><input type="date" value={val('yearStart','yearStart')} onChange={e=>set('yearStart',e.target.value)} className={inputCls}/></div>
-              <div><label className={labelCls}>Fin année</label><input type="date" value={val('yearEnd','yearEnd')} onChange={e=>set('yearEnd',e.target.value)} className={inputCls}/></div>
+              <div><label className={labelCls}>{ht?'Kòmansman ane':'Début année'}</label><input type="date" value={val('yearStart','yearStart')} onChange={e=>set('yearStart',e.target.value)} className={inputCls}/></div>
+              <div><label className={labelCls}>{ht?'Fen ane':'Fin année'}</label><input type="date" value={val('yearEnd','yearEnd')} onChange={e=>set('yearEnd',e.target.value)} className={inputCls}/></div>
             </div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">Services</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">{ht?'Sèvis':'Services'}</h3>
             <div className="grid grid-cols-2 gap-3">
-              {[{key:'hasUniform',label:'Uniforme',icon:'👔'},{key:'hasCafeteria',label:'Cantine',icon:'🍽️'},{key:'hasTransport',label:'Transport',icon:'🚌'},{key:'hasInternet',label:'Internet',icon:'📶'}].map(({key,label,icon})=>(
+              {[{key:'hasUniform',label:ht?'Inifòm':'Uniforme',icon:'👔'},{key:'hasCafeteria',label:ht?'Kantin':'Cantine',icon:'🍽️'},{key:'hasTransport',label:ht?'Transpò':'Transport',icon:'🚌'},{key:'hasInternet',label:'Internet',icon:'📶'}].map(({key,label,icon})=>(
                 <label key={key} onClick={()=>set(key,!val(key,key,false))} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${val(key,key,false)?'bg-blue-50 border-blue-300':'hover:bg-gray-50'}`}>
                   <span className="text-xl">{icon}</span><span className="text-sm font-medium text-gray-700 flex-1">{label}</span>
                   <div className={`w-10 h-6 rounded-full transition flex-shrink-0 ${val(key,key,false)?'bg-socrates-blue':'bg-gray-300'}`}><div className={`w-6 h-6 bg-white rounded-full shadow transition transform ${val(key,key,false)?'translate-x-4':'translate-x-0'}`}/></div>
                 </label>
               ))}
             </div>
-            {val('hasUniform','hasUniform',false)&&<div className="mt-3"><input type="text" placeholder="Description uniforme" value={val('uniformDesc','uniformDesc')} onChange={e=>set('uniformDesc',e.target.value)} className={inputCls}/></div>}
+            {val('hasUniform','hasUniform',false)&&<div className="mt-3"><input type="text" placeholder={ht?'Deskripsyon inifòm':'Description uniforme'} value={val('uniformDesc','uniformDesc')} onChange={e=>set('uniformDesc',e.target.value)} className={inputCls}/></div>}
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">Activités Parascolaires</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">{ht?'Aktivite Paraskòlè':'Activités Parascolaires'}</h3>
             <div className="space-y-2 mb-3">
-              {val('activities','activities',[]).length===0&&<p className="text-gray-400 text-sm text-center py-4">Aucune activité.</p>}
+              {val('activities','activities',[]).length===0&&<p className="text-gray-400 text-sm text-center py-4">{ht?'Pa gen aktivite.':'Aucune activité.'}</p>}
               {val('activities','activities',[]).map((a,i)=>(
                 <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <div className="w-9 h-9 rounded-lg bg-orange-500 text-white flex items-center justify-center text-sm font-bold">{a.name?.[0]}</div>
@@ -660,19 +660,19 @@ export default function Parametres() {
             </div>
             {formData.showAddActivity?(
               <div className="border border-orange-200 rounded-xl p-4 bg-orange-50 space-y-3">
-                <input type="text" placeholder="Nom" value={formData.newActivityName||''} onChange={e=>set('newActivityName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
-                <input type="text" placeholder="Description" value={formData.newActivityDesc||''} onChange={e=>set('newActivityDesc',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                <input type="text" placeholder={ht?'Non aktivite a':'Nom de l\'activité'} value={formData.newActivityName||''} onChange={e=>set('newActivityName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
+                <input type="text" placeholder={ht?'Deskripsyon':'Description'} value={formData.newActivityDesc||''} onChange={e=>set('newActivityDesc',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <div className="flex gap-2">
                   <button type="button" onClick={()=>{if(!formData.newActivityName){toast.error(t('nameRequired'));return;}setFormData({...formData,activities:[...val('activities','activities',[]),{name:formData.newActivityName,description:formData.newActivityDesc||''}],showAddActivity:false,newActivityName:'',newActivityDesc:''}); }} className="flex-1 bg-orange-500 text-white py-2 rounded-xl text-sm font-medium">{t('add')}</button>
-                  <button type="button" onClick={()=>set('showAddActivity',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">Annuler</button>
+                  <button type="button" onClick={()=>set('showAddActivity',false)} className="flex-1 bg-gray-200 py-2 rounded-xl text-sm">{ht?'Anile':'Annuler'}</button>
                 </div>
               </div>
-            ):<button type="button" onClick={()=>set('showAddActivity',true)} className="w-full border-2 border-dashed border-orange-200 text-orange-500 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?"Ajoute":"Ajouter"}</button>}
+            ):<button type="button" onClick={()=>set('showAddActivity',true)} className="w-full border-2 border-dashed border-orange-200 text-orange-500 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"><Plus size={16}/>{ht?'Ajoute yon aktivite':'Ajouter une activité'}</button>}
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">Contrôle Accès Parent</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">{ht?'Kontwòl Aksè Paran':'Contrôle Accès Parent'}</h3>
             <label className="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50" onClick={()=>set('blockParentOnDebt',!val('blockParentOnDebt','blockParentOnDebt',false))}>
-              <div><p className="font-medium text-gray-800">Bloquer si solde impayé</p><p className="text-sm text-gray-500">Les parents ne pourront pas accéder au portail</p></div>
+              <div><p className="font-medium text-gray-800">{ht?'Bloke si balans pa peye':'Bloquer si solde impayé'}</p><p className="text-sm text-gray-500">{ht?'Paran yo p ap ka jwenn aksè nan pòtay la':'Les parents ne pourront pas accéder au portail'}</p></div>
               <div className={`w-14 h-7 rounded-full transition ${val('blockParentOnDebt','blockParentOnDebt',false)?'bg-red-500':'bg-gray-300'}`}><div className={`w-7 h-7 bg-white rounded-full shadow transition transform ${val('blockParentOnDebt','blockParentOnDebt',false)?'translate-x-7':'translate-x-0'}`}/></div>
             </label>
           </div>
@@ -681,20 +681,20 @@ export default function Parametres() {
 
         {/* ═══ FINANCES ═══ */}
         {activeSection==='finances' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Finances — Frais de Scolarité</h2>
+          <h2 className="text-xl font-bold text-gray-800">{ht?'Finans — Frè Lekòl':'Finances — Frais de Scolarité'}</h2>
           {val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&(<div className="space-y-3">
             {FEE_CYCLES.filter(cycle=>{const levels=getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS'));return cycle.levels.some(l=>levels.includes(l));}).map(cycle=>{
               const fees=val('levelFees','levelFees',{});const tuition=fees[cycle.key]?.tuition??'';const frais=fees[cycle.key]?.frais??'';
               return(<div key={cycle.key} className={`bg-white rounded-2xl shadow-lg p-5 ${cycle.key==='philo'?'border-2 border-purple-200':''}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div><p className={`font-semibold text-sm ${cycle.key==='philo'?'text-purple-800':'text-gray-800'}`}>📘 {cycle.label}</p><p className="text-xs text-gray-400 mt-0.5">{cycle.levels.filter(l=>getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).includes(l)).join(', ')}</p></div>
-                  {cycle.key==='philo'&&<span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">Tarif spécial</span>}
+                  {cycle.key==='philo'&&<span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">{ht?'Pri espesyal':'Tarif spécial'}</span>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs text-gray-500 mb-1">Scolarité annuelle (HTG)</label><input type="number" min="0" value={tuition} onChange={e=>{const lf={...val('levelFees','levelFees',{})};lf[cycle.key]={...(lf[cycle.key]||{}),tuition:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder="0"/></div>
-                  <div><label className="block text-xs text-gray-500 mb-1">Frais divers (HTG)</label><input type="number" min="0" value={frais} onChange={e=>{const lf={...val('levelFees','levelFees',{})};lf[cycle.key]={...(lf[cycle.key]||{}),frais:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder="0"/></div>
+                  <div><label className="block text-xs text-gray-500 mb-1">{ht?'Eskolarite anyèl (HTG)':'Scolarité annuelle (HTG)'}</label><input type="number" min="0" value={tuition} onChange={e=>{const lf={...val('levelFees','levelFees',{})};lf[cycle.key]={...(lf[cycle.key]||{}),tuition:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder="0"/></div>
+                  <div><label className="block text-xs text-gray-500 mb-1">{ht?'Frè divès (HTG)':'Frais divers (HTG)'}</label><input type="number" min="0" value={frais} onChange={e=>{const lf={...val('levelFees','levelFees',{})};lf[cycle.key]={...(lf[cycle.key]||{}),frais:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2.5 border rounded-xl text-sm" placeholder="0"/></div>
                 </div>
-                {tuition>0&&<div className="flex justify-between items-center mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm"><span className="text-gray-500">Total</span><span className="font-bold">HTG {(parseFloat(tuition)+parseFloat(frais||0)).toFixed(0)}</span><span className="text-gray-500">Mensuel</span><span className="font-bold text-socrates-blue">HTG {(parseFloat(tuition)/10).toFixed(0)}</span></div>}
+                {tuition>0&&<div className="flex justify-between items-center mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm"><span className="text-gray-500">Total</span><span className="font-bold">HTG {(parseFloat(tuition)+parseFloat(frais||0)).toFixed(0)}</span><span className="text-gray-500">{ht?'Mansyèl':'Mensuel'}</span><span className="font-bold text-socrates-blue">HTG {(parseFloat(tuition)/10).toFixed(0)}</span></div>}
               </div>);
             })}
           </div>)}
@@ -703,9 +703,9 @@ export default function Parametres() {
               <div key={pi} className="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="bg-socrates-navy text-white px-5 py-3"><p className="font-semibold">{p.name}</p><p className="text-xs opacity-75">{p.domain||''} • {p.duration} an{p.duration>1?'s':''}</p></div>
                 <div className="divide-y">{Array.from({length:parseInt(p.duration)||1},(_,y)=>{const feeKey=`prog_${pi}_y${y}`;const fees=val('levelFees','levelFees',{});return(
-                  <div key={y} className="p-4"><p className="text-sm font-medium text-gray-700 mb-2">Année {y+1}</p><div className="grid grid-cols-2 gap-2">
-                    <div><label className="block text-xs text-gray-500 mb-1">Scolarité (HTG)</label><input type="number" min="0" value={fees[feeKey]?.tuition??''} onChange={e=>{const lf={...fees};lf[feeKey]={...(lf[feeKey]||{}),tuition:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2 border rounded-xl text-sm"/></div>
-                    <div><label className="block text-xs text-gray-500 mb-1">Frais (HTG)</label><input type="number" min="0" value={fees[feeKey]?.frais??''} onChange={e=>{const lf={...fees};lf[feeKey]={...(lf[feeKey]||{}),frais:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2 border rounded-xl text-sm"/></div>
+                  <div key={y} className="p-4"><p className="text-sm font-medium text-gray-700 mb-2">{ht?`Ane ${y+1}`:`Année ${y+1}`}</p><div className="grid grid-cols-2 gap-2">
+                    <div><label className="block text-xs text-gray-500 mb-1">{ht?'Eskolarite (HTG)':'Scolarité (HTG)'}</label><input type="number" min="0" value={fees[feeKey]?.tuition??''} onChange={e=>{const lf={...fees};lf[feeKey]={...(lf[feeKey]||{}),tuition:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2 border rounded-xl text-sm"/></div>
+                    <div><label className="block text-xs text-gray-500 mb-1">{ht?'Frè (HTG)':'Frais (HTG)'}</label><input type="number" min="0" value={fees[feeKey]?.frais??''} onChange={e=>{const lf={...fees};lf[feeKey]={...(lf[feeKey]||{}),frais:e.target.value};set('levelFees',lf);}} className="w-full px-3 py-2 border rounded-xl text-sm"/></div>
                   </div></div>
                 );})}</div>
               </div>
@@ -713,7 +713,7 @@ export default function Parametres() {
           </div>)}
           {!val('schoolType','schoolType')&&(<div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <DollarSign size={48} className="mx-auto text-gray-300 mb-4"/>
-            <p className="text-gray-500">Définissez d'abord la <strong>Structure Académique</strong> pour configurer les frais.</p>
+            <p className="text-gray-500">{ht?<>Defini <strong>Estrikti Akademik</strong> an premye pou konfigire frè yo.</>:<>Définissez d'abord la <strong>Structure Académique</strong> pour configurer les frais.</>}</p>
           </div>)}
 
           {/* Payment Methods */}
@@ -749,12 +749,12 @@ export default function Parametres() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-1">⚠️ Signalement automatique — Impayés</h3>
-            <p className="text-xs text-gray-400 mb-3">Signaler automatiquement les élèves en retard de paiement.</p>
+            <h3 className="font-semibold text-gray-800 mb-1">⚠️ {ht?'Siyal otomatik — Pa peye':'Signalement automatique — Impayés'}</h3>
+            <p className="text-xs text-gray-400 mb-3">{ht?'Siyal otomatikman elèv ki an reta peman.':'Signaler automatiquement les élèves en retard de paiement.'}</p>
             <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-600 whitespace-nowrap">Seuil :</label>
+              <label className="text-sm text-gray-600 whitespace-nowrap">{ht?'Sèy :':'Seuil :'}</label>
               <select value={val('overdueThreshold','overdueThreshold','2')} onChange={e=>set('overdueThreshold',e.target.value)} className="px-3 py-2.5 border rounded-xl text-sm flex-1">
-                {[1,2,3,4,5].map(n=><option key={n} value={n}>{n} mois de retard</option>)}
+                {[1,2,3,4,5].map(n=><option key={n} value={n}>{n} {ht?'mwa an reta':'mois de retard'}</option>)}
               </select>
             </div>
           </div>

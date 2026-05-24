@@ -300,7 +300,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
               <div className="flex gap-3 flex-wrap">
                 <div className="bg-gray-50 rounded-xl px-4 py-3 text-center flex-1 min-w-[120px]"><p className="text-xs text-gray-500">{ht?'Anyèl':'Annuel'}</p><p className="font-bold text-gray-800">HTG {annual.toLocaleString()}</p></div>
                 <div className="bg-green-50 rounded-xl px-4 py-3 text-center flex-1 min-w-[120px]"><p className="text-xs text-gray-500">{ht?'Resevwa':'Reçu'}</p><p className="font-bold text-green-600">HTG {totalPaid.toLocaleString()}</p></div>
-                <div className={`rounded-xl px-4 py-3 text-center flex-1 min-w-[120px] ${salaryBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}><p className="text-xs text-gray-500">{ht?'Rete':'Restant'}</p><p className={`font-bold ${salaryBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>{salaryBalance > 0 ? `HTG ${salaryBalance.toLocaleString()}` : 'SOLDÉ'}</p></div>
+                <div className={`rounded-xl px-4 py-3 text-center flex-1 min-w-[120px] ${salaryBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}><p className="text-xs text-gray-500">{ht?'Rete':'Restant'}</p><p className={`font-bold ${salaryBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>{salaryBalance > 0 ? `HTG ${salaryBalance.toLocaleString()}` : (ht?'PEYE NET':'SOLDÉ')}</p></div>
               </div>
             </div>
           </div>
@@ -630,7 +630,7 @@ export default function TeacherPortal({ school, teacher, allClasses, onLogout })
                     <div key={p.id} className="flex items-center justify-between px-5 py-3">
                       <div>
                         <p className="text-sm font-medium">{p.date ? new Date(p.date).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</p>
-                        <p className="text-xs text-gray-400">{p.month || ''} • {p.method || 'Espèces'}</p>
+                        <p className="text-xs text-gray-400">{p.month || ''} • {p.method || (ht?'Kach':'Espèces')}</p>
                       </div>
                       <span className="text-sm font-bold text-green-600">HTG {(parseFloat(p.amount) || 0).toLocaleString()}</span>
                     </div>
