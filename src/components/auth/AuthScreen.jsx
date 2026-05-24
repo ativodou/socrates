@@ -6,12 +6,14 @@ import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 import SchoolPublicProfile from './SchoolPublicProfile';
 import TeacherPortal from './TeacherPortal';
+import FeaturesPage from './FeaturesPage';
 
 export default function AuthScreen() {
   const { handleRegister, handleLogin } = useSchool();
   const { lang: parentLang, toggleLang: toggleParentLang, t: gt } = useLang();
 
   const [authMode, setAuthMode] = useState('login');
+  const [showFeatures, setShowFeatures] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({});
   const [resetSent, setResetSent] = useState(false);
@@ -772,6 +774,16 @@ export default function AuthScreen() {
   }
 
   // ── Auth Forms ───────────────────────────────────────────────────
+  if (showFeatures) {
+    return (
+      <FeaturesPage
+        initialLang={parentLang}
+        onBack={() => setShowFeatures(false)}
+        onGetStarted={() => { setShowFeatures(false); setAuthMode('register'); }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-socrates-navy via-socrates-blue to-blue-400 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -781,7 +793,12 @@ export default function AuthScreen() {
           </div>
           <h1 className="text-3xl font-display">SOCRATES</h1>
           <p className="text-blue-200 text-sm italic mt-1">Vers la lumiere</p>
-          <button onClick={toggleParentLang} className="mt-3 bg-white/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/30 transition">🌐 {parentLang === 'fr' ? 'Kreyòl' : 'Français'}</button>
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <button onClick={toggleParentLang} className="bg-white/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/30 transition">🌐 {parentLang === 'fr' ? 'Kreyòl' : 'Français'}</button>
+            <button onClick={() => setShowFeatures(true)} className="bg-white/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/30 transition">
+              {parentLang === 'fr' ? '✨ Fonctionnalités' : '✨ Fonksyon yo'}
+            </button>
+          </div>
         </div>
 
         <div className="p-6">
