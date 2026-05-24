@@ -23,6 +23,15 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
   const adult = isAdultSchool();
   const prescoOnly = isPrescolaireOnly();
   const programs = school?.programs || [];
+  const schoolType = school?.schoolType || '';
+  const hasSecondaire = ['Secondaire','Primaire-Secondaire','Complète'].includes(schoolType);
+  const teacherLabel = prescoOnly
+    ? (ht ? 'Edikatris' : 'Éducatrice')
+    : adult
+      ? (ht ? 'Pwofesè' : 'Professeur(e)')
+      : hasSecondaire
+        ? (ht ? 'Pwofesè' : 'Professeur(e)')
+        : (ht ? 'Enstititè/Enstititris' : 'Instituteur(trice)');
 
   useEffect(() => {
     if (editItem) setFormData({ ...editItem });
@@ -332,9 +341,26 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
             <div><label className={labelCls}>{ht?'Dat nesans':'Date de naissance'}</label><input type="date" value={formData.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Matière</label><input type="text" value={formData.subject || ''} onChange={e => set('subject', e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>{ht ? 'Matyè / Wòl' : 'Matière / Rôle'}</label>
+              {(school?.subjects || []).length > 0 ? (
+                <select value={formData.subject || ''} onChange={e => set('subject', e.target.value)} className={inputCls}>
+                  <option value="">Sélectionner</option>
+                  {prescoOnly && <option value="Éducatrice principale">Éducatrice principale</option>}
+                  {!prescoOnly && !hasSecondaire && !adult && <option value="Toutes matières">Toutes matières (instituteur)</option>}
+                  {(school?.subjects || []).map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                  <option value="Autre">Autre</option>
+                </select>
+              ) : (
+                <input type="text" value={formData.subject || ''} onChange={e => set('subject', e.target.value)} className={inputCls}
+                  placeholder={prescoOnly ? 'Éducatrice principale' : hasSecondaire ? 'Ex: Mathématiques' : 'Toutes matières'} />
+              )}
+            </div>
             <div><label className={labelCls}>Qualification</label>
-              <select value={formData.qualification || ''} onChange={e => set('qualification', e.target.value)} className={inputCls}><option value="">Sélectionner</option>{['Normalien(ne)','Licencié(e)','Maîtrise','Doctorat','Certificat','Autre'].map(q => <option key={q} value={q}>{q}</option>)}</select>
+              <select value={formData.qualification || ''} onChange={e => set('qualification', e.target.value)} className={inputCls}>
+                <option value="">Sélectionner</option>
+                {prescoOnly && ['CAP Préscolaire','Normalien(ne)','Certificat','Autre'].map(q => <option key={q} value={q}>{q}</option>)}
+                {!prescoOnly && ['Normalien(ne)','Licencié(e)','Maîtrise','Doctorat','Certificat','Autre'].map(q => <option key={q} value={q}>{q}</option>)}
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -381,14 +407,14 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
           {(!formData.gradeLevel || !isUpperCycle(formData.gradeLevel)) && !isCustomGradeType(school?.schoolType) ? (
             /* Lower cycle: single titulaire does everything */
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>{adult ? 'Professeur' : 'Enseignant(e)'} titulaire</label><select value={formData.teacherId || ''} onChange={e => { set('teacherId', e.target.value); set('teacherIds', e.target.value ? [e.target.value] : []); }} className={inputCls}><option value="">Sélectionner</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select></div>
+              <div><label className={labelCls}>{teacherLabel} titulaire</label><select value={formData.teacherId || ''} onChange={e => { set('teacherId', e.target.value); set('teacherIds', e.target.value ? [e.target.value] : []); }} className={inputCls}><option value="">Sélectionner</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}{t.subject ? ` — ${t.subject}` : ''}</option>)}</select></div>
               <div><label className={labelCls}>Salle</label><input type="text" value={formData.room || ''} onChange={e => set('room', e.target.value)} className={inputCls} placeholder="Salle 3" /></div>
             </div>
           ) : (
             /* Upper cycle / custom: titulaire + multiple subject teachers */
             <>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Titulaire (responsable de classe)</label><select value={formData.teacherId || ''} onChange={e => {
+                <div><label className={labelCls}>{teacherLabel} titulaire</label><select value={formData.teacherId || ''} onChange={e => {
                   set('teacherId', e.target.value);
                   const ids = formData.teacherIds || [];
                   if (e.target.value && !ids.includes(e.target.value)) set('teacherIds', [e.target.value, ...ids.filter(id => id !== formData.teacherId)]);
@@ -396,8 +422,8 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
                 <div><label className={labelCls}>Salle</label><input type="text" value={formData.room || ''} onChange={e => set('room', e.target.value)} className={inputCls} placeholder="Salle 3" /></div>
               </div>
               <div className="border rounded-xl p-3">
-                <label className={labelCls}>{adult ? 'Professeurs' : 'Enseignants'} de matière</label>
-                <p className="text-xs text-gray-400 mb-2">Cochez tous les {adult ? 'professeurs' : 'enseignants'} qui donnent cours dans cette classe</p>
+                <label className={labelCls}>{teacherLabel}s de matière</label>
+                <p className="text-xs text-gray-400 mb-2">Cochez tous les {teacherLabel.toLowerCase()}s qui donnent cours dans cette classe</p>
                 <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
                   {teachers.map(t => {
                     const ids = formData.teacherIds || [];
@@ -416,7 +442,7 @@ export default function ModalForms({ modalType, editItem, onClose, initialData }
                     );
                   })}
                 </div>
-                {(formData.teacherIds || []).length > 0 && <p className="text-xs text-blue-600 mt-2 font-medium">{(formData.teacherIds || []).length} {adult ? 'professeur' : 'enseignant'}{(formData.teacherIds || []).length > 1 ? 's' : ''} assigné{(formData.teacherIds || []).length > 1 ? 's' : ''}</p>}
+                {(formData.teacherIds || []).length > 0 && <p className="text-xs text-blue-600 mt-2 font-medium">{(formData.teacherIds || []).length} {teacherLabel.toLowerCase()}{(formData.teacherIds || []).length > 1 ? 's' : ''} assigné{(formData.teacherIds || []).length > 1 ? 's' : ''}</p>}
               </div>
             </>
           )}

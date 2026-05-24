@@ -446,7 +446,7 @@ export default function Parametres() {
 
         {/* ═══ ENSEIGNANTS ═══ */}
         {activeSection==='enseignants' && (<div className="space-y-5">
-          <h2 className="text-xl font-bold text-gray-800">Corps Enseignant</h2>
+          <h2 className="text-xl font-bold text-gray-800">{school?.schoolType==='Préscolaire'?'Éducatrices':['Technique','Universitaire'].includes(school?.schoolType)?'Corps Professoral':'Corps Enseignant'}</h2>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="space-y-2 mb-3">
               {teachers.length===0&&<p className="text-gray-400 text-sm text-center py-6">Aucun enseignant.</p>}
@@ -522,13 +522,31 @@ export default function Parametres() {
             </div>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">📚 Matières courantes — Ajouter rapidement</h3>
-            <div className="flex flex-wrap gap-2">
-              {[{name:'Français',coefficient:4},{name:'Mathématiques',coefficient:4},{name:'Sciences Expérimentales',coefficient:3},{name:'Sciences Sociales',coefficient:3},{name:'Anglais',coefficient:2},{name:'Espagnol',coefficient:2},{name:'Créole',coefficient:2},{name:'Éducation Physique',coefficient:1},{name:'Musique / Art',coefficient:1},{name:'Informatique',coefficient:2},{name:'Éducation Civique',coefficient:1},{name:'Religion / Morale',coefficient:1},{name:'Philosophie',coefficient:3},{name:'Physique',coefficient:3},{name:'Chimie',coefficient:3},{name:'Biologie',coefficient:3}]
-                .filter(d=>!(val('subjects','subjects',[])||[]).some(s=>s.name===d.name)).map(d=>(
-                <button key={d.name} type="button" onClick={()=>{const subs=[...(val('subjects','subjects',[])||[]),d];set('subjects',subs);}} className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100 transition">+ {d.name} ({d.coefficient})</button>
-              ))}
-            </div>
+            <h3 className="font-semibold text-gray-800 mb-1">📚 {ht?'Matyè tipik — Ajoute vit':'Matières types — Ajouter rapidement'}</h3>
+            <p className="text-xs text-gray-400 mb-3">{ht?'Selon tip lekòl ou a (MENFP)':'Selon votre type d\'école (MENFP)'}</p>
+            {(()=>{
+              const st = val('schoolType','schoolType');
+              const presco = [{name:'Langage / Éveil',coefficient:2},{name:'Activités Mathématiques',coefficient:2},{name:'Créole oral',coefficient:1},{name:'Activités Motrices',coefficient:1},{name:'Musique / Chant',coefficient:1},{name:'Dessin / Coloriage',coefficient:1},{name:'Vie Pratique',coefficient:1}];
+              const primaire = [{name:'Français',coefficient:4},{name:'Mathématiques',coefficient:4},{name:'Créole',coefficient:3},{name:'Sciences de la Nature',coefficient:2},{name:'Sciences Sociales',coefficient:2},{name:'Éducation Civique',coefficient:1},{name:'Anglais',coefficient:1},{name:'Éducation Physique',coefficient:1},{name:'Dessin / Arts',coefficient:1},{name:'Religion / Morale',coefficient:1}];
+              const troisiemeCycle = [{name:'Français',coefficient:4},{name:'Mathématiques',coefficient:4},{name:'Créole',coefficient:2},{name:'Sciences Expérimentales',coefficient:3},{name:'Sciences Sociales',coefficient:3},{name:'Anglais',coefficient:2},{name:'Espagnol',coefficient:1},{name:'Éducation Physique',coefficient:1},{name:'Arts',coefficient:1}];
+              const secondaire = [{name:'Français',coefficient:4},{name:'Mathématiques',coefficient:4},{name:'Créole',coefficient:2},{name:'Physique',coefficient:3},{name:'Chimie',coefficient:3},{name:'Biologie',coefficient:3},{name:'Philosophie',coefficient:3},{name:'Anglais',coefficient:2},{name:'Espagnol',coefficient:2},{name:'Histoire-Géographie',coefficient:2},{name:'Informatique',coefficient:2},{name:'Éducation Physique',coefficient:1}];
+              const technique = [{name:'Français technique',coefficient:2},{name:'Mathématiques',coefficient:2},{name:'Anglais technique',coefficient:2},{name:'Module pratique',coefficient:4},{name:'Stage / Atelier',coefficient:3},{name:'Gestion de projet',coefficient:2}];
+              let presets = [];
+              if (st==='Préscolaire') presets = presco;
+              else if (st==='Primaire') presets = primaire;
+              else if (st==='Secondaire') presets = [...troisiemeCycle,...secondaire];
+              else if (st==='Préscolaire-Primaire') presets = [...presco,...primaire];
+              else if (st==='Primaire-Secondaire') presets = [...primaire,...troisiemeCycle,...secondaire];
+              else if (st==='Complète') presets = [...presco,...primaire,...troisiemeCycle,...secondaire];
+              else if (['Technique','Universitaire'].includes(st)) presets = technique;
+              else presets = [...primaire,...secondaire];
+              const current = val('subjects','subjects',[])||[];
+              const available = presets.filter(d=>!current.some(s=>s.name===d.name));
+              if(available.length===0) return <p className="text-xs text-green-600">✓ {ht?'Tout matyè yo ajoute deja':'Toutes les matières types sont déjà ajoutées'}</p>;
+              return <div className="flex flex-wrap gap-2">{available.map(d=>(
+                <button key={d.name} type="button" onClick={()=>{const subs=[...current,d];set('subjects',subs);}} className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100 transition">+ {d.name} ({d.coefficient})</button>
+              ))}</div>;
+            })()}
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <h3 className="font-semibold text-gray-800 mb-3">➕ {ht?"Ajoute yon matyè":"Ajouter une matière"} personnalisée</h3>
