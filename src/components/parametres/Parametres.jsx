@@ -144,6 +144,7 @@ export default function Parametres() {
         paymentMethods: val('paymentMethods','paymentMethods',{}),
       };
       await updateSchoolSettings(updateData);
+      setFormData(f => ({ ...f, _schoolTypeChanged: false }));
       toast.success(t('saved'));
     } catch (err) { toast.error(`${t('error')}: ${err.message}`); }
   };
@@ -380,10 +381,21 @@ export default function Parametres() {
           <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div><label className={labelCls}>Catégorie d'école</label>
-                <select value={val('schoolType','schoolType')} onChange={e=>set('schoolType',e.target.value)} className={inputCls}>
+                <select value={val('schoolType','schoolType')} onChange={e => {
+                  const newType = e.target.value;
+                  const oldType = school?.schoolType;
+                  set('schoolType', newType);
+                  if (oldType && newType && newType !== oldType) set('_schoolTypeChanged', true);
+                  else set('_schoolTypeChanged', false);
+                }} className={inputCls}>
                   <option value="">Sélectionner</option>
                   {['Préscolaire','Primaire','Secondaire','Préscolaire-Primaire','Primaire-Secondaire','Complète','Technique','Universitaire'].map(t=><option key={t} value={t}>{t==='Complète'?'École Complète':t==='Technique'?'Technique / Professionnel':t}</option>)}
                 </select>
+                {formData._schoolTypeChanged && (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-800">
+                    ⚠️ {ht ? 'Chanjman tip lekòl ka afekte klas, matye ak frè ou yo. Revize seksyon sa yo apre ou sove.' : 'Changer le type d\'école peut affecter vos classes, matières et frais. Vérifiez ces sections après avoir sauvegardé.'}
+                  </div>
+                )}
               </div>
               <div><label className={labelCls}>Système secondaire</label>
                 {['Secondaire','Primaire-Secondaire','Complète'].includes(val('schoolType','schoolType'))?(
@@ -400,7 +412,7 @@ export default function Parametres() {
             {val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&(
               <div className="bg-blue-50 rounded-xl p-4">
                 <p className="text-sm font-medium text-blue-800 mb-2">Niveaux disponibles :</p>
-                <div className="flex flex-wrap gap-2">{getGradeLevels(val('schoolType','schoolType')).map(g=>(
+                <div className="flex flex-wrap gap-2">{getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).map(g=>(
                   <span key={g} className={`px-3 py-1 rounded-full text-sm border ${g==='Philo'||g==='NS4'?'bg-purple-100 text-purple-700 border-purple-200 font-medium':'bg-white text-blue-700 border-blue-200'}`}>{g}</span>
                 ))}</div>
               </div>
@@ -480,7 +492,7 @@ export default function Parametres() {
               <div className="border border-cyan-200 rounded-xl p-4 bg-cyan-50 space-y-3">
                 <input type="text" placeholder="Nom de la classe" value={formData.newClassName||''} onChange={e=>set('newClassName',e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm"/>
                 <div className="grid grid-cols-2 gap-2">
-                  <select value={formData.newClassGrade||''} onChange={e=>set('newClassGrade',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Niveau</option>{val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&getGradeLevels(val('schoolType','schoolType')).map(g=><option key={g} value={g}>{g}</option>)}</select>
+                  <select value={formData.newClassGrade||''} onChange={e=>set('newClassGrade',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Niveau</option>{val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).map(g=><option key={g} value={g}>{g}</option>)}</select>
                   <select value={formData.newClassTeacher||''} onChange={e=>set('newClassTeacher',e.target.value)} className="px-3 py-2 border rounded-xl text-sm"><option value="">Enseignant</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}</select>
                 </div>
                 <div className="flex gap-2">
@@ -653,11 +665,11 @@ export default function Parametres() {
         {activeSection==='finances' && (<div className="space-y-5">
           <h2 className="text-xl font-bold text-gray-800">Finances — Frais de Scolarité</h2>
           {val('schoolType','schoolType')&&!isCustomGradeType(val('schoolType','schoolType'))&&(<div className="space-y-3">
-            {FEE_CYCLES.filter(cycle=>{const levels=getGradeLevels(val('schoolType','schoolType'));return cycle.levels.some(l=>levels.includes(l));}).map(cycle=>{
+            {FEE_CYCLES.filter(cycle=>{const levels=getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS'));return cycle.levels.some(l=>levels.includes(l));}).map(cycle=>{
               const fees=val('levelFees','levelFees',{});const tuition=fees[cycle.key]?.tuition??'';const frais=fees[cycle.key]?.frais??'';
               return(<div key={cycle.key} className={`bg-white rounded-2xl shadow-lg p-5 ${cycle.key==='philo'?'border-2 border-purple-200':''}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <div><p className={`font-semibold text-sm ${cycle.key==='philo'?'text-purple-800':'text-gray-800'}`}>📘 {cycle.label}</p><p className="text-xs text-gray-400 mt-0.5">{cycle.levels.filter(l=>getGradeLevels(val('schoolType','schoolType')).includes(l)).join(', ')}</p></div>
+                  <div><p className={`font-semibold text-sm ${cycle.key==='philo'?'text-purple-800':'text-gray-800'}`}>📘 {cycle.label}</p><p className="text-xs text-gray-400 mt-0.5">{cycle.levels.filter(l=>getGradeLevels(val('schoolType','schoolType'), val('secondarySystem','secondarySystem','NS')).includes(l)).join(', ')}</p></div>
                   {cycle.key==='philo'&&<span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">Tarif spécial</span>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">

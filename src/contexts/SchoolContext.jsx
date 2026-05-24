@@ -466,10 +466,10 @@ export function SchoolProvider({ children }) {
 
   const getLetterGrade = (score) => { const num = parseFloat(score); if (num >= 90) return 'A'; if (num >= 80) return 'B'; if (num >= 70) return 'C'; if (num >= 60) return 'D'; return 'F'; };
 
-  const getGradeLevels = (schoolType) => {
+  const getGradeLevels = (schoolType, secondarySystemOverride) => {
     if (!schoolType) return [...PRESCOLAIRE_LEVELS, ...PRIMAIRE_LEVELS, ...TROISIEME_CYCLE, ...SECONDAIRE_NS, ...PHILO_LEVEL];
     if (CUSTOM_GRADE_TYPES.includes(schoolType)) return school?.customGradeLevels || [];
-    const secondSystem = school?.secondarySystem || 'NS';
+    const secondSystem = secondarySystemOverride || school?.secondarySystem || 'NS';
     return GRADE_LEVELS_BY_TYPE(secondSystem)[schoolType] || [];
   };
 
