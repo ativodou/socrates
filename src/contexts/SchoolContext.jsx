@@ -56,6 +56,9 @@ const STRUCTURE_ACADEMIQUE_HAITI = {
 
 const SchoolContext = createContext(null);
 
+const _ht = () => { try { return localStorage.getItem('socrates-lang') === 'ht'; } catch { return false; } };
+const _confirm = (fr, ht) => confirm(_ht() ? ht : fr);
+
 export function SchoolProvider({ children }) {
   const [user, setUser] = useState(null);
   const [school, setSchool] = useState(null);
@@ -210,7 +213,7 @@ export function SchoolProvider({ children }) {
   };
 
   const deleteSubscriptionPayment = async (id) => {
-    if (!confirm('Supprimer ce paiement?')) return;
+    if (!_confirm('Supprimer ce paiement?', 'Efase peman sa?')) return;
     await deleteDoc(doc(db, 'subscriptionPayments', id));
     reloadSubscriptionPayments();
   };
@@ -276,7 +279,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteStudent = async (id) => { if (!confirm('Supprimer cet eleve?')) return; await deleteDoc(doc(db, 'schools', school.id, 'students', id)); loadAllData(); };
+  const deleteStudent = async (id) => { if (!_confirm('Supprimer cet élève?', 'Efase elèv sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'students', id)); loadAllData(); };
 
   const saveTeacher = async (data, editId = null) => {
     const payload = { ...data, annualSalary: parseFloat(data.annualSalary) || 0, gender: data.gender || '', dateOfBirth: data.dateOfBirth || '', qualification: data.qualification || '', nif: data.nif || '', hireDate: data.hireDate || '', address: data.address || '', photo: data.photo || '', isCoach: data.isCoach || false, coachActivity: data.coachActivity || '', teacherPin: data.teacherPin || '', updatedAt: serverTimestamp() };
@@ -285,7 +288,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteTeacher = async (id) => { if (!confirm('Supprimer cet enseignant?')) return; await deleteDoc(doc(db, 'schools', school.id, 'teachers', id)); loadAllData(); };
+  const deleteTeacher = async (id) => { if (!_confirm('Supprimer cet enseignant?', 'Efase anseyan sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'teachers', id)); loadAllData(); };
 
   const saveClass = async (data, editId = null) => {
     const teacherIds = data.teacherIds || (data.teacherId ? [data.teacherId] : []);
@@ -295,7 +298,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteClass = async (id) => { if (!confirm('Supprimer cette classe?')) return; await deleteDoc(doc(db, 'schools', school.id, 'classes', id)); loadAllData(); };
+  const deleteClass = async (id) => { if (!_confirm('Supprimer cette classe?', 'Efase klas sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'classes', id)); loadAllData(); };
   const savePeriod = async (data, editId = null) => { if (editId) await updateDoc(doc(db, 'schools', school.id, 'gradingPeriods', editId), data); else await addDoc(collection(db, 'schools', school.id, 'gradingPeriods'), data); loadAllData(); };
 
   const saveGrade = async (studentId, classId, periodId, score, subject = '') => {
@@ -313,7 +316,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deletePayment = async (id) => { if (!confirm('Supprimer ce paiement?')) return; await deleteDoc(doc(db, 'schools', school.id, 'payments', id)); loadAllData(); };
+  const deletePayment = async (id) => { if (!_confirm('Supprimer ce paiement?', 'Efase peman sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'payments', id)); loadAllData(); };
 
   const saveTeacherPayment = async (data, editId = null) => {
     const payload = { ...data, amount: parseFloat(data.amount), month: data.month || new Date().toISOString().slice(0, 7), date: data.date || new Date().toISOString().split('T')[0] };
@@ -322,7 +325,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteTeacherPayment = async (id) => { if (!confirm('Supprimer ce paiement?')) return; await deleteDoc(doc(db, 'schools', school.id, 'teacherPayments', id)); loadAllData(); };
+  const deleteTeacherPayment = async (id) => { if (!_confirm('Supprimer ce paiement?', 'Efase peman sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'teacherPayments', id)); loadAllData(); };
 
   const saveStaffPayment = async (data, editId = null) => {
     const payload = { ...data, amount: parseFloat(data.amount), month: data.month || new Date().toISOString().slice(0, 7), date: data.date || new Date().toISOString().split('T')[0] };
@@ -331,7 +334,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteStaffPayment = async (id) => { if (!confirm('Supprimer ce paiement?')) return; await deleteDoc(doc(db, 'schools', school.id, 'staffPayments', id)); loadAllData(); };
+  const deleteStaffPayment = async (id) => { if (!_confirm('Supprimer ce paiement?', 'Efase peman sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'staffPayments', id)); loadAllData(); };
 
   const saveExpense = async (data, editId = null) => {
     const payload = { category: data.category || 'other', personName: data.personName || '', personRole: data.personRole || '', amount: parseFloat(data.amount) || 0, method: data.method || 'Espèces', description: data.description || '', date: data.date || new Date().toISOString().split('T')[0], month: data.month || '' };
@@ -340,7 +343,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteExpense = async (id) => { if (!confirm('Supprimer cette dépense?')) return; await deleteDoc(doc(db, 'schools', school.id, 'expenses', id)); loadAllData(); };
+  const deleteExpense = async (id) => { if (!_confirm('Supprimer cette dépense?', 'Efase depans sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'expenses', id)); loadAllData(); };
 
   // ── Payment Requests (Pay & Confirm) ──────────────────────────────
   const savePaymentRequest = async (data) => {
@@ -395,7 +398,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteHomework = async (id) => { if (!confirm('Supprimer ce devoir?')) return; await deleteDoc(doc(db, 'schools', school.id, 'homework', id)); loadAllData(); };
+  const deleteHomework = async (id) => { if (!_confirm('Supprimer ce devoir?', 'Efase devwa sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'homework', id)); loadAllData(); };
 
   const saveExam = async (data, editId = null) => {
     const payload = { classId: data.classId || '', teacherId: data.teacherId || '', title: data.title || '', subject: data.subject || '', examDate: data.examDate || '', periodId: data.periodId || '', totalPoints: parseFloat(data.totalPoints) || 100, description: data.description || '' };
@@ -404,7 +407,7 @@ export function SchoolProvider({ children }) {
     loadAllData();
   };
 
-  const deleteExam = async (id) => { if (!confirm('Supprimer cet examen?')) return; await deleteDoc(doc(db, 'schools', school.id, 'exams', id)); loadAllData(); };
+  const deleteExam = async (id) => { if (!_confirm('Supprimer cet examen?', 'Efase egzamen sa?')) return; await deleteDoc(doc(db, 'schools', school.id, 'exams', id)); loadAllData(); };
 
   const saveAttendance = async (data) => {
     const existing = attendance.find(a => a.classId === data.classId && a.date === data.date);
@@ -428,7 +431,8 @@ export function SchoolProvider({ children }) {
       const balance = getStudentBalance(student.id);
       const monthsBehind = Math.floor(balance / monthly);
       if (monthsBehind >= threshold && student.flag !== 'financial') {
-        await updateDoc(doc(db, 'schools', school.id, 'students', student.id), { flag: 'financial', flagNote: `Retard de ${monthsBehind} mois (auto)` });
+        const note = _ht() ? `${monthsBehind} mwa anreta (otomatik)` : `Retard de ${monthsBehind} mois (auto)`;
+        await updateDoc(doc(db, 'schools', school.id, 'students', student.id), { flag: 'financial', flagNote: note });
         flagged++;
       }
     }

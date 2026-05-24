@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle, XCircle, Clock, Printer, History, ClipboardList } from 'lucide-react';
 import { db } from '../../firebase';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { useSchool } from '../../contexts/SchoolContext';
 import { useLang } from '../../i18n/LanguageContext';
 import { toast } from '../../toast';
@@ -51,11 +51,12 @@ export default function Attendance() {
     const q = query(
       collection(db, 'schools', school.id, 'attendance'),
       where('classId', '==', selectedClassId),
-      orderBy('date', 'desc'),
       limit(30)
     );
     getDocs(q).then(snap => {
-      setHistoryDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      setHistoryDocs(docs);
       setLoadingHistory(false);
     });
   }, [viewMode, selectedClassId, school?.id]);

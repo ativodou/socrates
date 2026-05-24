@@ -18,6 +18,7 @@ export default function Payments({ onOpenModal }) {
   const [viewingReceipt, setViewingReceipt] = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmingId, setConfirmingId] = useState(null);
 
   const adult = isAdultSchool();
   const studentLabel = adult ? t('studentsAdult') : t('students');
@@ -245,8 +246,8 @@ export default function Payments({ onOpenModal }) {
                     )}
                   </div>
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => confirmPaymentRequest(req.id, req)} className="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-green-600 transition">
-                      <CheckCircle size={16} /> {ht?'Konfime':'Confirmer'}
+                    <button disabled={confirmingId === req.id} onClick={async () => { setConfirmingId(req.id); await confirmPaymentRequest(req.id, req); setConfirmingId(null); }} className="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-green-600 transition disabled:opacity-60">
+                      <CheckCircle size={16} /> {confirmingId === req.id ? '...' : (ht?'Konfime':'Confirmer')}
                     </button>
                     <button onClick={() => { setRejectModal(req); setRejectReason(''); }} className="flex-1 bg-red-50 text-red-600 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition">
                       <XCircle size={16} /> {ht?'Rejte':'Rejeter'}

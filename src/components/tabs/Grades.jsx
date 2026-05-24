@@ -319,7 +319,8 @@ export default function Grades() {
 
       {/* ═══ PROMOTION ENGINE ═══ */}
       {viewMode === 'promotion' && selectedClassId && subjects.length > 0 && (() => {
-        const threshold = parseFloat(school?.promotionThreshold) || 50;
+        const _pt = parseFloat(school?.promotionThreshold);
+        const threshold = (!isNaN(_pt) && _pt >= 0) ? _pt : 50;
         const promotionData = classStudents.map(student => {
           const annAvg = getAnnualAverage(student.id);
           const status = annAvg === null ? 'incomplete' : annAvg >= threshold ? 'admis' : 'redoublant';
