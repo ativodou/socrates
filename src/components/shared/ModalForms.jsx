@@ -1,3 +1,4 @@
+// don't see the button
 import React, { useState, useEffect } from 'react';
 import { X, Plus, User, BookOpen, DollarSign, Users as UsersIcon, Camera, Phone } from 'lucide-react';
 import { useSchool } from '../../contexts/SchoolContext';
