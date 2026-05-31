@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { db, auth } from '../firebase';
 import { toast } from '../toast';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
@@ -84,6 +84,11 @@ export function SchoolProvider({ children }) {
   const [subscriptionPayments, setSubscriptionPayments] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isNewRegistration, setIsNewRegistration] = useState(false);
+
+  // Handle redirect result from mobile Google Sign-In
+  useEffect(() => {
+    getRedirectResult(auth).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -260,9 +265,14 @@ export function SchoolProvider({ children }) {
       const credential = FirebaseGoogleAuthProvider.credential(googleUser.authentication.idToken);
       await signInWithCredential(auth, credential);
     } else {
-      // Web: use Firebase popup
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      // Mobile browsers block popups — use redirect instead
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
     }
     // onAuthStateChanged handles school lookup automatically
   };
