@@ -1,4 +1,4 @@
-const CACHE = 'socrates-v1';
+const CACHE = 'socrates-v2';
 
 const PRECACHE = [
   '/',
