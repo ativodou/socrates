@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { db, auth } from '../firebase';
 import { toast } from '../toast';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
 
@@ -251,8 +252,18 @@ export function SchoolProvider({ children }) {
   const handleLogin = async (email, password) => { await signInWithEmailAndPassword(auth, email, password); };
 
   const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    if (Capacitor.isNativePlatform()) {
+      // Native: use Capacitor Google Auth plugin
+      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+      await GoogleAuth.initialize();
+      const googleUser = await GoogleAuth.signIn();
+      const credential = FirebaseGoogleAuthProvider.credential(googleUser.authentication.idToken);
+      await signInWithCredential(auth, credential);
+    } else {
+      // Web: use Firebase popup
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    }
     // onAuthStateChanged handles school lookup automatically
   };
 

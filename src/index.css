@@ -39,3 +39,30 @@ body {
     print-color-adjust: exact;
   }
 }
+
+/* ── Capacitor / iOS Safe Area ───────────────────────────── */
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+}
+
+/* Push body content below the iOS notch / Dynamic Island */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Fixed headers need top offset too */
+.capacitor-header-fix {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+}
+
+/* iOS overscroll bounce — use app background color */
+html {
+  background-color: #0A1628;
+  overscroll-behavior: none;
+}

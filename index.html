@@ -43,5 +43,13 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Capacitor runtime (injected automatically on native; no-op on web) -->
+    <script>
+      // Prevent iOS rubber-band scroll on the document body
+      document.addEventListener('touchmove', function(e) {
+        if (e.target === document.body) e.preventDefault();
+      }, { passive: false });
+    </script>
 </body>
 </html>
