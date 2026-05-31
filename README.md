@@ -138,7 +138,7 @@ They can view:
 
 ## License
 
-© 2024 SOCRATES. All rights reserved.
+© 2026 SOCRATES. All rights reserved.
 
 ---
 

@@ -612,7 +612,7 @@ export default function Accounting() {
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
               <select style={s.select} value={filterYear} onChange={e => setFilterYear(Number(e.target.value))}>
-                {[2024, 2025, 2026, 2027].map(y => <option key={y}>{y}</option>)}
+                {Array.from({length: 5}, (_, i) => new Date().getFullYear() - 1 + i).map(y => <option key={y}>{y}</option>)}
               </select>
             </div>
             <button style={s.btn()} onClick={() => setExpenseForm({})}>
@@ -787,7 +787,7 @@ export default function Accounting() {
               {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
             <select style={s.select} value={reportYear} onChange={e => setReportYear(Number(e.target.value))}>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y}>{y}</option>)}
+              {Array.from({length: 5}, (_, i) => new Date().getFullYear() - 1 + i).map(y => <option key={y}>{y}</option>)}
             </select>
             <button style={s.btn()} onClick={handlePrint}>
               <Icon d={icons.print} size={14} />{t.printReport}
