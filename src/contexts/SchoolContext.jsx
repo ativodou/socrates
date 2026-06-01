@@ -292,7 +292,11 @@ export function SchoolProvider({ children }) {
     setIsNewRegistration(true);
   };
 
-  const handleLogout = async () => { await signOut(auth); setSchool(null); setIsSuperAdmin(false); setAllSchools([]); };
+  const handleLogout = async () => {
+    await signOut(auth);
+    // Force a clean reload so the PWA always lands on the welcome/login screen
+    window.location.replace('/');
+  };
 
   const saveStudent = async (data, editId = null) => {
     const payload = { ...data, annualTuition: parseFloat(data.annualTuition) || 0, fraisDivers: parseFloat(data.fraisDivers) || 0, depositAmount: parseFloat(data.depositAmount) || 0, depositPaid: data.depositPaid || false, parentAccessEnabled: data.parentAccessEnabled !== false, address: data.address || '', notes: data.notes || '', gender: data.gender || '', dateOfBirth: data.dateOfBirth || '', birthPlace: data.birthPlace || '', nationality: data.nationality || '', bloodType: data.bloodType || '', medicalNotes: data.medicalNotes || '', fatherName: data.fatherName || '', motherName: data.motherName || '', guardianName: data.guardianName || '', emergencyContact: data.emergencyContact || '', emergencyPhone: data.emergencyPhone || '', enrollmentYear: data.enrollmentYear || '', photo: data.photo || '', updatedAt: serverTimestamp() };
