@@ -26,6 +26,12 @@ async function initApp() {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
     })
+    // When a new SW activates it posts SW_UPDATED — reload to serve fresh assets
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data?.type === 'SW_UPDATED') {
+        window.location.reload();
+      }
+    })
   }
 }
 
