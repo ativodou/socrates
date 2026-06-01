@@ -268,6 +268,8 @@ export function SchoolProvider({ children }) {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
       const provider = new GoogleAuthProvider();
+      // Always force account picker so it never auto-selects the previous user
+      provider.setCustomParameters({ prompt: 'select_account' });
       if (isStandalone) {
         // PWA shortcut on mobile — popup gets stuck in a loop; use redirect instead
         await signInWithRedirect(auth, provider);
