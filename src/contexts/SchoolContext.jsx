@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { db, auth } from '../firebase';
 import { toast } from '../toast';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
@@ -84,11 +84,6 @@ export function SchoolProvider({ children }) {
   const [subscriptionPayments, setSubscriptionPayments] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isNewRegistration, setIsNewRegistration] = useState(false);
-
-  // Handle redirect result for PWA standalone mode
-  useEffect(() => {
-    getRedirectResult(auth).catch(() => {});
-  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -265,17 +260,10 @@ export function SchoolProvider({ children }) {
       const credential = FirebaseGoogleAuthProvider.credential(googleUser.authentication.idToken);
       await signInWithCredential(auth, credential);
     } else {
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
       const provider = new GoogleAuthProvider();
-      // Always force account picker so it never auto-selects the previous user
+      // Force account picker so it never auto-selects the previous signed-in user
       provider.setCustomParameters({ prompt: 'select_account' });
-      if (isStandalone) {
-        // PWA shortcut on mobile — popup gets stuck in a loop; use redirect instead
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
+      await signInWithPopup(auth, provider);
     }
     // onAuthStateChanged handles school lookup automatically
   };
