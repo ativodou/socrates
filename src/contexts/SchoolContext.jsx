@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { db, auth } from '../firebase';
 import { toast } from '../toast';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, GoogleAuthProvider as FirebaseGoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 
 const SUPER_ADMIN_EMAIL = 'anbyanssa@gmail.com';
@@ -261,9 +261,19 @@ export function SchoolProvider({ children }) {
       await signInWithCredential(auth, credential);
     } else {
       const provider = new GoogleAuthProvider();
-      // Force account picker so it never auto-selects the previous signed-in user
+      // Force account picker — never auto-select the previous signed-in user
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (err) {
+        if (err.code === 'auth/popup-blocked') {
+          // Popup blocked (common in iOS PWA) — fall back to redirect
+          // onAuthStateChanged will pick up the result automatically
+          await signInWithRedirect(auth, provider);
+        } else {
+          throw err;
+        }
+      }
     }
     // onAuthStateChanged handles school lookup automatically
   };
